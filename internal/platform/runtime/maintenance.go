@@ -5,6 +5,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
+	"github.com/MoYuanCN/Jelee/internal/adapter/subtitles"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
@@ -20,11 +21,18 @@ func prepareSubtitleCacheSweeper(c config.Config) app.SubtitleCacheSweeper {
 	if !c.Matroska.EnableExtraction {
 		return nil
 	}
-	sweeper, err := matroska.NewSweeper(matroska.Config{CacheRoot: c.Matroska.CacheRoot, MaxCacheBytes: c.Matroska.CacheMaxBytes})
+	extraction, derived := subtitleCacheBounds(c)
+	sweeper, err := matroska.NewSweeper(matroska.Config{CacheRoot: c.Matroska.CacheRoot, MaxCacheBytes: extraction})
 	if err != nil {
 		return nil
 	}
-	return sweeper
+	// The derived UTF-8 subtitle copies (G15.4) live below the same root
+	// and are cleaned by the same job.
+	copies, err := subtitles.NewDerivedCache(c.Matroska.CacheRoot, derived)
+	if err != nil {
+		return sweeper
+	}
+	return derivedSweeper{caches: []sourceSweeper{sweeper, copies}}
 }
 
 // maintenanceKinds binds the workers of the maintenance job kinds.

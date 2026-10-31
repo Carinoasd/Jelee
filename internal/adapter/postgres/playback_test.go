@@ -155,6 +155,41 @@ func TestPlaybackSourcesProbeSidecarsAndAuthorization(t *testing.T) {
 		!kinds["ac3"].Commentary || kinds["ac3"].Kind != domain.SidecarKindAudio || kinds["mka"].Codec != "" || kinds["srt"].ID == "" {
 		t.Fatalf("external tracks differ: %+v", top.External)
 	}
+	// The charset state (G15.4) follows the stored charset and whether the
+	// bounded inspection ran (a fingerprint), without loading fingerprints.
+	if kinds["srt"].CharsetState != domain.SidecarCharsetUTF8 || kinds["ass"].CharsetState != domain.SidecarCharsetUTF8 || kinds["ac3"].CharsetState != "" {
+		t.Fatalf("charset states differ: %+v", top.External)
+	}
+	imageRepositoryExec(t, f.jobFixture, `UPDATE media_sidecar_tracks SET charset=NULL,fingerprint=NULL WHERE id=$1::uuid`, kinds["ass"].ID)
+	if again, err := catalog.PlaybackSources(f.ctx, reader, f.item); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, e := range again[0].External {
+			if e.ID == kinds["ass"].ID && e.CharsetState != domain.SidecarCharsetPending {
+				t.Fatalf("uninspected track: %+v", e)
+			}
+		}
+	}
+	imageRepositoryExec(t, f.jobFixture, `UPDATE media_sidecar_tracks SET fingerprint=decode(repeat('ab',32),'hex') WHERE id=$1::uuid`, kinds["ass"].ID)
+	if again, err := catalog.PlaybackSources(f.ctx, reader, f.item); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, e := range again[0].External {
+			if e.ID == kinds["ass"].ID && e.CharsetState != domain.SidecarCharsetUndetermined {
+				t.Fatalf("inspected track without charset: %+v", e)
+			}
+		}
+	}
+	imageRepositoryExec(t, f.jobFixture, `UPDATE media_sidecar_tracks SET charset='Big5' WHERE id=$1::uuid`, kinds["ass"].ID)
+	if again, err := catalog.PlaybackSources(f.ctx, reader, f.item); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, e := range again[0].External {
+			if e.ID == kinds["ass"].ID && (e.CharsetState != domain.SidecarCharsetConvertible || e.Charset != "Big5") {
+				t.Fatalf("legacy charset track: %+v", e)
+			}
+		}
+	}
 	decisions, err := catalog.CheckPlayback(f.ctx, reader, f.item, domain.ClientCapabilities{Containers: []string{"matroska"},
 		VideoCodecs: []string{"h265"}, AudioCodecs: []string{"ac3"}, SubtitleFormats: []string{"srt"}, MaxBitrate: 10000000})
 	if err != nil || len(decisions) != 4 || !decisions[0].DirectPlay || decisions[0].SourceID != f.probed {

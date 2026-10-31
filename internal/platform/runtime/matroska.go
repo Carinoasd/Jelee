@@ -125,7 +125,8 @@ func newMatroskaService(c config.Config, sources sourceResolver, budget app.Work
 	if err != nil {
 		return service
 	}
-	extractor, err := matroska.New(identify, extract, matroska.Config{CacheRoot: c.Matroska.CacheRoot, MaxCacheBytes: c.Matroska.CacheMaxBytes})
+	bound, _ := subtitleCacheBounds(c)
+	extractor, err := matroska.New(identify, extract, matroska.Config{CacheRoot: c.Matroska.CacheRoot, MaxCacheBytes: bound})
 	if err != nil {
 		service.reason = "cache_unavailable"
 		return service

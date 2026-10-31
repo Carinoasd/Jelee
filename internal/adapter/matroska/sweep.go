@@ -163,6 +163,22 @@ func remove(root *os.Root, name string, sweep *domain.SubtitleCacheSweep) bool {
 	return true
 }
 
+// HasSource reports whether the cache holds a directory for source, so a
+// cleanup that also walks other caches below the same root (the derived
+// UTF-8 subtitle copies) sweeps only the sources this cache lists.
+func (s *Sweeper) HasSource(source string) bool {
+	if !domain.ValidID(source) {
+		return false
+	}
+	root, err := s.root()
+	if err != nil {
+		return false
+	}
+	defer func() { _ = root.Close() }()
+	info, err := root.Lstat(source)
+	return err == nil && info.IsDir()
+}
+
 // SweepSource implements app.SubtitleCacheSweeper. A revision's last use is
 // the modification time of its entry, which every cache hit renews.
 func (s *Sweeper) SweepSource(ctx context.Context, source string, live bool, idleBefore time.Time) (domain.SubtitleCacheSweep, error) {

@@ -168,3 +168,36 @@ func TestDetectThenConvert(t *testing.T) {
 		}
 	}
 }
+
+// The sink holds an incomplete trailing rune back for the next write, so a
+// replacement character is counted even when a decoder splits it; a
+// fragment that never completes is flushed as it is at the end.
+func TestUTF8SinkHoldsBackAndFlushesAFragment(t *testing.T) {
+	var out bytes.Buffer
+	s := &utf8Sink{w: &out, countReplacement: true}
+	for i, step := range []struct {
+		in, out, pending string
+	}{
+		{"a\xef\xbf\xbd\xe7\x95", "a\xef\xbf\xbd", "\xe7\x95"},
+		{"\x8c!", "a\xef\xbf\xbd界!", ""},
+		{"\xe7\x95", "a\xef\xbf\xbd界!", "\xe7\x95"},
+	} {
+		if n, err := s.Write([]byte(step.in)); err != nil || n != len(step.in) {
+			t.Fatalf("write %d: %d %v", i, n, err)
+		}
+		if out.String() != step.out || string(s.pending) != step.pending {
+			t.Fatalf("write %d: %q pending %q", i, out.String(), s.pending)
+		}
+	}
+	if err := s.flush(); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "a\xef\xbf\xbd界!\xe7\x95" || len(s.pending) != 0 || s.written != 10 || s.replaced != 1 {
+		t.Fatalf("flushed %q pending %q written %d replaced %d", out.String(), s.pending, s.written, s.replaced)
+	}
+	if err := s.flush(); err != nil {
+		t.Fatal("empty flush:", err)
+	}
+	// transform.Writer never resets; the sanitizer keeps no state to reset.
+	(&utf8Sanitizer{}).Reset()
+}

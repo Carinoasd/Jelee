@@ -225,6 +225,19 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 反向验证（临时改代码后确认测试失败，再还原）：SQL 去掉 `t.source_id=$3` 条件，“别的资源的轨道”断言失败；去掉 `t.kind=$5`，“字幕当音轨”断言失败；去掉媒体库授权条件，真 PG 的 ACL 测试与泄漏遍历失败；`ServeTrack` 不再覆盖 Content-Type，`text/html` 断言失败；轨道改为单独计数，“同一播放被拒 429”失败；门禁去掉 `subtitles|audio`，两条门禁用例失败；关闭原生会话检查，路由层与 media 层的 Web 拒绝测试都失败。
 
+## 外挂文本字幕的 UTF-8 衍生副本（G15.4，第 10 阶段 B5）
+
+外挂文本字幕默认仍按原样投递（上一节），字符集只作为 `charset` 参数报告。对扫描已有把握地记录了**非 UTF-8** 字符集的文本字幕，服务另外提供一个 UTF-8 副本：
+
+- **适用范围。** SubRip、ASS、SSA、WebVTT、SAMI 与 MicroDVD（`.sub` 经内容判别为文本）——这些格式本身不声明编码，换成 UTF-8 后仍是同一份字幕。TTML／DFXP 是可在 XML 声明里写编码的文档，副本会与声明矛盾，不提供；VobSub 的 `.idx`／`.sub`、PGS 与音轨不适用。
+- **播放信息。** `GET /api/v1/items/{id}/playback` 的外挂文本字幕新增 `charsetState`：`pending`（尚未有界读取）、`undetermined`（已读取但检测没有把握，只给原文件）、`utf8`、`convertible`（检测到其他字符集）。`convertible` 且字幕缓存可用时另给 `utf8Url`（`/api/v1/sources/{id}/subtitles/{trackId}/utf8`）；默认 `url` 仍是原文件。
+- **路由。** `GET`／`HEAD /api/v1/sources/{id}/subtitles/{trackId}/utf8`：只在 `matroska.enableExtraction`（字幕缓存开关）开启时注册，与原文件路由共用生产防护、仅原生会话（Web 403 `web_playback_disabled`）、授权先于任何转换、不接受查询参数、Range／HEAD／限流／撤销断流。没有副本时（字符集未知或已是 UTF-8、格式不适用、转换否定了字符集）答复与不存在的轨道相同。`Content-Type` 为格式固定类型加 `charset=UTF-8`，不发 ETag。
+- **转换与回退。** 首次请求时在当前字节上重新检测字符集：必须与记录的一致且不是低信心，否则不转换（`charset_mismatch`、`charset_low_confidence`）；转换（`subtitles.ToUTF8`，去掉开头 BOM、不写 BOM、不动换行）后若无法解码的字节超过输入的 1%，视为误判（`replacement_ratio`）。这几种结果记成拒绝标记，之后的请求不再重复转换；不自动尝试第二候选字符集。每次不提供副本都记一条日志：字段只有轨道 ID 与固定原因码（`charset_unknown`、`already_utf8`、`format_not_convertible` 为 Debug，其余为 Info），不含文件名与路径。
+- **缓存。** 副本写在字幕缓存根（`matroska.cacheRoot`，私有 0700）下的 `utf8/<sourceId>/<trackId>-<key>.<ext>`，先写暂存文件、确认原文件在转换期间大小与修改时间未变才改名发布；键包含轨道 ID、库内相对路径、原文件当前大小与修改时间、字符集和转换器版本，原文件一变就是新键，同一轨道的旧副本随即删除。大小上限为 `matroska.cacheMaxBytes` 的 1/16（Matroska 提取缓存相应少 1/16，两者合计不超过配置值），超出按最近最少使用淘汰；单个原文件超过 64 MiB 不转换。`subtitle_cache_cleanup` 任务同时清理两种缓存：已删除资源的整个目录、闲置超过 `maxIdleDays` 的副本与拒绝标记、超过一小时的暂存文件，最后执行大小上限。删掉整个缓存只会让下次请求重新转换。Windows 没有 POSIX 权限位、无法证明缓存根私有，与 Matroska 提取缓存同理不建缓存：`utf8Url` 不出现，兼容层投递原文件。
+- **兼容层。** `/compat/Videos/{itemId}/{sourceId}/Subtitles/{index}/Stream.{format}` 对 `convertible` 的外挂字幕直接投递 UTF-8 副本（上游客户端预期 UTF-8），`Codec` 与 `DeliveryUrl` 不变；`undetermined` 或副本被拒绝时回退原文件并记日志；`utf8` 的字幕仍走原文件路由。
+- **为何不违反 G10。** 这是对字幕文本的字符集转换，不是媒体转码或重新封装：不经过任何编码器或外部进程（纯 Go 的 `golang.org/x/text` 解码器，`TestDeliveryPackagesCannotRunEncoders` 照常成立），原文件只以只读方式打开、永不改写，原文件路由永远可用且仍是默认；副本只存在于可整体删除重建的缓存。见 [ADR 0007](adr/0007-no-encoder-direct-play-only.md) 的后续段落。
+- **测试。** `internal/adapter/subtitles/derived_test.go`（GBK、Big5、Shift_JIS、带 BOM 的 UTF-16LE 逐字节等于预期且原文件 SHA-256 不变、16 个并发首次请求只转换一次、各种拒绝原因与拒绝标记、超过 1% 替换率回退、原文件变化换新副本、转换期间原文件变化不缓存、清理与 LRU）；`internal/adapter/media/derived_test.go`（UTF-8 类型、无副本时原生 404／兼容层回退、Web 403）；`internal/adapter/http/utf8_subtitles_test.go`（路由、开关、查询参数、`utf8Url` 只给 `convertible`）；`internal/adapter/compat/utf8_test.go`；`internal/platform/runtime/subtitles_utf8_test.go`（先授权后转换、日志不含路径、两种缓存合并清理）；`access_leak_test.go` 登记两条新路由（真 PG 遍历）；`postgres/playback_test.go`（真 PG）验证 `charsetState` 随字符集与指纹变化。
+
 ## 播放信息与直投判定（G10.4、G10.5、G15.2、G16.3）
 
 两条自有 API 路由与 `/api/v1/sources/{id}/stream` 同属播放面，仅在同时启用目录与直投时注册：

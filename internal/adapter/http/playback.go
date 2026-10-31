@@ -76,6 +76,7 @@ func (s *Server) decoratePlayback(ctx context.Context, principal access.Principa
 		track := &source.External[j]
 		track.URL = trackURL(source.ID, track.Kind, track.ID)
 	}
+	s.decorateUTF8(source)
 	s.decorateExtracted(source)
 	if hasPrincipal {
 		s.decorateOCR(ctx, principal, source)

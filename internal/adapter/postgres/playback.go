@@ -36,7 +36,7 @@ func listSourcesSQL(sessionFilter string) string {
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',t.id::text,'kind',t.kind,'format',t.format,'language',t.language,'languages',t.languages,
   'title',t.title,'forced',t.forced,'sdh',t.sdh,'default',t.is_default,'commentary',t.commentary,'charset',t.charset,'size',t.size,
   'probeState',t.probe_state,'codec',t.codec,'profile',t.profile,'channels',t.channels,'channelLayout',t.channel_layout,
-  'sampleRate',t.sample_rate,'bitRate',t.bit_rate,'durationMicros',t.duration_micros,'subtitleKind',t.subtitle_kind,'pairedTrackId',t.paired_track_id::text)
+  'sampleRate',t.sample_rate,'bitRate',t.bit_rate,'durationMicros',t.duration_micros,'subtitleKind',t.subtitle_kind,'pairedTrackId',t.paired_track_id::text,'inspected',t.fingerprint IS NOT NULL)
   ORDER BY t.kind DESC,t.root_id,t.relative_path)
   FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb),
  EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id),
@@ -86,6 +86,7 @@ type playbackSidecar struct {
 	Duration   *int64   `json:"durationMicros"`
 	SubKind    *string  `json:"subtitleKind"`
 	Paired     *string  `json:"pairedTrackId"`
+	Inspected  bool     `json:"inspected"`
 }
 
 // ListPlaybackSources returns every media source of a visible item for a
@@ -158,7 +159,7 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 			}
 			probe := sidecarProbeRecord(t.ProbeState, t.Codec, t.Profile, t.Channels, t.Layout, t.SampleRate, t.BitRate, t.Duration)
 			record.Sidecars = append(record.Sidecars, domain.SidecarTrackRecord{ID: t.ID, SourceID: id, Track: track, Charset: sidecarText(t.Charset), Size: t.Size,
-				Probe: probe, SubtitleKind: sidecarText(t.SubKind), PairedTrackID: sidecarText(t.Paired)})
+				Probe: probe, SubtitleKind: sidecarText(t.SubKind), PairedTrackID: sidecarText(t.Paired), Inspected: t.Inspected})
 		}
 		result = append(result, record)
 	}

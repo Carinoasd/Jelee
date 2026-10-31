@@ -51,6 +51,7 @@ type Server struct {
 	// extracted serves embedded subtitles and fonts (G15.5, G15.7); nil
 	// when mkvtoolnix extraction is not available or not enabled.
 	extracted       media.ExtractedResolver
+	utf8            media.UTF8Resolver
 	logger          *slog.Logger
 	accounts        *app.Accounts
 	loginLimiter    *LoginLimiter
@@ -193,6 +194,12 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableWebhooks && s.webhooks == nil {
 		return nil, errors.New("webhook service must be provided")
+	}
+	switch {
+	case !cfg.Matroska.EnableExtraction:
+		s.utf8 = nil
+	case s.utf8 == nil:
+		s.utf8 = unavailableUTF8{}
 	}
 	switch {
 	case !cfg.Matroska.EnableExtraction:
@@ -377,6 +384,8 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 				r.Get(audioTrackRoute, s.track(media.TrackAudio))
 				r.Head(audioTrackRoute, s.track(media.TrackAudio))
 				if cfg.Matroska.EnableExtraction {
+					r.Get(utf8SubtitleRoute, s.utf8Subtitle)
+					r.Head(utf8SubtitleRoute, s.utf8Subtitle)
 					r.Get(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
 					r.Head(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
 					r.Get(vobSubIndexRoute, s.extractedRoute(media.ExtractedVobSubIndex, "index"))
@@ -512,6 +521,11 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 			opts.Library.Delivery = s.delivery
 			if s.extracted != nil {
 				opts.Library.Extracted = s.extractedResolver()
+			}
+			// The compatibility layer falls back to the original itself, so
+			// it gets the resolver without the hidden status mapping.
+			if s.utf8 != nil {
+				opts.Library.UTF8 = s.utf8
 			}
 		}
 		// Item images use the /images pipeline, admission and deadline.

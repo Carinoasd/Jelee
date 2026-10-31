@@ -195,8 +195,11 @@ func leakRouteTable() map[string]leakRoute {
 		"HEAD /api/v1/sources/{id}/stream":              {mode: leakByID, params: sourceParam, control: true},
 		"GET /api/v1/sources/{id}/subtitles/{trackId}":  {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
 		"HEAD /api/v1/sources/{id}/subtitles/{trackId}": {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
-		"GET /api/v1/sources/{id}/audio/{trackId}":      {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
-		"HEAD /api/v1/sources/{id}/audio/{trackId}":     {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
+		// The UTF-8 copy of an external text subtitle (G15.4).
+		"GET /api/v1/sources/{id}/subtitles/{trackId}/utf8":  {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
+		"HEAD /api/v1/sources/{id}/subtitles/{trackId}/utf8": {mode: leakByID, params: map[string]string{"id": "source", "trackId": "subtitle-track"}, control: true},
+		"GET /api/v1/sources/{id}/audio/{trackId}":           {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
+		"HEAD /api/v1/sources/{id}/audio/{trackId}":          {mode: leakByID, params: map[string]string{"id": "source", "trackId": "audio-track"}, control: true},
 		// Embedded items copied out of Matroska sources (G15.5, G15.7). The
 		// fixture resolver authorizes through the same store lookup.
 		"GET /api/v1/sources/{id}/embedded-subtitles/{index}":      {mode: leakByID, params: map[string]string{"id": "source", "index": "compat-zero"}, control: true},
@@ -551,6 +554,18 @@ func (l leakExtracted) ResolveExtracted(ctx context.Context, p access.Principal,
 	return media.Source{Root: l.root, RelativePath: "extracted.srt", DeviceID: source.DeviceID, Limits: source.Limits, ShareStreams: source.ShareStreams}, nil
 }
 
+// leakUTF8 authorizes through the store's track lookup, like the runtime
+// UTF-8 subtitle resolver, and serves one fixed copy.
+type leakUTF8 struct{ leakExtracted }
+
+func (l leakUTF8) ResolveUTF8Track(ctx context.Context, p access.Principal, sourceID, trackID string) (media.Source, error) {
+	source, err := l.store.ResolveTrack(ctx, p, sourceID, media.TrackSubtitle, trackID)
+	if err != nil {
+		return media.Source{}, err
+	}
+	return media.Source{Root: l.root, RelativePath: "extracted.srt", DeviceID: source.DeviceID, Limits: source.Limits, ShareStreams: source.ShareStreams}, nil
+}
+
 func newLeakExtracted(t *testing.T, store *postgres.Store) leakExtracted {
 	t.Helper()
 	root := t.TempDir()
@@ -675,7 +690,7 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	if err != nil {
 		t.Fatal(err)
 	}
-	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store)), WithRepair(repairer.WithServer(jobs, nil), app.RepairOptions{Policy: cfg.Jobs.Policy()}),
+	options := []Option{WithWebhooks(httpWebhooks(t, store)), WithSetup(completedSetupWizard(), ""), WithExtracted(newLeakExtracted(t, store)), WithUTF8Subtitles(leakUTF8{newLeakExtracted(t, store)}), WithRepair(repairer.WithServer(jobs, nil), app.RepairOptions{Policy: cfg.Jobs.Policy()}),
 		WithAccessClock(func() time.Time { return leakNow })}
 	if cfg.Dev.Capable() {
 		// The developer routes exist but no session is active (G45.8).

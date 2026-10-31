@@ -506,6 +506,13 @@ func (rt *router) subtitleStream(w http.ResponseWriter, r *http.Request) {
 			rt.opts.WriteRejection(w, r, media.ErrTranscodeDisabled)
 			return
 		}
+		// A text subtitle in another charset is delivered as its UTF-8
+		// copy (G15.4); without one, as it is. An undetermined charset
+		// goes the same way so the fallback is logged.
+		if state := sub.track.CharsetState; rt.opts.Library.UTF8 != nil && (state == domain.SidecarCharsetConvertible || state == domain.SidecarCharsetUndetermined) {
+			rt.opts.Library.Delivery.ServeUTF8Track(w, r, rt.opts.Library.UTF8, source.ID, sub.track.ID, true)
+			return
+		}
 		rt.opts.Library.Delivery.ServeTrack(w, r, source.ID, media.TrackSubtitle, sub.track.ID)
 		return
 	}
