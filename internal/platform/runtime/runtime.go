@@ -517,6 +517,15 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			// opens; /readyz reports the outcome with the dependencies.
 			checks := &selfCheckState{}
 			options = append(options, httpapi.WithReadiness(readinessStates(c, store, jobs, processor, dev, checks)))
+			// G08.7: rate limit refusals and processing timeouts are counted
+			// in memory and exported with the other metrics.
+			guards := httpapi.NewRequestGuardStats()
+			options = append(options, httpapi.WithRequestGuardStats(guards))
+			if metrics != nil {
+				if err := metrics.RegisterRequestGuards(guards); err != nil {
+					return nil, err
+				}
+			}
 			verified := func(handler http.Handler, err error) (http.Handler, error) {
 				if err != nil {
 					return nil, err

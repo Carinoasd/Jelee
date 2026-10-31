@@ -112,6 +112,9 @@ func validConfig() config.Config {
 		Listen:    "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"},
 		DatabaseURL: "postgres://localhost/jelee", MaxConnections: 2, MaxStreams: 2,
 		RequestTimeoutSeconds: 1,
+		// Behavior tests send many requests from one address; the general
+		// rate limit has its own tests (request_guard_test.go).
+		API: config.APIConfig{RateLimit: config.APIRateLimitConfig{Mode: "off"}},
 	}
 }
 

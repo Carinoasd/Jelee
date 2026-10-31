@@ -279,6 +279,9 @@ func TestTMDBMetadataThroughTLSHTTPAndPostgres(t *testing.T) {
 	cfg.EnableAccounts = true
 	cfg.EnableCatalog = true
 	cfg.TMDBAPIKey = key
+	// Hundreds of requests from one session in seconds: the API rate limit
+	// is not under test here.
+	cfg.API.RateLimit.Mode = "off"
 	hasher, err := password.New(password.Config{MemoryKiB: uint32(cfg.Accounts.PasswordMemoryKiB), Iterations: uint32(cfg.Accounts.PasswordIterations), Parallelism: uint8(cfg.Accounts.PasswordParallelism), MaxConcurrent: cfg.Accounts.PasswordConcurrency})
 	if err != nil {
 		t.Fatal(err)

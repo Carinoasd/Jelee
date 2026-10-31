@@ -111,7 +111,7 @@ OpenAPI 中的 Jelee 扩展字段：
 
   `code` 是稳定的机器可读错误码（见文末错误码表）；`message` 是安全的本地化消息，不含路径、连接串或底层错误；`details` 通常为空对象，只有设置向导的校验失败与 `/readyz` 会带字段；`traceId` 等于响应头 `X-Request-ID`，也写入日志与审计（见[日志](logging.md)）。
 - 消息语言按 `Accept-Language` 在 zh-CN、zh-TW、ja-JP、en-US 中选择：没有该标头时用 zh-CN，无法匹配时用 en-US；已登录且设置了界面语言的用户以其设置为准。响应带 `Content-Language` 与 `Vary: Accept-Language`。
-- 每个响应都带 `X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求见下文“传输（G25.2）”：自有 API 的 JSON 读取、图片（`ETag`、`If-None-Match`、304）、原文件直投（`ETag`、`Range`、`If-Range`、412、416）与前端静态文件（`Last-Modified`、`Range`）。
+- 每个响应都带 `traceparent`（W3C Trace Context，`00-{traceId}-{spanId}-{flags}`，traceId 等于 `X-Request-ID`；请求带来的 `traceparent` 不会被采用，客户端不能选择关联安全记录的标识）、`X-Request-ID`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、严格的 `Content-Security-Policy`、`X-Jelee-Dev-Mode`，默认 `Cache-Control: no-store`；HTTPS 连接另加 HSTS。条件请求见下文“传输（G25.2）”：自有 API 的 JSON 读取、图片（`ETag`、`If-None-Match`、304）、原文件直投（`ETag`、`Range`、`If-Range`、412、416）与前端静态文件（`Last-Modified`、`Range`）。
 - **压缩（G11.7）**：请求带 `Accept-Encoding: gzip`（或 q 值不为 0 的 `*`）时，JSON、NDJSON、HTML、CSS、JavaScript、纯文本与 CSV 响应在响应体达到门槛（默认 1 KiB）后以 gzip 压缩，带 `Content-Encoding: gzip` 并去掉 `Content-Length`；这些类型的响应无论是否压缩都带 `Vary: Accept-Encoding`。**从不压缩**：原文件直投、外挂／内嵌轨道、附件、OCR 字幕与图片（按内容类型白名单判断，字幕、图片、音视频与字体类型都不在其中）；任何带 `Range` 的请求；带 `Content-Range` 或 `Accept-Ranges: bytes` 的响应（前端静态文件除外，它只在请求不带 `Range` 时压缩，压缩后去掉 `Accept-Ranges`）；HEAD、204、206、304；已带 `Content-Encoding` 或 `Cache-Control: no-transform` 的响应。
 - **压缩与 ETag**：压缩后的字节与原表示不同，因此压缩响应中的强 `ETag` 改为弱形式（`"x"` → `W/"x"`），304 不带响应体、不压缩。`If-None-Match` 按 RFC 9110 用弱比较，`W/"x"` 与 `"x"` 都能得到 304；以后新增的条件请求处理器也必须用弱比较（`http.ServeContent` 即如此）。目前带 `ETag` 的图片与直投从不压缩，不受影响。开关、级别与门槛见[部署](deployment.md#响应压缩g117)。
 
@@ -167,7 +167,17 @@ OpenAPI 中的 Jelee 扩展字段：
 
 ## 限流与重试
 
-返回 429 或 503 的错误中，`client_rate_limited`、`job_queue_full`、`playback_busy`、`image_busy` 会带 `Retry-After`。并发播放上限（`stream_limit`、`user_stream_limit`、`device_stream_limit`）按实例计数，多实例部署时的含义见 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
+返回 429 或 503 的错误中，`rate_limited`、`client_rate_limited`、`job_queue_full`、`playback_busy`、`image_busy` 会带 `Retry-After`。
+
+### 通用限流、处理时限与请求体上限（G08.7）
+
+- **限流**：每个客户端一个令牌桶，默认每秒补充 20 个、容量（突发）100 个。已认证请求按“用户＋会话令牌”计数（同一用户的不同令牌各自计数，令牌只以进程内摘要保存）；未带凭据的请求按客户端地址计数，地址按[可信代理](trusted-proxies.md)规则从 `X-Forwarded-For` 取得，与日志、审计、网络规则用的是同一个值。带凭据但认证失败（或路由本身不认证）的请求事后记到地址上；地址的桶空了之后，该地址带凭据的请求在查会话之前就被拒绝，因此无法用随机令牌无限重试。超限返回 429 `rate_limited`（兼容层为空响应体的 429），带 `Retry-After`（秒，至少 1）。
+- **限流标头**：被计数的响应带 [draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) 的 `RateLimit-Limit`（桶容量）、`RateLimit-Remaining`（剩余整数请求）、`RateLimit-Reset`（桶补满的秒数）与 `RateLimit-Policy`（`容量;w=容量÷速率`，默认 `100;w=5`）。
+- **范围**：只对 `/api/` 与 `/compat` 下的请求计数。**从不计数、从不计时、不套用通用请求体上限**：原文件直投与外挂／内嵌轨道、附件、OCR 字幕（`/api/v1/sources/…`）、图片（`/images/…`）、播放信息（`GET /api/v1/items/{id}/playback`、`POST …/playback/check`）以及兼容层的视频／音频流、字幕、音轨、附件、图片与 `PlaybackInfo`——播放中的 Range 请求不会被限流或时限打断（它们各自的并发、带宽与查询时限照旧）。`/healthz`、`/readyz`、`/metrics` 与前端静态文件不计数。
+- **处理时限**：其余请求的整体处理时限默认 `max(30, requestTimeoutSeconds)` 秒，期限经请求 context 传到数据库查询与外部程序（取消即停止）。时限到期且尚未送出状态行时，响应改为 504 `processing_timeout`（兼容层为空响应体的 504），并记一条 Warn 日志 `request processing timed out`。个人数据导出与观看统计导出（自有更长的期限）以及开发者模式的 pprof 不套用此时限；已开始传输的响应不会被改写。
+- **请求体上限**：所有请求体（上述豁免除外）不超过 `api.maxBodyBytes`（默认 8 MiB）；声明的 `Content-Length` 超过时在认证前直接 413 `body_too_large`，未声明长度的读到上限即停止。各路由自己的上限（多为 64 KiB～2 MiB）照旧更小；条目图片上传不受此上限约束，只以 `images.maxSourceBytes` 为准（超过为 413 `image_too_large`）。
+- **多实例**：限流状态只在单个实例的内存中（最近最少使用者优先淘汰，默认最多 65536 个桶），重启清空；多实例部署时每个实例各算各的，客户端在 N 个实例间轮询时实际上限约为 N 倍。设置项见[部署](deployment.md#api-限流处理时限与请求体上限g087)。
+- **中间件顺序（G08.1）**：request-id → panic 恢复 → 访问日志 → 追踪（根 span）→ 处理时限 → 请求体上限 → 匿名请求限流 → 认证 → 已认证请求限流 → 授权 → 校验。OpenAPI 文档以 `x-jelee-request-guards` 记录这些设置；每个操作的 `default` 错误响应涵盖 429、504 与 413。并发播放上限（`stream_limit`、`user_stream_limit`、`device_stream_limit`）按实例计数，多实例部署时的含义见 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
 
 ## 原生 API 与兼容层
 
@@ -249,6 +259,8 @@ OpenAPI 中的 Jelee 扩展字段：
 | `probe_identity_mismatch` | 409 | 探测工具身份已改变，请重试任务。 |
 | `probe_invalidated` | 409 | 探测范围已改变，请重试任务。 |
 | `probe_runtime_unavailable` | 503 | 媒体探测不可用，请检查隔离运行环境。 |
+| `processing_timeout` | 504 | 请求处理超过服务器时限。 |
+| `rate_limited` | 429 | 请求过于频繁，请稍后重试。 |
 | `request_timeout` | 408 | 请求已取消或超时。 |
 | `scan_limit` | 409 | 扫描资源数量已达上限。 |
 | `scan_unavailable` | 503 | 无法访问扫描根目录。 |

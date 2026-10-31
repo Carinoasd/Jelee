@@ -236,3 +236,16 @@ func (s *Span) End(outcome string) {
 		s.tracer.logger.LogAttrs(s.ctx, slog.LevelInfo, "span completed", attrs...)
 	})
 }
+
+// Traceparent formats sc as a W3C Trace Context traceparent value (version
+// 00, sampled flag from the sampling decision), or "" for an invalid span.
+func Traceparent(sc domain.SpanContext) string {
+	if !sc.IsValid() {
+		return ""
+	}
+	flags := "-00"
+	if sc.Sampled() {
+		flags = "-01"
+	}
+	return "00-" + sc.TraceID().String() + "-" + sc.SpanID().String() + flags
+}

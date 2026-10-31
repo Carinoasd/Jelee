@@ -79,8 +79,16 @@ func newProductionTestExporter(t *testing.T, ops app.OpsMetricsSource, blocked B
 	if err := m.RegisterLogging(&logTestCounters{dropped: 7, failed: 2}); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.RegisterRequestGuards(guardTestCounters{limited: 5, timedOut: 3}); err != nil {
+		t.Fatal(err)
+	}
 	return m
 }
+
+type guardTestCounters struct{ limited, timedOut int64 }
+
+func (c guardTestCounters) RateLimitedTotal() int64 { return c.limited }
+func (c guardTestCounters) TimeoutsTotal() int64    { return c.timedOut }
 
 type logTestCounters struct{ dropped, failed uint64 }
 
@@ -141,6 +149,7 @@ func TestOpsMetricsExposeTheSharedSnapshot(t *testing.T) {
 		"jelee_devmode_active": 1, "jelee_devmode_active_duration_seconds": 90, "jelee_consistency_last_completed_timestamp_seconds": 1700000000.5,
 		"jelee_client_control_blocked_total": 42, "jelee_runtime_memory_limit_bytes": 512 << 20,
 		"jelee_logging_records_dropped_total": 7, "jelee_logging_write_failures_total": 2,
+		"jelee_http_rate_limited_total": 5, "jelee_http_timeouts_total": 3,
 	} {
 		if got := opsValue(t, families, name, nil); got != want {
 			t.Fatalf("%s = %v, want %v", name, got, want)
@@ -202,6 +211,9 @@ func TestOpsMetricsRegistrationRules(t *testing.T) {
 	}
 	if counterValue(1<<64-1) != 1<<63-1 || counterValue(5) != 5 {
 		t.Fatal("counter clamp")
+	}
+	if err := m.RegisterRequestGuards(nil); err == nil {
+		t.Fatal("nil request guard counters registered")
 	}
 	if err := m.RegisterClientControl(nil); err == nil {
 		t.Fatal("nil client control registered")

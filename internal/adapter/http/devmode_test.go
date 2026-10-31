@@ -55,6 +55,8 @@ func devBackend() *fakeBackend {
 func devConfig(env, enabled bool, environment string) config.Config {
 	cfg := ReferenceConfig()
 	cfg.Dev = config.DevConfig{EnvFlag: env, Enabled: enabled, Environment: environment}
+	// The route walks send many requests from one address.
+	cfg.API.RateLimit.Mode = "off"
 	return cfg
 }
 
@@ -189,7 +191,7 @@ func TestDevModeUnreachableInProduction(t *testing.T) {
 		name string
 		cfg  config.Config
 	}{
-		{"default", ReferenceConfig()},
+		{"default", devConfig(false, false, "")},
 		{"production with every switch", devConfig(true, true, "production")},
 		{"production label case", devConfig(true, true, " Production ")},
 		{"environment flag only", devConfig(true, false, "")},

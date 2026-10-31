@@ -74,6 +74,8 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 
 CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-compare` 在同一台 runner 上交替執行基準提交（PR base 或前一次 push）與目前提交的同一組基準，再用 benchgate 判定（ns/op +25%、allocs/op +10%、B/op +20%）。做法、門檻取捨與反向驗證見 [質量門禁](quality-gates.md#基準回歸同機比較)。
 
+G08.1、G08.7 的請求守衛（處理期限、請求體上限、限流）是每個請求都付的成本，`BenchmarkBoundaryRequest`（`/healthz` 經完整邊界）由 58 allocs/op、4,434 B/op 變為 69 allocs/op、5,890 B/op（開發機，`-count 3` 中位數）。守衛路徑分類原本用 `strings.Split`，改為不配置的固定陣列切分；`Traceparent` 標頭用標準拼寫省去每請求的名稱正規化；剩下的是處理期限 context 與計時器、帶期限的請求副本、逾時寫入器與標頭本身，記入 `tools/bench-accepted.json`（上限 72 allocs/op、6,100 B/op）。限流器對 `/healthz` 不生效，所以這裡量不到它；限流桶的成本見 `TestAPIRateLimiterBucketsRefillAndEvict` 所覆蓋的單一 map 查找與 LRU 搬移。
+
 ## 直投首字节与 Seek 本机基线（G10.1、G10.7、G29.5）
 
 `make bench-direct` 在真 TCP loopback 上量原媒体直投的首字节、Seek 与并发吞吐，sendfile 与缓冲两条路径各一份（`internal/adapter/media/latency_test.go`，build tag `perf`，不接 benchgate、不进 CI）。开发机（WSL2、ext4、go1.27.1，客户端与服务端同进程）上所有单路情境的首字节 P99 都在 3 毫秒以内：完整文件热缓存 P95 约 0.5～0.7 ms，随机／向前／向后／连续 Seek 的 P95 约 0.4～0.9 ms（热与冷缓存无可测量差距，因为 WSL2 的宿主仍缓存虚拟磁盘）。16 路并发总吞吐 sendfile 约 30 GB/s、缓冲约 25 GB/s，每 GiB 进程 CPU 约 400 ms 对 600 ms。

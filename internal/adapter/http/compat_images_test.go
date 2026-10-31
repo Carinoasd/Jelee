@@ -296,6 +296,7 @@ func TestCompatImagesPostgres(t *testing.T) {
 				t.Fatalf("%s: %d %q", target, w.Code, w.Body)
 			}
 			w.Header().Del("X-Request-ID")
+			w.Header().Del("Traceparent")
 			answers = append(answers, w)
 		}
 		for _, w := range answers[1:] {
