@@ -7418,7 +7418,7 @@
                         "type": "boolean"
                       },
                       "extractable": {
-                        "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                        "description": "A SubRip, ASS, SSA, WebVTT, PGS or VobSub track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). False for DVB bitmaps, MP4 mov_text and every track of another container: those are delivered only inside the original file. Bitmap tracks are copied as pictures; nothing is recognized, rendered or converted.",
                         "type": "boolean"
                       },
                       "forced": {
@@ -7597,7 +7597,7 @@
                   "type": "boolean"
                 },
                 "extractable": {
-                  "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                  "description": "A SubRip, ASS, SSA, WebVTT, PGS or VobSub track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). False for DVB bitmaps, MP4 mov_text and every track of another container: those are delivered only inside the original file. Bitmap tracks are copied as pictures; nothing is recognized, rendered or converted.",
                   "type": "boolean"
                 },
                 "forced": {
@@ -10813,11 +10813,15 @@
                       "codec": {
                         "type": "string"
                       },
+                      "dataUrl": {
+                        "description": "VobSub only, with url: /api/v1/sources/{id}/embedded-subtitles/{index}.sub, the program stream next to the .idx. Native sessions only.",
+                        "type": "string"
+                      },
                       "default": {
                         "type": "boolean"
                       },
                       "extractable": {
-                        "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                        "description": "A SubRip, ASS, SSA, WebVTT, PGS or VobSub track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). False for DVB bitmaps, MP4 mov_text and every track of another container: those are delivered only inside the original file. Bitmap tracks are copied as pictures; nothing is recognized, rendered or converted.",
                         "type": "boolean"
                       },
                       "forced": {
@@ -10869,7 +10873,7 @@
                         "type": "string"
                       },
                       "url": {
-                        "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only.",
+                        "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}, or /api/v1/sources/{id}/embedded-subtitles/{index}.idx for VobSub. Native sessions only.",
                         "type": "string"
                       }
                     },
@@ -11022,11 +11026,15 @@
                 "codec": {
                   "type": "string"
                 },
+                "dataUrl": {
+                  "description": "VobSub only, with url: /api/v1/sources/{id}/embedded-subtitles/{index}.sub, the program stream next to the .idx. Native sessions only.",
+                  "type": "string"
+                },
                 "default": {
                   "type": "boolean"
                 },
                 "extractable": {
-                  "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5).",
+                  "description": "A SubRip, ASS, SSA, WebVTT, PGS or VobSub track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). False for DVB bitmaps, MP4 mov_text and every track of another container: those are delivered only inside the original file. Bitmap tracks are copied as pictures; nothing is recognized, rendered or converted.",
                   "type": "boolean"
                 },
                 "forced": {
@@ -11078,7 +11086,7 @@
                   "type": "string"
                 },
                 "url": {
-                  "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only.",
+                  "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}, or /api/v1/sources/{id}/embedded-subtitles/{index}.idx for VobSub. Native sessions only.",
                   "type": "string"
                 }
               },
@@ -57350,7 +57358,7 @@
     },
     "/api/v1/sources/{id}/embedded-subtitles/{index}": {
       "get": {
-        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA, WebVTT (S_TEXT/WEBVTT) or PGS (S_HDMV/PGS) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles, or application/x-pgs for the raw PGS stream (.sup). A VobSub track is served only as its two halves (.idx and .sub routes). DVB bitmaps (S_DVBSUB) and D_WEBVTT tracks are not extracted and stay inside the original file. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
         "parameters": [
           {
             "in": "path",
@@ -57507,11 +57515,11 @@
             "webSession": []
           }
         ],
-        "summary": "Read an embedded text subtitle copied out of a Matroska source",
+        "summary": "Read an embedded text or PGS subtitle copied out of a Matroska source",
         "x-jelee-session": "native"
       },
       "head": {
-        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded SubRip, ASS, SSA, WebVTT (S_TEXT/WEBVTT) or PGS (S_HDMV/PGS) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles, or application/x-pgs for the raw PGS stream (.sup). A VobSub track is served only as its two halves (.idx and .sub routes). DVB bitmaps (S_DVBSUB) and D_WEBVTT tracks are not extracted and stay inside the original file. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
         "parameters": [
           {
             "in": "path",
@@ -57668,7 +57676,655 @@
             "webSession": []
           }
         ],
-        "summary": "Read an embedded text subtitle copied out of a Matroska source",
+        "summary": "Read an embedded text or PGS subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      }
+    },
+    "/api/v1/sources/{id}/embedded-subtitles/{index}.idx": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded VobSub (S_VOBSUB) subtitle listed with extractable true under subtitleTracks of GET /api/v1/items/{id}/playback, whose url names this route. On first use the isolated mkvextract writes the .idx index and the .sub MPEG program stream of the track, unconverted, into a rebuildable cache (G15.5). Content-Type is text/plain. Players that open the .idx find the .sub at the same name with the .sub extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the index of an embedded VobSub subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The probe stream index of an embedded VobSub (S_VOBSUB) subtitle listed with extractable true under subtitleTracks of GET /api/v1/items/{id}/playback, whose url names this route. On first use the isolated mkvextract writes the .idx index and the .sub MPEG program stream of the track, unconverted, into a rebuildable cache (G15.5). Content-Type is text/plain. Players that open the .idx find the .sub at the same name with the .sub extension. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the index of an embedded VobSub subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      }
+    },
+    "/api/v1/sources/{id}/embedded-subtitles/{index}.sub": {
+      "get": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The .sub half of an embedded VobSub track (the dataUrl of the subtitle track): the MPEG program stream of its pictures as mkvextract writes it next to the .idx, unconverted (G15.5). Content-Type is application/octet-stream. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the program stream of an embedded VobSub subtitle copied out of a Matroska source",
+        "x-jelee-session": "native"
+      },
+      "head": {
+        "description": "Native sessions only; web sessions get 403 web_playback_disabled. The .sub half of an embedded VobSub track (the dataUrl of the subtitle track): the MPEG program stream of its pictures as mkvextract writes it next to the .idx, unconverted (G15.5). Content-Type is application/octet-stream. Nothing is rendered, burned in, re-encoded or remuxed, and the original file is never written. A missing, invisible or non-extractable item, or one whose tool is not installed, is answered like a missing source. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Range",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "206": {
+            "description": "HTTP 206"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "conflict": {
+                    "$ref": "#/components/examples/error_conflict"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 409"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_range": {
+                    "$ref": "#/components/examples/error_invalid_range"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 416"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Read the program stream of an embedded VobSub subtitle copied out of a Matroska source",
         "x-jelee-session": "native"
       }
     },
