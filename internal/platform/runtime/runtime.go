@@ -33,8 +33,14 @@ import (
 )
 
 func New(cfg config.Config, logger *slog.Logger) *fx.App {
+	// G12.1 system.alert: coded warnings and errors from here on are
+	// collected, and appended once the webhook deliverer runs.
+	alerts := app.NewSystemAlerts(0, nil)
+	logger = slog.New(newAlertHandler(logger.Handler(), alerts))
 	sweepStartupTemporaries(context.Background(), cfg, logger)
-	return newWithLifetime(cfg, logger, newLifetime(logger))
+	lifetime := newLifetime(logger)
+	lifetime.alerts = alerts
+	return newWithLifetime(cfg, logger, lifetime)
 }
 
 func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime) *fx.App {
@@ -647,6 +653,11 @@ type lifetime struct {
 	webhooks           *app.WebhookDispatcher
 	webhooksDone       chan struct{}
 	closeWebhookClient func()
+	// alerts collects system.alert; producers appends them and sweeps
+	// session expiry while webhooks run (G12.1).
+	alerts        *app.SystemAlerts
+	producers     *app.WebhookProducers
+	producersDone chan struct{}
 	// dev is the developer mode controller (G45); devDone joins its
 	// refresh loop, queryLog is the SQL log of a capable instance and
 	// levels the log router verbose logging raises.
@@ -835,6 +846,13 @@ func (l *lifetime) start(ctx context.Context) error {
 			l.webhooks.Run(l.ctx)
 		}()
 	}
+	if l.producers != nil {
+		l.producersDone = make(chan struct{})
+		go func() {
+			defer close(l.producersDone)
+			l.producers.Run(l.ctx)
+		}()
+	}
 	go func() {
 		defer close(l.exited)
 		if err := l.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -909,6 +927,9 @@ func (l *lifetime) shutdown(ctx context.Context) {
 // lifetime context and finishes or abandons its in-flight attempts within
 // its stop grace. Abandoned attempts are re-sent after their lease expires.
 func (l *lifetime) joinWebhooks() {
+	if l.producersDone != nil {
+		<-l.producersDone
+	}
 	if l.webhooksDone != nil {
 		<-l.webhooksDone
 	}

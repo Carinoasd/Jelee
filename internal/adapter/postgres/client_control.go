@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -350,14 +349,14 @@ func (s *Store) RevokeSessionByClientRule(ctx context.Context, sessionID, ip str
 		return storageError(err)
 	}
 	defer tx.Rollback(ctx)
-	var userID string
-	err = tx.QueryRow(ctx, `UPDATE sessions SET revoked_at=now() WHERE id=$1::uuid AND revoked_at IS NULL RETURNING user_id::text`, sessionID).Scan(&userID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	ended, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndClientRule, `s.id=$1::uuid`, sessionID)
+	if err != nil {
+		return err
+	}
+	if len(ended) == 0 {
 		return nil
 	}
-	if err != nil {
-		return storageError(err)
-	}
+	userID := ended[0].userID
 	if err = appendAudit(ctx, tx, AuditEntry{Event: "client_control.session_revoked", Actor: domain.Actor{IP: ip}, TargetID: userID, After: map[string]any{"sessionId": sessionID, "rules": rules}}); err != nil {
 		return err
 	}
@@ -959,14 +958,15 @@ func (s *Store) KickKnownClient(ctx context.Context, actor domain.Actor, id stri
 	if err != nil {
 		return 0, err
 	}
-	tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE revoked_at IS NULL AND expires_at>now() AND (
- id IN (SELECT session_id FROM known_client_sessions WHERE client_id=$1::uuid)
- OR $2<>'' AND device_id=$2 AND COALESCE(client_name,'')=$3)`, id, c.DeviceID, c.AppName)
+	ended, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndClientKicked, `s.expires_at>now() AND (
+ s.id IN (SELECT session_id FROM known_client_sessions WHERE client_id=$1::uuid)
+ OR $2<>'' AND s.device_id=$2 AND COALESCE(s.client_name,'')=$3)`, id, c.DeviceID, c.AppName)
 	if err != nil {
-		return 0, storageError(err)
-	}
-	if err = auditClientControl(ctx, tx, actor, "client_control.client_kicked", c.ID, nil, map[string]any{"sessionsRevoked": tag.RowsAffected()}); err != nil {
 		return 0, err
 	}
-	return tag.RowsAffected(), storageError(tx.Commit(ctx))
+	kicked := int64(len(ended))
+	if err = auditClientControl(ctx, tx, actor, "client_control.client_kicked", c.ID, nil, map[string]any{"sessionsRevoked": kicked}); err != nil {
+		return 0, err
+	}
+	return kicked, storageError(tx.Commit(ctx))
 }

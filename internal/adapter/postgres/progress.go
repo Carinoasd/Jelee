@@ -149,10 +149,12 @@ const flushPlaybackSQL = `WITH v AS (
 )
 SELECT (SELECT count(*) FROM upd),(SELECT count(*) FROM ud),(SELECT count(*) FROM ins)`
 
-// flushPlaybackEventSQL is flushPlaybackSQL that also raises
-// playback.stopped (G12.1) for every session the batch ends, in the same
-// statement. Only rows the batch actually moved out of active count, so a
-// session that ended elsewhere raises nothing twice.
+// flushPlaybackEventSQL is flushPlaybackSQL that also raises, in the same
+// statement, playback.stopped (G12.1) for every session the batch ends,
+// playback.paused for every entry carrying a pause and playback.progress for
+// every entry the buffer's throttle marked. Only rows the batch actually
+// updated count, so a session that ended elsewhere raises nothing twice and
+// raises no pause or progress after its end.
 var flushPlaybackEventSQL = func() string {
 	tail := "\nSELECT (SELECT count(*) FROM upd)"
 	at := strings.LastIndex(flushPlaybackSQL, tail)
@@ -163,6 +165,18 @@ var flushPlaybackEventSQL = func() string {
  INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data)
  SELECT 'playback.stopped',v.ended,'session',upd.id::text,jsonb_build_object('userId',upd.user_id::text,'itemId',upd.item_id::text,'state',v.state,'positionTicks',v.pos,'completed',v.completed)
  FROM upd JOIN v ON v.id=upd.id WHERE v.state IS NOT NULL AND ` + webhookSubscribedSQL("'playback.stopped'") + `
+ RETURNING 1
+), marks AS (
+ SELECT * FROM unnest(@id::uuid[],@pause_at::timestamptz[],@pause_pos::bigint[],@progress::boolean[]) AS m(id,pause_at,pause_pos,progress)
+), paused_event AS (
+ INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data)
+ SELECT 'playback.paused',m.pause_at,'session',upd.id::text,jsonb_build_object('userId',upd.user_id::text,'itemId',upd.item_id::text,'positionTicks',m.pause_pos)
+ FROM upd JOIN marks m ON m.id=upd.id WHERE m.pause_at IS NOT NULL AND ` + webhookSubscribedSQL("'playback.paused'") + `
+ RETURNING 1
+), progress_event AS (
+ INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data)
+ SELECT 'playback.progress',v.at,'session',upd.id::text,jsonb_build_object('userId',upd.user_id::text,'itemId',upd.item_id::text,'positionTicks',v.pos,'paused',v.paused)
+ FROM upd JOIN v ON v.id=upd.id JOIN marks m ON m.id=upd.id WHERE m.progress AND v.state IS NULL AND ` + webhookSubscribedSQL("'playback.progress'") + `
  RETURNING 1
 )` + flushPlaybackSQL[at:]
 }()
@@ -188,6 +202,9 @@ func (s *Store) FlushPlayback(parent context.Context, entries []domain.PlaybackF
 		sats                      []time.Time
 		spos                      []int64
 		spaused                   []bool
+		pauseAt                   = make([]*time.Time, 0, n)
+		pausePos                  = make([]int64, 0, n)
+		progress                  = make([]bool, 0, n)
 	)
 	for _, e := range entries {
 		if !domain.ValidID(e.SessionID) || e.LastReportAt.IsZero() || e.PositionTicks < 0 || e.PositionTicks > domain.PlaybackPositionMax ||
@@ -198,6 +215,16 @@ func (s *Store) FlushPlayback(parent context.Context, entries []domain.PlaybackF
 		positions, resumes = append(positions, e.PositionTicks), append(resumes, e.ResumeTicks)
 		paused, completed = append(paused, e.Paused), append(completed, e.Completed)
 		ats, reports = append(ats, e.LastReportAt), append(reports, int32(min(e.Reports, 1<<30)))
+		if e.Pause != nil {
+			if e.Pause.At.IsZero() || e.Pause.PositionTicks < 0 || e.Pause.PositionTicks > domain.PlaybackPositionMax {
+				return domain.PlaybackFlushResult{}, domain.ErrInvalid
+			}
+			at := e.Pause.At
+			pauseAt, pausePos = append(pauseAt, &at), append(pausePos, e.Pause.PositionTicks)
+		} else {
+			pauseAt, pausePos = append(pauseAt, nil), append(pausePos, 0)
+		}
+		progress = append(progress, e.Progress)
 		if e.End != nil {
 			switch e.End.State {
 			case domain.PlaybackStopped, domain.PlaybackTimedOut:
@@ -234,14 +261,16 @@ func (s *Store) FlushPlayback(parent context.Context, entries []domain.PlaybackF
 	defer cancel()
 	result := domain.PlaybackFlushResult{Statements: 1}
 	statement := flushPlaybackSQL
-	if s.webhooksOn() {
-		statement = flushPlaybackEventSQL
-	}
-	err := s.Pool.QueryRow(ctx, statement, pgx.NamedArgs{
+	args := pgx.NamedArgs{
 		"id": ids, "pos": positions, "paused": paused, "at": ats, "reports": reports, "state": stateValues, "ended": ended, "reason": reasonValues,
 		"resume": resumes, "completed": completed, "source": sources,
 		"sid": emptyIfNil(sid), "seq": seqs, "sat": sats, "kind": emptyIfNil(kinds), "spos": spos, "spaused": spaused,
-	}).Scan(&result.Sessions, &result.UserData, &result.Samples)
+	}
+	if s.webhooksOn() {
+		statement = flushPlaybackEventSQL
+		args["pause_at"], args["pause_pos"], args["progress"] = pauseAt, pausePos, progress
+	}
+	err := s.Pool.QueryRow(ctx, statement, args).Scan(&result.Sessions, &result.UserData, &result.Samples)
 	if err != nil {
 		return domain.PlaybackFlushResult{}, storageError(err)
 	}

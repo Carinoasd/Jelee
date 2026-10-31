@@ -68,6 +68,15 @@ func newWebhooks(c config.Config, store *postgres.Store, budget *resources.Budge
 	}
 	lifetime.webhooks = dispatcher
 	lifetime.closeWebhookClient = client.CloseIdleConnections
+	// System alerts and session expiry (G12.1) have no transaction of their
+	// own; they are produced only while the deliverer runs.
+	alerts := lifetime.alerts
+	if alerts == nil {
+		alerts = app.NewSystemAlerts(0, nil)
+	}
+	if lifetime.producers, err = app.NewWebhookProducers(store, alerts, store, app.WebhookProducerOptions{}); err != nil {
+		return nil, err
+	}
 	// Producers append events only from here on.
 	store.EnableWebhookEvents(true)
 	return service, nil
