@@ -175,7 +175,7 @@ OpenAPI 中的 Jelee 扩展字段：
 - **限流标头**：被计数的响应带 [draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) 的 `RateLimit-Limit`（桶容量）、`RateLimit-Remaining`（剩余整数请求）、`RateLimit-Reset`（桶补满的秒数）与 `RateLimit-Policy`（`容量;w=容量÷速率`，默认 `100;w=5`）。
 - **范围**：只对 `/api/` 与 `/compat` 下的请求计数。**从不计数、从不计时、不套用通用请求体上限**：原文件直投与外挂／内嵌轨道、附件、OCR 字幕（`/api/v1/sources/…`）、图片（`/images/…`）、播放信息（`GET /api/v1/items/{id}/playback`、`POST …/playback/check`）以及兼容层的视频／音频流、字幕、音轨、附件、图片与 `PlaybackInfo`——播放中的 Range 请求不会被限流或时限打断（它们各自的并发、带宽与查询时限照旧）。`/healthz`、`/readyz`、`/metrics` 与前端静态文件不计数。
 - **处理时限**：其余请求的整体处理时限默认 `max(30, requestTimeoutSeconds)` 秒，期限经请求 context 传到数据库查询与外部程序（取消即停止）。时限到期且尚未送出状态行时，响应改为 504 `processing_timeout`（兼容层为空响应体的 504），并记一条 Warn 日志 `request processing timed out`。个人数据导出与观看统计导出（自有更长的期限）以及开发者模式的 pprof 不套用此时限；已开始传输的响应不会被改写。
-- **请求体上限**：所有请求体（上述豁免除外）不超过 `api.maxBodyBytes`（默认 8 MiB）；声明的 `Content-Length` 超过时在认证前直接 413 `body_too_large`，未声明长度的读到上限即停止。各路由自己的上限（多为 64 KiB～2 MiB）照旧更小；条目图片上传以 `images.maxSourceBytes` 为准（较大时）。
+- **请求体上限**：所有请求体（上述豁免除外）不超过 `api.maxBodyBytes`（默认 8 MiB）；声明的 `Content-Length` 超过时在认证前直接 413 `body_too_large`，未声明长度的读到上限即停止。各路由自己的上限（多为 64 KiB～2 MiB）照旧更小；条目图片上传不受此上限约束，只以 `images.maxSourceBytes` 为准（超过为 413 `image_too_large`）。
 - **多实例**：限流状态只在单个实例的内存中（最近最少使用者优先淘汰，默认最多 65536 个桶），重启清空；多实例部署时每个实例各算各的，客户端在 N 个实例间轮询时实际上限约为 N 倍。设置项见[部署](deployment.md#api-限流处理时限与请求体上限g087)。
 - **中间件顺序（G08.1）**：request-id → panic 恢复 → 访问日志 → 追踪（根 span）→ 处理时限 → 请求体上限 → 匿名请求限流 → 认证 → 已认证请求限流 → 授权 → 校验。OpenAPI 文档以 `x-jelee-request-guards` 记录这些设置；每个操作的 `default` 错误响应涵盖 429、504 与 413。并发播放上限（`stream_limit`、`user_stream_limit`、`device_stream_limit`）按实例计数，多实例部署时的含义见 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
 

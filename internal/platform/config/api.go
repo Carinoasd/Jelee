@@ -20,8 +20,8 @@ type APIConfig struct {
 	// requestTimeoutSeconds, which bounds the individual lookups inside.
 	TimeoutSeconds int `json:"timeoutSeconds"`
 	// MaxBodyBytes caps every request body; 0 selects 8 MiB. Routes keep
-	// their own smaller limits; item image uploads use images.maxSourceBytes
-	// when that is larger.
+	// their own smaller limits; item image uploads are bounded by
+	// images.maxSourceBytes alone.
 	MaxBodyBytes int64 `json:"maxBodyBytes"`
 }
 

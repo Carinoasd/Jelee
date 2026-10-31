@@ -88,8 +88,10 @@ func (s *Server) guardPolicy(r *http.Request) guardPolicy {
 	if longRunningPath(path) {
 		p.timeout = false
 	}
-	if r.Method == http.MethodPost && itemImageUploadPath(path) && s.cfg.Images.MaxSourceBytes > p.body {
-		p.body = s.cfg.Images.MaxSourceBytes
+	if r.Method == http.MethodPost && itemImageUploadPath(path) {
+		// The upload handler owns its ceiling (images.maxSourceBytes) and
+		// answers 413 image_too_large itself.
+		p.body = 0
 	}
 	return p
 }

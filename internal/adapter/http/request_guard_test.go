@@ -393,7 +393,7 @@ func TestGuardPolicyClassifiesRoutes(t *testing.T) {
 		{"GET", "/api/v1/users/" + userID + "/data-export", guardPolicy{rate: true, body: body}},
 		{"GET", "/api/v1/watch-stats/export", guardPolicy{rate: true, body: body}},
 		{"GET", "/debug/pprof/profile", guardPolicy{body: body}},
-		{"POST", "/api/v1/items/" + itemID + "/images/primary", guardPolicy{rate: true, timeout: true, body: 32 << 20}},
+		{"POST", "/api/v1/items/" + itemID + "/images/primary", guardPolicy{rate: true, timeout: true}},
 		{"GET", "/healthz", guardPolicy{timeout: true, body: body}},
 		{"GET", "/assets/index.js", guardPolicy{timeout: true, body: body}},
 	} {
