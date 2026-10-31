@@ -325,18 +325,20 @@ func (s *Server) accountRoutes(r chi.Router) {
 				Theme   *string         `json:"theme"`
 				Density *string         `json:"density"`
 				Layout  json.RawMessage `json:"layout"`
+				Display json.RawMessage `json:"display"`
 			}
-			if err := decodeJSONNullable(w, r, &input, accountBodyLimit, func(path string) bool { return path == "/LAYOUT" }); err != nil {
+			if err := decodeJSONNullable(w, r, &input, accountBodyLimit, func(path string) bool { return path == "/LAYOUT" || path == "/DISPLAY" || path == "/DISPLAY/PALETTE" }); err != nil {
 				return nil, 0, err
 			}
 			// A replacement names every field, so a client that does not know
-			// a later field cannot silently reset it. layout is null until the
-			// user customizes it.
+			// a later field cannot silently reset it. layout and display are
+			// null until the user customizes them.
 			layout, ok := userLayoutFrom(input.Layout)
-			if input.Theme == nil || input.Density == nil || !ok {
+			display, displayOK := userDisplayFrom(input.Display)
+			if input.Theme == nil || input.Density == nil || !ok || !displayOK {
 				return nil, 0, domain.ErrInvalid
 			}
-			preferences, err := s.accounts.SetPreferences(r.Context(), a, domain.UserPreferences{Theme: *input.Theme, Density: *input.Density, Layout: layout})
+			preferences, err := s.accounts.SetPreferences(r.Context(), a, domain.UserPreferences{Theme: *input.Theme, Density: *input.Density, Layout: layout, Display: display})
 			return preferences, 200, err
 		}))
 		r.Put("/api/v1/users/me/password", s.accountEndpoint(false, false, func(w http.ResponseWriter, r *http.Request, a domain.Actor) (any, int, error) {

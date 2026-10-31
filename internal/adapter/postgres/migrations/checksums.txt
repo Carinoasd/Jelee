@@ -1,6 +1,6 @@
-#  Released migration checksums (G04.2, docs/adr/0006-migration-version-policy.md).
-#  Locked files are immutable: change the schema with a new, higher-numbered migration.
-#  After adding one run `go run ./tools/migrationlock -update`; it only appends.
+# Released migration checksums (G04.2, docs/adr/0006-migration-version-policy.md).
+# Locked files are immutable: change the schema with a new, higher-numbered migration.
+# After adding one run `go run ./tools/migrationlock -update`; it only appends.
 96a6884a093f04ab95b9e87a8dbd4b9cb4b349497ba48263fcc4496b1ccc34e0  000001_catalog.down.sql
 92dfc26eb06eb3ea23cc89f20c9a714b80a4addd415056f15b5351eee6e87519  000001_catalog.up.sql
 390a958490416332deb36fcce5230962462e83859811c52a98bca9927220fb7a  000002_accounts.down.sql
@@ -225,3 +225,5 @@ d4fc16e50b6ab18e5deb10e30e33cb62904afb850aca9af2719453657f26bd2c  000111_user_fa
 e37982334ed7c8ded4eb33b9a8702bf978ef503964f3e7f117b8ec197207fcfb  000111_user_favorites.up.sql
 c8f27a50d4037872536a7e5b5123ff34be71ab6588f93b260944bced2fa34de5  000112_session_expiry_events.down.sql
 e229168bbd40df16b6caf59c490207ef3af27252593764aebdc265af34938e22  000112_session_expiry_events.up.sql
+e23d64324b6f595aa42f2025dca4d3dde74500b54591c2e152d79db60f9fbf25  000113_user_display_preferences.down.sql
+4a4a4b0f2da41ae34cc42ce98635c21f5cfc828990ac08771a415fe4e164aabc  000113_user_display_preferences.up.sql

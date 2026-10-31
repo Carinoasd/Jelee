@@ -14549,6 +14549,64 @@
         ],
         "type": "object"
       },
+      "UserDisplay": {
+        "additionalProperties": false,
+        "properties": {
+          "listDensity": {
+            "enum": [
+              "comfortable",
+              "compact"
+            ],
+            "type": "string"
+          },
+          "palette": {
+            "description": "Preset beyond plain light and dark; null follows theme. The theme member holds the preset's color scheme.",
+            "oneOf": [
+              {
+                "enum": [
+                  "sepia",
+                  "contrast"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "posterRatio": {
+            "enum": [
+              "portrait",
+              "square",
+              "landscape"
+            ],
+            "type": "string"
+          },
+          "posterSize": {
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ],
+            "type": "string"
+          },
+          "view": {
+            "enum": [
+              "poster",
+              "list"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "palette",
+          "posterRatio",
+          "posterSize",
+          "listDensity",
+          "view"
+        ],
+        "type": "object"
+      },
       "UserItemData": {
         "additionalProperties": false,
         "properties": {
@@ -14655,6 +14713,17 @@
             ],
             "type": "string"
           },
+          "display": {
+            "description": "Display choices of the web client (G33.2); null until saved. Required on replacement like every field.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "layout": {
             "description": "Page layout and saved presets (G33.5); null until customized, when the site default layout applies. Required on replacement like every field.",
             "oneOf": [
@@ -14679,7 +14748,8 @@
         "required": [
           "theme",
           "density",
-          "layout"
+          "layout",
+          "display"
         ],
         "type": "object"
       },
@@ -62429,7 +62499,7 @@
             "webSession": []
           }
         ],
-        "summary": "Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density and no layout"
+        "summary": "Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density, no layout and no display choices"
       },
       "put": {
         "requestBody": {

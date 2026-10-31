@@ -226,3 +226,38 @@ func TestMetadataBackupPlaylistLimitPostgres(t *testing.T) {
 		t.Fatalf("playlists after refused import: %d", n)
 	}
 }
+
+// Display choices travel with the preference record: they restore as saved,
+// and a value outside the allow-lists is a conflict instead of a row that
+// the API could not read back.
+func TestMetadataBackupDisplayPreferencesPostgres(t *testing.T) {
+	ctx, source, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
+	_, target, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
+	seedMetadataBackup(t, ctx, source, 0)
+	doc, _ := exportMetadataDoc(t, ctx, source, false)
+	if !strings.Contains(string(doc), `"posterRatio": "square"`) {
+		t.Fatal("display choices not exported")
+	}
+	bad := resealMetadataDoc(t, doc, func(kind, line string) string {
+		if kind == "user_preference" {
+			return strings.Replace(line, `"view": "list"`, `"view": "grid"`, 1)
+		}
+		return line
+	})
+	if string(bad) == string(doc) {
+		t.Fatal("document edit did not apply")
+	}
+	report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
+	if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["user_preference:settings_invalid"] != 1 {
+		t.Fatalf("invalid display: %v %v", err, report.ConflictTotals)
+	}
+	if _, err = importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{}); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if n := bkCount(t, ctx, target, `SELECT count(*) FROM user_preferences WHERE user_id='`+bkKid+`' AND display->>'palette'='sepia' AND display->>'view'='list'`); n != 1 {
+		t.Fatalf("display not restored: %d", n)
+	}
+	if n := bkCount(t, ctx, target, `SELECT count(*) FROM user_preferences WHERE user_id='`+bkAdmin+`' AND display IS NULL`); n != 1 {
+		t.Fatalf("unset display not kept unset: %d", n)
+	}
+}

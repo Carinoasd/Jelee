@@ -334,6 +334,7 @@ describe("account layout (G33.5)", () => {
     server.preferences = {
       theme: "dark",
       density: "compact",
+      display: { palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" },
       layout: { current: { home: [{ id: "latest", visible: true }, { id: "welcome", visible: false }], detail: [] }, presets: [{ id: "custom-1", name: "Mine", layout: { home: [], detail: [] } }] },
     };
     const { run } = host(server.user);
@@ -350,6 +351,8 @@ describe("account layout (G33.5)", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]!.theme).toBe("dark");
     expect(sent[0]!.density).toBe("compact");
+    // A layout change keeps the stored display choices.
+    expect((sent[0] as { display?: unknown }).display).toEqual({ palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" });
     expect(sent[0]!.layout.current.home).toContainEqual({ id: "welcome", visible: true });
     expect(server.preferences.layout?.presets).toHaveLength(1);
   });

@@ -144,23 +144,33 @@ func validateMetadataSettings(ctx context.Context, tx pgx.Tx) error {
 	return validateMetadataLayouts(ctx, tx)
 }
 
-// validateMetadataLayouts checks every saved user layout. One row per user
-// is held at a time.
+// validateMetadataLayouts checks every saved user layout and display choice.
+// One row per user is held at a time. A backup from before schema 113 has no
+// display member, which stays unset.
 func validateMetadataLayouts(ctx context.Context, tx pgx.Tx) error {
-	rows, err := tx.Query(ctx, `SELECT doc->>'user_id',(doc->'layout')::text FROM bk_stage WHERE kind='user_preference' AND jsonb_typeof(doc->'layout')<>'null'`)
+	rows, err := tx.Query(ctx, `SELECT doc->>'user_id',(doc->'layout')::text,(doc->'display')::text FROM bk_stage WHERE kind='user_preference'
+ AND (jsonb_typeof(doc->'layout')<>'null' OR jsonb_typeof(doc->'display')<>'null')`)
 	if err != nil {
 		return storageError(err)
 	}
 	var invalid []string
 	for rows.Next() {
 		var user string
-		var layout []byte
-		if err = rows.Scan(&user, &layout); err != nil {
+		var layout, display []byte
+		if err = rows.Scan(&user, &layout, &display); err != nil {
 			rows.Close()
 			return storageError(err)
 		}
-		var l domain.UserLayout
-		if !domain.ValidID(user) || !decodeMetadataDoc(layout, &l) || !l.Valid() {
+		good := domain.ValidID(user)
+		if good && layout != nil && string(layout) != "null" {
+			var l domain.UserLayout
+			good = decodeMetadataDoc(layout, &l) && l.Valid()
+		}
+		if good && display != nil && string(display) != "null" {
+			var d domain.UserDisplay
+			good = decodeMetadataDoc(display, &d) && d.Valid()
+		}
+		if !good {
 			invalid = append(invalid, user)
 		}
 	}

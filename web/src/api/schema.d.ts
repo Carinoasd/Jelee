@@ -31661,7 +31661,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density and no layout */
+        /** Read own interface preferences (G33.3, G33.5); until first saved: the site default theme, comfortable density, no layout and no display choices */
         get: {
             parameters: {
                 query?: never;
@@ -39173,6 +39173,18 @@ export type components = {
             /** @enum {string} */
             type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
+        UserDisplay: {
+            /** @enum {string} */
+            listDensity: "comfortable" | "compact";
+            /** @description Preset beyond plain light and dark; null follows theme. The theme member holds the preset's color scheme. */
+            palette: ("sepia" | "contrast") | null;
+            /** @enum {string} */
+            posterRatio: "portrait" | "square" | "landscape";
+            /** @enum {string} */
+            posterSize: "small" | "medium" | "large";
+            /** @enum {string} */
+            view: "poster" | "list";
+        };
         UserItemData: {
             /** @description The caller marked the item as a favourite (G24.2). */
             isFavorite: boolean;
@@ -39205,6 +39217,8 @@ export type components = {
              * @enum {string}
              */
             density: "comfortable" | "compact";
+            /** @description Display choices of the web client (G33.2); null until saved. Required on replacement like every field. */
+            display: components["schemas"]["UserDisplay"] | null;
             /** @description Page layout and saved presets (G33.5); null until customized, when the site default layout applies. Required on replacement like every field. */
             layout: components["schemas"]["UserLayout"] | null;
             /**

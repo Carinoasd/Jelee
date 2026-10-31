@@ -38,7 +38,7 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	if read.Code != 200 || read.Header().Get("Cache-Control") != "no-store" || decode(read) != domain.DefaultUserPreferences() {
 		t.Fatalf("defaults not served: %d %s", read.Code, read.Body.String())
 	}
-	put := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"compact","layout":null}`, "u"))
+	put := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"compact","layout":null,"display":null}`, "u"))
 	want := domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityCompact}
 	if put.Code != 200 || decode(put) != want || stored != want {
 		t.Fatalf("replacement not stored: %d %s", put.Code, put.Body.String())
@@ -57,6 +57,21 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 		// layout is required like every field; null means not customized.
 		`{"theme":"dark","density":"compact"}`,
 		`{"theme":"dark","density":"compact","layout":{}}`,
+		// display is required too; an object names all five members from their allow-lists.
+		`{"theme":"dark","density":"compact","layout":null}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":"neon","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":"light","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"wide","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"huge","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"tiny","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"grid"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":null,"posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster","extra":1}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"palette":"sepia","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":[]}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":"sepia"}`,
 		`{"theme":"dark","density":"compact","layout":{"current":{"home":[],"detail":[]}}}`,
 		`{"theme":"dark","density":"compact","layout":{"current":{"home":[{"id":"a","visible":true},{"id":"a","visible":true}],"detail":[]},"presets":[]}}`,
 		`{"theme":"dark","density":"compact","layout":{"current":{"home":[{"id":"a"}],"detail":[]},"presets":[]}}`,
@@ -73,15 +88,43 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	// Too many blocks in one area.
 	assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"compact","layout":{"current":{"home":[`+strings.TrimSuffix(strings.Repeat(`{"id":"a","visible":true},`, 33), ",")+`],"detail":[]},"presets":[]}}`, "u")), 400, "invalid_request")
 	assertProblem(t, f.serve(accountRequest(http.MethodGet, "/api/v1/users/me/preferences", "", "")), 401, "authentication_required")
-	assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"light","density":"comfortable","layout":null}`, "")), 401, "authentication_required")
+	assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"light","density":"comfortable","layout":null,"display":null}`, "")), 401, "authentication_required")
 	if calls != before {
 		t.Fatal("invalid or unauthenticated preference requests reached storage")
 	}
 
+	// Display choices are stored and read back as sent; a preset travels with
+	// its color scheme in theme, and null clears them.
+	const displayJSON = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
+	withDisplay := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"light","density":"comfortable","layout":null,"display":`+displayJSON+`}`, "u"))
+	sepia := domain.PaletteSepia
+	wantDisplay := domain.UserDisplay{Palette: &sepia, PosterRatio: "square", PosterSize: "large", ListDensity: "compact", View: "list"}
+	if withDisplay.Code != 200 || stored.Display == nil || stored.Display.Palette == nil || *stored.Display.Palette != sepia || stored.Display.PosterRatio != wantDisplay.PosterRatio || stored.Display.PosterSize != wantDisplay.PosterSize || stored.Display.ListDensity != wantDisplay.ListDensity || stored.Display.View != wantDisplay.View {
+		t.Fatalf("display not stored: %d %s", withDisplay.Code, withDisplay.Body.String())
+	}
+	var shown struct {
+		Data struct {
+			Display json.RawMessage `json:"display"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(withDisplay.Body.Bytes(), &shown); err != nil || string(shown.Data.Display) != displayJSON {
+		t.Fatalf("display echo: %s", withDisplay.Body.String())
+	}
+	plain := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`, "u"))
+	if plain.Code != 200 || stored.Display == nil || stored.Display.Palette != nil || !strings.Contains(plain.Body.String(), `"palette":null`) {
+		t.Fatalf("null palette: %d %s", plain.Code, plain.Body.String())
+	}
+	cleared := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":null}`, "u"))
+	if cleared.Code != 200 || stored.Display != nil || !strings.Contains(cleared.Body.String(), `"display":null`) {
+		t.Fatalf("display not cleared: %d %s", cleared.Code, cleared.Body.String())
+	}
+	// The account body limit (64 KiB) still applies.
+	assertProblem(t, f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":null}`+strings.Repeat(" ", 70*1024), "u")), 413, "body_too_large")
+
 	// A layout with presets is stored and read back as sent.
 	layout := `{"current":{"home":[{"id":"latest","visible":true},{"id":"welcome","visible":false}],"detail":[{"id":"files","visible":true}]},` +
 		`"presets":[{"id":"custom-1","name":"Metadata review 審查","layout":{"home":[],"detail":[{"id":"nfo","visible":true}]}}]}`
-	saved := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"system","density":"comfortable","layout":`+layout+`}`, "u"))
+	saved := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"system","density":"comfortable","display":null,"layout":`+layout+`}`, "u"))
 	if saved.Code != 200 || stored.Layout == nil || len(stored.Layout.Presets) != 1 || stored.Layout.Presets[0].Name != "Metadata review 審查" || !stored.Layout.Current.Home[0].Visible || stored.Layout.Current.Home[1].Visible {
 		t.Fatalf("layout not stored: %d %s %+v", saved.Code, saved.Body.String(), stored.Layout)
 	}

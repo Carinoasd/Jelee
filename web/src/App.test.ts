@@ -185,7 +185,7 @@ describe("sign-in flow", () => {
     document.documentElement.removeAttribute("data-theme");
     const resumed = await boot("/libraries", (s) => {
       s.cookie = true;
-      s.preferences = { theme: "dark", density: "comfortable", layout: null };
+      s.preferences = { theme: "dark", density: "comfortable", layout: null, display: null };
     });
     await vi.waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("dark");
@@ -195,7 +195,7 @@ describe("sign-in flow", () => {
     document.documentElement.removeAttribute("data-theme");
 
     const { wrapper, server } = await boot("/libraries", (s) => {
-      s.preferences = { theme: "light", density: "compact", layout: null };
+      s.preferences = { theme: "light", density: "compact", layout: null, display: null };
     });
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     await signIn(wrapper);

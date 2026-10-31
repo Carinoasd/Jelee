@@ -4,7 +4,7 @@ import { createMemoryBearerAuth } from "@/api/auth";
 import { callNoContent } from "@/api/call";
 import { createApiClient } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
-import { usePreferencesStore } from "@/stores/preferences";
+import { defaultDisplay, usePreferencesStore } from "@/stores/preferences";
 import { useToastStore } from "@/stores/toasts";
 import { mountView, unmountAll } from "@/test/mountView";
 import { apiError, createRouteFetch, data, expectNoPlaybackMarkup, noContent, regularUser } from "@/test/routeFetch";
@@ -17,10 +17,12 @@ afterEach(() => {
   document.documentElement.lang = "";
 });
 
+const plainDisplay = { palette: null, posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" } as const;
+
 function profileServer() {
   return createRouteFetch()
     .on("PUT", "/api/v1/users/me/profile", ({ body }) => data({ ...regularUser, ...(body as object) }))
-    .on("GET", "/api/v1/users/me/preferences", () => data({ theme: "system", density: "compact" }))
+    .on("GET", "/api/v1/users/me/preferences", () => data({ theme: "system", density: "compact", layout: null, display: null }))
     .on("PUT", "/api/v1/users/me/preferences", ({ body }) => data(body))
     .on("GET", "/api/v1/setup/status", () => data({ required: false }));
 }
@@ -57,16 +59,16 @@ describe("settings", () => {
     // The whole record is sent; the stored density and layout are kept, and
     // a preset is stored as its scheme.
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
-      { theme: "dark", density: "compact", layout: null },
-      { theme: "light", density: "compact", layout: null },
-      { theme: "light", density: "compact", layout: null },
-      { theme: "system", density: "compact", layout: null },
+      { theme: "dark", density: "compact", layout: null, display: null },
+      { theme: "light", density: "compact", layout: null, display: null },
+      { theme: "light", density: "compact", layout: null, display: { ...plainDisplay, palette: "sepia" } },
+      { theme: "system", density: "compact", layout: null, display: { ...plainDisplay, palette: null } },
     ]);
     expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "settings.theme.saved" }));
     expectNoPlaybackMarkup(wrapper.html());
   });
 
-  it("stores the density with the account and the display choices in this browser", async () => {
+  it("stores the density and the display choices with the account", async () => {
     localStorage.clear();
     const server = profileServer();
     const { wrapper } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
@@ -75,41 +77,99 @@ describe("settings", () => {
     await group("Density").findAll("input")[0]!.setValue(true);
     await flushPromises();
     expect(document.documentElement.hasAttribute("data-density")).toBe(false);
-    expect(server.calls("PUT", "/api/v1/users/me/preferences").at(-1)!.body).toEqual({ theme: "system", density: "comfortable", layout: null });
+    expect(server.calls("PUT", "/api/v1/users/me/preferences").at(-1)!.body).toEqual({ theme: "system", density: "comfortable", layout: null, display: null });
 
     await group("Poster shape").findAll("input")[2]!.setValue(true);
     await group("Poster size").findAll("input")[0]!.setValue(true);
     await group("List density").findAll("input")[1]!.setValue(true);
     await group("Default view").findAll("input")[1]!.setValue(true);
+    await flushPromises();
     const root = document.documentElement.dataset;
     expect([root.poster, root.posterSize, root.listDensity]).toEqual(["landscape", "small", "compact"]);
-    expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(1);
-    expect(JSON.parse(localStorage.getItem(`jelee.ui.v1.display-preferences.${regularUser.id}`) ?? "null")).toEqual({
-      palette: null,
-      posterRatio: "landscape",
-      posterSize: "small",
-      listDensity: "compact",
-      view: "list",
+    const puts = server.calls("PUT", "/api/v1/users/me/preferences");
+    expect(puts).toHaveLength(5);
+    expect(puts.at(-1)!.body).toEqual({
+      theme: "system",
+      density: "comfortable",
+      layout: null,
+      display: { palette: null, posterRatio: "landscape", posterSize: "small", listDensity: "compact", view: "list" },
     });
+    // Nothing is kept in this browser any more.
+    expect(localStorage.getItem(`jelee.ui.v1.display-preferences.${regularUser.id}`)).toBeNull();
     for (const name of ["data-density", "data-poster", "data-poster-size", "data-list-density"]) {
       document.documentElement.removeAttribute(name);
     }
     localStorage.clear();
   });
 
-  it("keeps a preset only while the server's theme still names its scheme", async () => {
-    localStorage.setItem(`jelee.ui.v1.display-preferences.${regularUser.id}`, JSON.stringify({ palette: "contrast", view: "bogus" }));
-    const server = profileServer().on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "comfortable", layout: null }));
+  it("reads the display choices from the account and lets its preset win over the stored theme", async () => {
+    const legacyKey = `jelee.ui.v1.display-preferences.${regularUser.id}`;
+    localStorage.setItem(legacyKey, JSON.stringify({ palette: "contrast", view: "list" }));
+    const server = profileServer().on("GET", "/api/v1/users/me/preferences", () =>
+      data({ theme: "light", density: "comfortable", layout: null, display: { ...plainDisplay, palette: "sepia", posterSize: "large" } }),
+    );
     const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
     const preferences = usePreferencesStore(pinia);
-    expect(preferences.theme).toBe("contrast");
-    expect(preferences.display.view).toBe("poster");
-    expect(document.documentElement.dataset.palette).toBe("contrast");
-    server.on("GET", "/api/v1/users/me/preferences", () => data({ theme: "light", density: "comfortable", layout: null }));
+    expect(preferences.theme).toBe("sepia");
+    expect(preferences.display).toEqual({ ...plainDisplay, palette: "sepia", posterSize: "large" });
+    expect(document.documentElement.dataset.palette).toBe("sepia");
+    expect(document.documentElement.dataset.posterSize).toBe("large");
+    // The palette wins even when another client left a different scheme in theme.
+    server.on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "comfortable", layout: null, display: { ...plainDisplay, palette: "sepia" } }));
     await preferences.load();
-    expect(preferences.theme).toBe("light");
-    expect(document.documentElement.hasAttribute("data-palette")).toBe(false);
+    expect(preferences.theme).toBe("sepia");
+    // The account's values win over an older local copy, which is dropped.
+    expect(preferences.display.view).toBe("poster");
+    expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(0);
+    expect(localStorage.getItem(legacyKey)).toBeNull();
     localStorage.clear();
+  });
+
+  it("moves the display choices an earlier version kept in this browser to the account once", async () => {
+    const legacyKey = `jelee.ui.v1.display-preferences.${regularUser.id}`;
+    localStorage.setItem(legacyKey, JSON.stringify({ palette: "contrast", posterRatio: "square", view: "list", listDensity: "bogus" }));
+    const server = profileServer().on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "compact", layout: null, display: null }));
+    const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
+    await flushPromises();
+    const expected = { palette: "contrast", posterRatio: "square", posterSize: "medium", listDensity: "comfortable", view: "list" };
+    expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
+      { theme: "dark", density: "compact", layout: null, display: expected },
+    ]);
+    expect(localStorage.getItem(legacyKey)).toBeNull();
+    const preferences = usePreferencesStore(pinia);
+    expect(preferences.theme).toBe("contrast");
+    expect(preferences.display).toEqual(expected);
+    // A second load finds nothing to move.
+    await preferences.load();
+    expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(1);
+  });
+
+  it("keeps the local copy when moving it fails and does not move a preset that disagrees with the stored scheme", async () => {
+    const legacyKey = `jelee.ui.v1.display-preferences.${regularUser.id}`;
+    localStorage.setItem(legacyKey, JSON.stringify({ palette: "sepia", view: "list" }));
+    const server = profileServer()
+      .on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "comfortable", layout: null, display: null }))
+      .on("PUT", "/api/v1/users/me/preferences", () => apiError(503, "account_busy"));
+    const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
+    await flushPromises();
+    expect(server.calls("PUT", "/api/v1/users/me/preferences")[0]!.body).toEqual({
+      theme: "dark",
+      density: "comfortable",
+      layout: null,
+      display: { ...plainDisplay, palette: null, view: "list" },
+    });
+    expect(localStorage.getItem(legacyKey)).not.toBeNull();
+    expect(usePreferencesStore(pinia).theme).toBe("dark");
+    localStorage.clear();
+  });
+
+  it("sends nothing and keeps display unset for an account that never chose one", async () => {
+    localStorage.clear();
+    const server = profileServer().on("GET", "/api/v1/users/me/preferences", () => data({ theme: "dark", density: "comfortable", layout: null }));
+    const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
+    await flushPromises();
+    expect(usePreferencesStore(pinia).display).toEqual(defaultDisplay);
+    expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(0);
   });
 
   it("applies the stored theme on load and keeps a chosen theme when saving fails", async () => {

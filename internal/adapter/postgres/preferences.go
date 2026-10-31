@@ -16,15 +16,31 @@ func (s *Store) GetPreferences(ctx context.Context, actor domain.Actor) (domain.
 	}
 	defer tx.Rollback(ctx)
 	p := domain.DefaultUserPreferences()
-	var layout []byte
-	err = tx.QueryRow(ctx, `SELECT COALESCE(p.theme,a.default_theme),COALESCE(p.density,'comfortable'),p.layout FROM site_appearance a LEFT JOIN user_preferences p ON p.user_id=$1::uuid WHERE a.id`, actor.UserID).Scan(&p.Theme, &p.Density, &layout)
+	var layout, display []byte
+	err = tx.QueryRow(ctx, `SELECT COALESCE(p.theme,a.default_theme),COALESCE(p.density,'comfortable'),p.layout,p.display FROM site_appearance a LEFT JOIN user_preferences p ON p.user_id=$1::uuid WHERE a.id`, actor.UserID).Scan(&p.Theme, &p.Density, &layout, &display)
 	if err != nil {
 		return domain.UserPreferences{}, storageError(err)
 	}
 	if p.Layout, err = decodeUserLayout(layout); err != nil {
 		return domain.UserPreferences{}, err
 	}
+	if p.Display, err = decodeUserDisplay(display); err != nil {
+		return domain.UserPreferences{}, err
+	}
 	return p, storageError(tx.Commit(ctx))
+}
+
+// decodeUserDisplay reads the stored display members; a value outside the
+// allow-lists means the row was not written through the API.
+func decodeUserDisplay(data []byte) (*domain.UserDisplay, error) {
+	if data == nil {
+		return nil, nil
+	}
+	var display domain.UserDisplay
+	if err := json.Unmarshal(data, &display); err != nil || !display.Valid() {
+		return nil, domain.ErrDatabase
+	}
+	return &display, nil
 }
 
 func decodeUserLayout(data []byte) (*domain.UserLayout, error) {
@@ -51,18 +67,29 @@ func (s *Store) SetPreferences(ctx context.Context, actor domain.Actor, p domain
 		}
 		layout = string(data)
 	}
+	var display any
+	if p.Display != nil {
+		data, err := json.Marshal(p.Display)
+		if err != nil {
+			return domain.UserPreferences{}, domain.ErrInvalid
+		}
+		display = string(data)
+	}
 	tx, _, err := s.authorizedTransaction(ctx, actor, false)
 	if err != nil {
 		return domain.UserPreferences{}, err
 	}
 	defer tx.Rollback(ctx)
 	var stored domain.UserPreferences
-	var storedLayout []byte
-	if err = tx.QueryRow(ctx, `INSERT INTO user_preferences(user_id,theme,density,layout) VALUES($1::uuid,$2,$3,$4::jsonb)
- ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,updated_at=now() RETURNING theme,density,layout`, actor.UserID, p.Theme, p.Density, layout).Scan(&stored.Theme, &stored.Density, &storedLayout); err != nil {
+	var storedLayout, storedDisplay []byte
+	if err = tx.QueryRow(ctx, `INSERT INTO user_preferences(user_id,theme,density,layout,display) VALUES($1::uuid,$2,$3,$4::jsonb,$5::jsonb)
+ ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,display=EXCLUDED.display,updated_at=now() RETURNING theme,density,layout,display`, actor.UserID, p.Theme, p.Density, layout, display).Scan(&stored.Theme, &stored.Density, &storedLayout, &storedDisplay); err != nil {
 		return domain.UserPreferences{}, storageError(err)
 	}
 	if stored.Layout, err = decodeUserLayout(storedLayout); err != nil {
+		return domain.UserPreferences{}, err
+	}
+	if stored.Display, err = decodeUserDisplay(storedDisplay); err != nil {
 		return domain.UserPreferences{}, err
 	}
 	return stored, storageError(tx.Commit(ctx))

@@ -183,15 +183,15 @@ web/
 
 ### 瀏覽器儲存例外
 
-`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放呈現狀態的瀏覽器副本：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）、伺服器偏好還沒有欄位的顯示選擇（`display-preferences.<使用者 ID>`，見「主題、密度與 token」）。伺服器已有對應 API（G32／G33 表），這些副本只在未登入、讀不到伺服器，或一般使用者自己覆蓋插件設定時生效。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
+`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放呈現狀態的瀏覽器副本：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）、舊版留在本瀏覽器的顯示選擇（`display-preferences.<使用者 ID>`，第 11 階段 C6 起只在首次載入時讀出並搬到伺服器，見「主題、密度與 token」）。伺服器已有對應 API（G32／G33 表），這些副本只在未登入、讀不到伺服器，或一般使用者自己覆蓋插件設定時生效。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
 
 ## 主題、密度與 token（G33.1、G33.2、G33.6）
 
 - **單一來源**：`web/src/theme/tokens.ts` 定義全部 token（色彩依預設分組、間距、圓角、陰影、字型、層級、動效、觸控目標、海報與列表尺寸）。`vite.config.ts` 的 `jelee-design-tokens` 插件把它編譯成虛擬模組 `virtual:jelee-tokens.css`，由 `main.ts` 匯入、隨打包樣式出貨；原本手寫的 `tokens.css` 已刪除。這樣首屏不用等 JavaScript 也不用構造樣式表就有 token，CSP 仍是 `style-src 'self'`。同一個模組也給執行期（設定頁的色票、偏好的合法值）與測試用，所以不會有兩份數值。執行期覆寫（插件 token、全站 token、管理員 CSS）照舊以構造樣式表疊上去。
 - **主題**：跟隨系統、淺色、深色、復古紙張（sepia，淺色系）、高對比（contrast，深色系）。根元素 `data-theme` 只會是 `light`／`dark`（或不設＝跟隨系統），預設主題另加 `data-palette`；預設的選擇器是 `:root[data-theme][data-palette="…"]`（三個屬性選擇器），比全站 token 覆寫的 `:root[data-theme="dark"]` 高一級，所以使用者選了預設就看到預設本身，管理員的亮／暗覆寫只套在淺色與深色上。
 - **密度**：寬鬆／緊湊兩檔。緊湊把 `--jl-space-2…12` 收一級（仍在 4/8 px 格線上），觸控目標維持 44 px。**海報比例**直式 2:3／方形 1:1／橫式 16:9（`--jl-poster-ratio`），**海報大小**小／中／大（海報牆最小欄寬 120／150／200 px），**列表密度**寬鬆／緊湊（列高與縮圖寬），**預設檢視**海報牆／列表（媒體庫與搜尋頁沒有 `?view=` 時採用）。屬性為預設值時不寫入根元素。
-- **存放**：伺服器偏好文件只有 `theme`（system／light／dark）、`density`、`layout`，而且 `additionalProperties: false`，所以主題存成它的色系（復古紙張存 `light`、高對比存 `dark`），密度存進原本預留的 `density`；預設主題名、海報比例與大小、列表密度、預設檢視依帳號存在本瀏覽器（`persist.ts` 的 `display-preferences.<使用者 ID>`）。只有伺服器的主題仍是該預設的色系時才套用本機的預設，所以在別的裝置改成另一個色系會蓋過它。後端加欄位前這幾項不跨裝置（見下方後端缺口表）。
-- **設定頁**：「外觀」卡片用 `UiChoiceGroup`（原生 radio 畫成方塊，方向鍵切換）：主題方塊畫出該預設自己的背景、卡片、文字與主色，海報比例方塊畫出形狀，沒有說明文字；原本的主題說明小字移除。主題與密度存入帳號時顯示「已儲存」通知，其餘立即套用不另提示。
+- **存放**：伺服器偏好文件（遷移 `000113_user_display_preferences`）除 `theme`（system／light／dark）、`density`、`layout` 外有 `display: {palette, posterRatio, posterSize, listDensity, view}`，整個物件可為 `null`＝從未設定（此時沿用預設，不寫入）；五個成員各有 enum 白名單（`palette` 為 `sepia`／`contrast` 或 `null`），`additionalProperties: false`，PUT 仍須帶齊全部成員。`theme` 仍存預設的色系（復古紙張存 `light`、高對比存 `dark`），讓只認 `theme` 的舊客戶端照常運作；兩者並存時 `display.palette` 優先。登入後帳號沒有 `display` 但本瀏覽器有舊版的 `display-preferences.<使用者 ID>` 時，首次載入會以合法值（預設只在伺服器主題仍是其色系時保留）寫一次到伺服器，成功後刪掉本機鍵，失敗則保留到下次載入；帳號已有 `display` 時直接刪掉殘留的本機鍵。元資料備份與個人資料匯出帶 `display`，舊備份沒有該成員視為未設定，匯入時白名單外的值算 `settings_invalid` 衝突。全站預設外觀目前沒有這五項（全站設定只有預設主題、token 覆寫與預設版面），沒有加全站預設，使用者未設定時沿用上表的內建預設。
+- **設定頁**：「外觀」卡片用 `UiChoiceGroup`（原生 radio 畫成方塊，方向鍵切換）：主題方塊畫出該預設自己的背景、卡片、文字與主色，海報比例方塊畫出形狀，沒有說明文字；原本的主題說明小字移除。主題與密度存入帳號時顯示「已儲存」通知，其餘顯示選擇立即套用並存入帳號、不另提示（儲存失敗才顯示錯誤通知）。
 - **對比度測試**（`theme/tokens.test.ts`，以 `theme/contrast.ts` 自算 WCAG 相對亮度，不用 axe）：每個預設的正文與次要文字對背景、卡片、徽章、資訊／錯誤／成功底色，主色對背景與卡片，主色上的文字，錯誤與成功文字對各自底色都要 ≥4.5:1，焦點色對背景與卡片 ≥3:1；海報懸停資訊在最壞情況（白色海報上疊遮罩）也要 ≥4.5:1。另檢查每個 `.vue`／`.css` 用到的 `var(--jl-*)` 與 SDK 可覆寫的 token 名稱都在 `tokens.ts` 有定義。反向驗證：把復古紙張的文字色改成背景色，6 項對比測試失敗。
 
 ## 搜尋、虛擬列表與請求快取（G34.3、G35.3、G34.2）
@@ -222,7 +222,7 @@ web/
 | `UserPreferences` 沒有版面欄位 | 已解除 | 偏好加 `layout`（可為 `null`），PUT 仍須帶齊全部欄位；見上方「版面」的存放說明 |
 | 伺服器不回報版本 | 已解除 | `GET /api/v1/system` 回傳 `version`（`internal/platform/buildinfo`：發行建置以 `-ldflags -X …buildinfo.version=` 或 Dockerfile `--build-arg JELEE_VERSION` 指定，未指定或格式不對時為與 `web/package.json` 相同的預設版本，測試確保兩者一致），與 OpenAPI `info.version` 相同；插件宿主啟動前讀取並用它比較 `minJeleeVersion`，讀不到時才用網頁端版本 |
 | 沒有插件專屬的伺服器授權範圍 | 缺 | 插件的請求等同使用者本人的請求；受限客戶端只開放固定唯讀端點。若要支援第三方插件：插件權杖或 iframe 隔離加伺服器端範圍 |
-| `UserPreferences` 沒有主題預設名、海報比例與大小、列表密度、預設檢視欄位（`additionalProperties: false`） | 缺 | 依帳號存在本瀏覽器，不跨裝置；預設主題以其色系存入 `theme`。建議偏好加 `display: {palette, posterRatio, posterSize, listDensity, view}`（可為 `null`），屆時 `stores/preferences.ts` 只要把讀寫本機副本換成伺服器欄位 |
+| `UserPreferences` 沒有主題預設名、海報比例與大小、列表密度、預設檢視欄位（`additionalProperties: false`） | 已解除 | 偏好加 `display: {palette, posterRatio, posterSize, listDensity, view}`（可為 `null`，各成員 enum 白名單；第 11 階段 C6，遷移 000113）；`stores/preferences.ts` 改讀寫伺服器欄位，舊本機副本首次載入時搬上去。`theme` 仍存色系以相容舊客戶端，`display.palette` 優先。全站預設外觀沒有對應欄位，未加 |
 | 未登入頁面（登入頁）不套用全站外觀 | 限制 | 全站外觀與插件設定的讀取都需要工作階段，登入頁只用打包樣式與本瀏覽器副本 |
 
 ## CSP 規劃（G35.1）
