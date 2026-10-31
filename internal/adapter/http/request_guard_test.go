@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -396,11 +397,33 @@ func TestGuardPolicyClassifiesRoutes(t *testing.T) {
 		{"POST", "/api/v1/items/" + itemID + "/images/primary", guardPolicy{rate: true, timeout: true}},
 		{"GET", "/healthz", guardPolicy{timeout: true, body: body}},
 		{"GET", "/assets/index.js", guardPolicy{timeout: true, body: body}},
+		// Shapes next to the delivery and long-running routes.
+		{"GET", "/api/v1/items/" + itemID + "/playback/", guardPolicy{rate: true, timeout: true, body: body}},
+		{"GET", "/api/v1/items/" + itemID + "/playback/check/more", guardPolicy{rate: true, timeout: true, body: body}},
+		{"GET", "/api/v1/items/" + itemID + "/playback/check/a/b/c/d/e", guardPolicy{rate: true, timeout: true, body: body}},
+		{"GET", "/api/v1/users/" + userID + "/data-export/", guardPolicy{rate: true, timeout: true, body: body}},
+		{"POST", "/api/v1/items/" + itemID + "/images/", guardPolicy{rate: true, timeout: true, body: body}},
 	} {
 		r := httptest.NewRequest(tc.method, "http://localhost"+tc.path, nil)
 		if got := s.guardPolicy(r); got != tc.want {
 			t.Errorf("%s %s: %+v, want %+v", tc.method, tc.path, got, tc.want)
 		}
+	}
+}
+
+func TestSplitPathMatchesStringsSplit(t *testing.T) {
+	for _, path := range []string{"", "/", "/healthz", "/api/v1/items/x/playback", "/api/v1/items/x/playback/check", "a/b", "/a//b/", "/1/2/3/4/5/6/7"} {
+		want := strings.Split(path, "/")
+		p := splitPath(path)
+		if p.n != len(want) || !slices.Equal(p.parts[:p.n], want) {
+			t.Errorf("%q: %v, want %v", path, p.parts[:p.n], want)
+		}
+	}
+	if p := splitPath("/1/2/3/4/5/6/7/8"); p.n != 0 {
+		t.Errorf("nine parts: %v", p.parts[:p.n])
+	}
+	if n := testing.AllocsPerRun(100, func() { splitPath("/api/v1/items/x/playback/check") }); n != 0 {
+		t.Errorf("splitPath allocates %v", n)
 	}
 }
 

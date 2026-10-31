@@ -601,9 +601,10 @@ func (s *Server) boundary(next http.Handler) http.Handler {
 		// so logs, the error envelope and audit rows share one value.
 		traceCtx, span := tracing.Default().StartRequest(r.Context(), w.Header().Get("X-Request-ID"), "http.request", "http")
 		// G08.1: the root span is announced as a W3C traceparent; an inbound
-		// one is never adopted (see StartRequest).
+		// one is never adopted (see StartRequest). The canonical spelling
+		// spares the per-request canonicalization of the name.
 		if parent := tracing.Traceparent(span.Context()); parent != "" {
-			w.Header().Set("traceparent", parent)
+			w.Header().Set("Traceparent", parent)
 		}
 		// G46.3: the access record collects the identity and error code
 		// while the request runs; storage notes security events.

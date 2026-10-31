@@ -105,9 +105,33 @@ func deliveryPath(path string) bool {
 		return compat.IsDeliveryPath(path)
 	}
 	// /api/v1/items/{id}/playback and /api/v1/items/{id}/playback/check
-	segments := strings.Split(path, "/")
-	return len(segments) >= 6 && len(segments) <= 7 && segments[0] == "" && segments[1] == "api" && segments[2] == "v1" && segments[3] == "items" &&
-		segments[4] != "" && segments[5] == "playback" && (len(segments) == 6 || segments[6] == "check")
+	p := splitPath(path)
+	return (p.n == 6 || p.n == 7) && p.parts[0] == "" && p.parts[1] == "api" && p.parts[2] == "v1" && p.parts[3] == "items" &&
+		p.parts[4] != "" && p.parts[5] == "playback" && (p.n == 6 || p.parts[6] == "check")
+}
+
+// pathParts are the "/"-separated parts of a request path, split without
+// allocating. A path with more parts than the array holds reports n as 0,
+// so it matches none of the route shapes above.
+type pathParts struct {
+	parts [8]string
+	n     int
+}
+
+func splitPath(path string) pathParts {
+	var p pathParts
+	for {
+		part, rest, more := strings.Cut(path, "/")
+		if p.n == len(p.parts) {
+			return pathParts{}
+		}
+		p.parts[p.n] = part
+		p.n++
+		if !more {
+			return p
+		}
+		path = rest
+	}
 }
 
 // longRunningPath reports the downloads that set their own, longer
@@ -116,14 +140,14 @@ func longRunningPath(path string) bool {
 	if path == "/api/v1/watch-stats/export" || strings.HasPrefix(path, devPprofPrefix) {
 		return true
 	}
-	segments := strings.Split(path, "/")
-	return len(segments) == 6 && segments[0] == "" && segments[1] == "api" && segments[2] == "v1" && segments[3] == "users" && segments[4] != "" && segments[5] == "data-export"
+	p := splitPath(path)
+	return p.n == 6 && p.parts[0] == "" && p.parts[1] == "api" && p.parts[2] == "v1" && p.parts[3] == "users" && p.parts[4] != "" && p.parts[5] == "data-export"
 }
 
 // itemImageUploadPath is /api/v1/items/{id}/images/{type}.
 func itemImageUploadPath(path string) bool {
-	segments := strings.Split(path, "/")
-	return len(segments) == 7 && segments[0] == "" && segments[1] == "api" && segments[2] == "v1" && segments[3] == "items" && segments[4] != "" && segments[5] == "images" && segments[6] != ""
+	p := splitPath(path)
+	return p.n == 7 && p.parts[0] == "" && p.parts[1] == "api" && p.parts[2] == "v1" && p.parts[3] == "items" && p.parts[4] != "" && p.parts[5] == "images" && p.parts[6] != ""
 }
 
 // requestTimeout bounds the processing of one request. The deadline reaches

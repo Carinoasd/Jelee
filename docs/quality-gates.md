@@ -128,7 +128,7 @@
 - 每筆必須有 `benchmark`（完整名稱）、`unit`（`ns/op`、`B/op`、`allocs/op` 之一）、`max`（允許的上限，用實測值加少量餘裕）與 `reason`（理由與相關提交）；缺任何一項或有未知欄位，門禁直接以設定錯誤結束。
 - 只放行該基準、該單位，而且只到 `max`；之後再漲超過上限仍是回歸，所以一筆紀錄不會讓某個基準永久失去保護。
 - 被接受的項目會在報告中以 `accepted` 列出，CI 紀錄看得到。
-- 這次加入的唯一一筆：`internal/access.BenchmarkCompile10k` 的 allocs/op（CI 實測 36094 → 43565，上限 45000）。
+- 目前的紀錄：`internal/access.BenchmarkCompile10k` 的 allocs/op（CI 實測 36094 → 43565，上限 45000）；`internal/adapter/http.BenchmarkBoundaryRequest` 的 allocs/op 與 B/op（G08.1、G08.7 的請求守衛：處理期限 context 與計時器、帶期限的請求副本、逾時寫入器與 `Traceparent` 回應標頭；路徑分類不配置、`/healthz` 不限流之後剩下的就是期限本身的成本。開發機實測 58 → 69 allocs/op、4,434 → 5,890 B/op，上限 72 與 6,100）。
 
 ## 反向驗證（2026-10-04 本機）
 
