@@ -161,17 +161,23 @@ func TestGenerateRealFixturesAndCancellation(t *testing.T) {
 }
 
 // The format sample step (W10-14) runs here with an ffmpeg on PATH named
-// "ffmpeg", since the pinned one is only bootstrapped on request: every
-// sample file is written once with its checked-in bytes, the encoded audio
-// probes as ffprobe reports, and a missing experimental encoder would be
-// listed, not hidden.
+// "ffmpeg", or with the pinned one when a required run (Windows CI has no
+// system ffmpeg) finds none on PATH: every sample file is written once with
+// its checked-in bytes, the encoded audio probes as ffprobe reports, and a
+// missing experimental encoder would be listed, not hidden.
 func TestGenerateFormatSamplesWithSystemFFmpeg(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		if os.Getenv("JELEE_REQUIRE_MEDIA_TOOL_TESTS") == "true" {
-			t.Fatal("ffmpeg is required")
+		if os.Getenv("JELEE_REQUIRE_MEDIA_TOOL_TESTS") != "true" {
+			t.Skip("ffmpeg not available")
 		}
-		t.Skip("ffmpeg not available")
+		project, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ffmpeg, err = loadTool(project); err != nil {
+			t.Fatalf("ffmpeg is required: %v", err)
+		}
 	}
 	output, temp := t.TempDir(), t.TempDir()
 	common := []string{"-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-filter_threads", "1", "-filter_complex_threads", "1"}
