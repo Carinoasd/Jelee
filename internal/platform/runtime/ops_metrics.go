@@ -36,6 +36,9 @@ func storageVolumes(c config.Config) []telemetry.StorageVolume {
 	if (c.Logging.Output == "file" || c.Logging.Output == "both") && c.Logging.File.Path != "" {
 		volumes = append(volumes, telemetry.StorageVolume{Name: "logging.file", Path: filepath.Dir(c.Logging.File.Path)})
 	}
+	if c.Audit.ArchiveDir != "" {
+		volumes = append(volumes, telemetry.StorageVolume{Name: "audit.archiveDir", Path: c.Audit.ArchiveDir})
+	}
 	return volumes
 }
 

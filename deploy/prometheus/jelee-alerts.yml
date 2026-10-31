@@ -48,6 +48,15 @@ groups:
           summary: "Jelee is losing log records for {{ $labels.destination }}"
           description: "{{ $labels.instance }} dropped {{ $value | humanize }} log records bound for {{ $labels.destination }} in 10 minutes because the collector was slow, unreachable or rejecting them (G46.1, G46.8); requests are not slowed, but the collector's copy is incomplete."
           runbook: "docs/runbook.md#jeleelogforwarddropped"
+      - alert: JeleeAuditArchiveFailed
+        expr: sum by (instance) (increase(jelee_audit_archive_failures_total[1h])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jelee cannot archive expired audit rows"
+          description: "{{ $labels.instance }} failed {{ $value | humanize }} audit archive writes or archive retention passes in the last hour. A failed write deletes nothing: expired audit and security rows stay in the database until the archive works again."
+          runbook: "docs/runbook.md#jeleeauditarchivefailed"
       - alert: JeleeDiskSpaceLow
         expr: jelee_storage_available_bytes / jelee_storage_size_bytes < 0.10
         for: 10m

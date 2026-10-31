@@ -54,3 +54,44 @@ func TestAuditConfigDefaultsAndEnvironment(t *testing.T) {
 		t.Fatalf("out-of-range batch loaded: %+v", full.Audit)
 	}
 }
+
+func TestAuditArchiveConfig(t *testing.T) {
+	dir := t.TempDir()
+	env := map[string]string{
+		"JELEE_AUDIT_ARCHIVE_DIR": dir, "JELEE_AUDIT_ARCHIVE_RETENTION_DAYS": "90",
+		"JELEE_AUDIT_ARCHIVE_SECURITY_RETENTION_DAYS": "400", "JELEE_AUDIT_ARCHIVE_MAX_MB": "512",
+	}
+	c := DefaultAuditConfig()
+	if err := c.loadEnvironment(func(k string) (string, bool) { v, ok := env[k]; return v, ok }); err != nil {
+		t.Fatal(err)
+	}
+	if c.Validate() != nil || c.ArchiveDir != dir || c.ArchiveRetentionDays != 90 || c.ArchiveSecurityRetentionDays != 400 || c.ArchiveMaxMB != 512 {
+		t.Fatalf("archive environment not applied: %+v", c)
+	}
+	for key := range env {
+		if key == "JELEE_AUDIT_ARCHIVE_DIR" {
+			continue
+		}
+		if err := c.loadEnvironment(func(k string) (string, bool) { return "x", k == key }); err == nil {
+			t.Fatalf("non-numeric %s accepted", key)
+		}
+	}
+	abs := DefaultAuditConfig()
+	abs.ArchiveDir = dir
+	for name, bad := range map[string]AuditConfig{
+		"relative dir":      {PurgeIntervalMinutes: 60, ArchiveDir: "archive"},
+		"limit without dir": {PurgeIntervalMinutes: 60, ArchiveMaxMB: 5},
+		"days without dir":  {PurgeIntervalMinutes: 60, ArchiveRetentionDays: 5},
+		"negative days":     {PurgeIntervalMinutes: 60, ArchiveDir: dir, ArchiveRetentionDays: -1},
+		"too many days":     {PurgeIntervalMinutes: 60, ArchiveDir: dir, ArchiveSecurityRetentionDays: 36501},
+		"huge cap":          {PurgeIntervalMinutes: 60, ArchiveDir: dir, ArchiveMaxMB: 1<<20 + 1},
+		"purge off":         {ArchiveDir: dir},
+	} {
+		if bad.Validate() == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	if abs.Validate() != nil {
+		t.Fatal("archive with defaults must validate")
+	}
+}
