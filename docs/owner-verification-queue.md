@@ -19,7 +19,7 @@
 | A1 | Linux 完整回歸（race） | `docs/claude-handoff-schema56.md`「請 MoYuanCN 執行的驗證」第 1 步 | 待跑 |
 | A2 | Windows 真 PG 回歸 | 同上，第 2 步 | 待跑 |
 | A3 | 24h 圖片長測（用最新 commit 重跑） | `docs/image-soak.md`，`scripts/start_images_soak.py` | 待跑 |
-| A4 | 網頁視覺基準：條目頁新增收藏按鈕（第 11 階段 C1，G24.2），`item-light.png`／`item-dark.png`（desktop、mobile 共 4 張）必然改變。請在產生基準的環境（CI 的 Linux 映像）跑 `make web-visual-update`，人工看過新圖（標題下方多一個「☆ 收藏」切換按鈕，按下後為實心星並套用 pressed 樣式）再提交；本機 WSL 上連未改動的頁面也有頁首第二列字型位移的差異，不能在本機更新 | `make web-visual`、`web/e2e/__screenshots__/` | 待跑 |
+| A4 | 網頁視覺基準：條目頁新增收藏按鈕（第 11 階段 C1，G24.2）。desktop 的 `item-light.png`／`item-dark.png` 已改用 CI Linux 構件的實際圖（mobile 兩張不受影響，CI 比對通過；本機 WSL 字型與 CI 不同，不在本機更新）。請在 PR 的圖片差異確認新圖：標題下方多一個「★ Favorite」切換按鈕，假資料為已收藏狀態，所以是實心星並套用 pressed 樣式 | `web/e2e/__screenshots__/desktop/item-*.png`、`docs/frontend-adr.md`「端對端與視覺回歸」 | 待確認 |
 
 ## B. Windows 實機
 

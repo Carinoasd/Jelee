@@ -10,7 +10,7 @@ import { setFavorite } from "./api";
 
 // Marks or unmarks the item as one of the caller's favourites (G24.2). A
 // toggle button: the label stays, aria-pressed carries the state.
-const props = defineProps<{ itemId: string; favorite: boolean }>();
+const props = withDefaults(defineProps<{ itemId: string; favorite?: boolean }>(), { favorite: false });
 const { t } = useI18n();
 const { client } = useApi();
 const toasts = useToastStore();
