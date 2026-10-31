@@ -67,6 +67,9 @@ type PlaybackSourceRecord struct {
 	// position (G21.1); empty and zero for a single-file version.
 	PartOf     string
 	PartNumber int
+	// Layout is the container layout read for the scan's current stamp of
+	// the file; nil when it was not read yet or the file changed since.
+	Layout *SourceLayout
 }
 
 func (PlaybackSourceRecord) String() string   { return "playback source (redacted)" }
@@ -107,6 +110,12 @@ type PlaybackSource struct {
 	// TotalDurationMicros is the combined duration of all parts; absent for
 	// a single file or when a part's duration is unknown.
 	TotalDurationMicros *int64 `json:"totalDurationMicros,omitempty"`
+	// Layout is where the file keeps its start and seek index (G10.6);
+	// absent until a catalog sync read it, and for containers that are not
+	// inspected. LayoutHints is advice for the administrator, such as
+	// faststart_recommended; the server never rewrites the file (G10.10).
+	Layout      ContainerLayout `json:"layout,omitempty"`
+	LayoutHints []string        `json:"layoutHints,omitempty"`
 }
 
 type PlaybackVideoTrack struct {
@@ -439,6 +448,10 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 		Video: []PlaybackVideoTrack{}, Audio: []PlaybackAudioTrack{}, Subtitles: []PlaybackSubtitleTrack{}, External: []PlaybackExternalTrack{}}
 	s.SizeBytes = r.ScanSize
 	s.Primary = r.Primary
+	if r.Layout != nil && ValidContainerLayout(r.Layout.Layout) {
+		s.Layout = r.Layout.Layout
+		s.LayoutHints = LayoutHints(r.Layout.Layout)
+	}
 	if s.Probed {
 		if meta.Format.SizeBytes != nil {
 			s.SizeBytes = meta.Format.SizeBytes

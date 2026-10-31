@@ -41,7 +41,9 @@
       "undoDone": "The change was undone.",
       "blockedUndone": "Undone",
       "blockedExpired": "Too old to undo",
-      "blockedLater": "Undo the later change first"
+      "blockedLater": "Undo the later change first",
+      "hintFaststart": "Recommended: remux with faststart (movie index at the start) so clients can begin without fetching the end of the file. Jelee never modifies the file.",
+      "hintNoSeekIndex": "This file has no seek index (Cues); clients may be unable to seek. Remuxing it, for example with mkvmerge, adds one. Jelee never modifies the file."
     },
     "tracks": {
       "title": "Audio and subtitle preferences",
