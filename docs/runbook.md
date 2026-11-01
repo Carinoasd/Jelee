@@ -78,6 +78,12 @@
 - **確認**：`increase(jelee_logging_forward_dropped_total[10m])` 看是哪個 `destination`；`jelee_logging_forward_failures_total` 增加表示投遞失敗（收集器離線、憑證錯、被拒收），`jelee_logging_forward_sent_total` 停止增加表示完全送不出去。行程 stderr 會在投遞開始失敗與恢復時各寫一行 `Jelee log forwarder <名稱>: delivery failing (<類別>)`，類別是 `network`、`timeout`、`tls`、`status 5xx`／`status 429`（可重試）或 `rejected 4xx`（Loki 認證錯誤、條目過舊或過長，重試無用，整批丟棄）。
 - **處置**：`tls` 是收集器憑證不被系統根憑證信任，請換成受信任的憑證或把 CA 裝進系統信任庫（沒有關閉驗證的選項）；`rejected 401／403` 檢查 `JELEE_LOG_FORWARD_LOKI_USERNAME`／`PASSWORD(_FILE)`／`BEARER_TOKEN(_FILE)`、`TENANT_ID`；`status 429` 調高 Loki 的 ingestion 限額或調大 `BATCH_INTERVAL_MS`／`BATCH_SIZE` 減少請求數；收集器正常卻仍丟棄，調大該轉發器的 `QUEUE_ENTRIES`。syslog 經 UDP 送不出時不會有連線錯誤，請確認收集器位址與防火牆。見[日誌](logging.md#外部转发g461)。
 - **回復驗證**：`increase(jelee_logging_forward_dropped_total[10m])` 回到 0，告警解除；收集器端查得到新紀錄。
+### JeleeAuditArchiveFailed
+
+- **意義**：某個副本 1 小時內有稽核歸檔寫入或歸檔自身保留期清理失敗（G36.3）。歸檔寫入失敗時**不會刪除**資料庫中的過期稽核與安全列（先歸檔、fsync 成功才刪，同一交易），所以不會遺失紀錄，但過期列會累積，直到歸檔恢復。
+- **確認**：伺服器日誌 `component=gc` 的 `audit retention purge failed` 帶 `error` 欄位（磁碟滿、權限、目錄不存在）；`jelee_storage_available_bytes{volume="audit.archiveDir"}` 看歸檔目錄所在磁碟；`jelee-cli audit archive verify --dir 歸檔目錄` 離線檢查現有歸檔檔是否完整。
+- **處置**：清出空間或修正目錄權限（服務帳號需可建立檔案與硬連結）；歸檔自身保留期太長就調小 `JELEE_AUDIT_ARCHIVE_RETENTION_DAYS`／`JELEE_AUDIT_ARCHIVE_MAX_MB`。不要手動刪資料庫的稽核列（資料庫會拒絕）。
+- **回復驗證**：下一輪清理（預設每小時）成功後 `increase(jelee_audit_archive_failures_total[1h])` 在窗口過去後回到 0；`jelee_audit_archive_rows_total` 繼續增加。見[備份與還原](backup-restore.md#稽核歸檔g363)。
 
 ## 工作
 

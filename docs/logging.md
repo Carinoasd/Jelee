@@ -264,7 +264,7 @@ code : "db_slow_query" and durationMs > 2000
 | 记录 | 保留方式 |
 | --- | --- |
 | 日志文件 | `JELEE_LOG_MAX_BACKUPS`、`JELEE_LOG_MAX_SIZE_MB`、`JELEE_LOG_ROTATE_HOURS`、`JELEE_LOG_COMPRESS`；另有按天保留期与总容量上限（`log_settings`，见下文）；stdout 由容器运行时或日志系统管理 |
-| 审计日志 | 表 `audit_retention`（默认 365 天）；服务器按 `JELEE_AUDIT_PURGE_*` 定期清理，见下文 |
+| 审计日志与安全日志 | 表 `audit_retention`（`audit_days`、`security_days` 各自独立，默认 365 天）；服务器按 `JELEE_AUDIT_PURGE_*` 定期清理，可在清理前归档，见下文 |
 | 任务历史 | `JELEE_JOB_HISTORY_LIMIT`（默认 20，范围 1–100），超出的已结束任务被删除；任务没有独立的日志存储 |
 | Webhook 投递记录 | `JELEE_WEBHOOK_RETENTION_DAYS`（默认 14） |
 
@@ -300,7 +300,25 @@ code : "db_slow_query" and durationMs > 2000
 - 多个实例共用数据库时每个实例都会清理；被别的实例先删掉的行会直接跳过，结果相同。
 - 保留天数通过 `PUT /api/v1/admin/logging/retention`、`jelee-cli logs retention` 或元数据导入修改，见上文与[备份与还原](backup-restore.md)。
 
-守门测试：`TestAuditJanitorPassIsBounded`、`TestAuditJanitorOptions`、`TestAuditJanitorRunStopsWithContext`（`internal/app/`），`TestAuditConfigDefaultsAndEnvironment`（配置），真 PG `TestAuditJanitorPurgesExpiredRowsPostgres`（分批删除过期行、保留期内的行与清理记录保留、直接 DELETE 仍被拒、日志字段通过正式白名单）。
+### 审计归档（G36.3）
+
+设定 `JELEE_AUDIT_ARCHIVE_DIR`（绝对路径）后，清理删除过期行**之前**先把它们写成归档文件；未设定则保持上面只删除的行为。
+
+| 环境变量 | 配置键 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `JELEE_AUDIT_ARCHIVE_DIR` | `audit.archiveDir` | 空（不归档） | 绝对路径，目录不存在时以 0700 建立；需要同时开启清理（`purgeIntervalMinutes` 非 0） |
+| `JELEE_AUDIT_ARCHIVE_RETENTION_DAYS` | `audit.archiveRetentionDays` | 0（不按天删） | 0–36500，归档文件自己的保留期（审计类，以及未单独设定的安全类）；与数据库保留期无关 |
+| `JELEE_AUDIT_ARCHIVE_SECURITY_RETENTION_DAYS` | `audit.archiveSecurityRetentionDays` | 0（同上一项） | 0–36500，安全类归档文件的保留期 |
+| `JELEE_AUDIT_ARCHIVE_MAX_MB` | `audit.archiveMaxMb` | 0（不设上限） | 0–1048576，归档目录总大小上限，超过时从最旧的文件删起 |
+
+- **顺序**：每一批在一个数据库事务里依序执行：锁定最旧的一批过期行（`FOR UPDATE`）→ 写归档文件并 fsync、目录 fsync → 调用 `purge_audit_logs()` 删除同一批 → 核对删除数与归档数一致 → 写 `audit.retention_purged`（含 `archivedFiles`）→ 提交。归档失败（磁盘满、权限、目录不存在）时事务回滚，**一行都不删**，过期行留在数据库，下一轮重试；该轮写 WARN（带 `error`），`jelee_audit_archive_failures_total` 加一，告警 `JeleeAuditArchiveFailed`。删除数与归档数不一致同样回滚。提交失败时已写好的文件会留下，重试时以相同或更大的编号区间重写，读取方以 `id` 去重。
+- **文件**：每批依类别与 UTC 日期分檔，`audit-<audit|security>-<YYYYMMDD>-<第一个id>-<最后一个id>.ndjson.gz`，每行一条与管理员稽核列表相同形状的 JSON（`id`、`category`、`event`、`targetId`／`targetRef`、`actorId`、`actorIp`、`requestId`、`before`、`after`、`occurredAt`），gzip 压缩。先写 `.tmp-` 临时文件（0600、独占建立），fsync 后以硬链接取得正式名称——**永不覆盖**既有文件；正式名称已存在时必须验证通过才视为同一批的先前尝试，否则整批失败。所有路径操作限制在归档目录内（`os.Root`）。
+- **归档自身的保留**：每轮清理结束后（即使清理失败）依 `archiveRetentionDays`／`archiveSecurityRetentionDays`（以文件日期当天结束起算）与 `archiveMaxMb` 删除旧归档文件，**只删归档、不动数据库**；只处理符合命名格式的文件，其他文件与 24 小时内的临时文件不碰。移除数量计入 `jelee_audit_archive_pruned_files_total`，归档目录所在磁盘出现在 `jelee_storage_*{volume="audit.archiveDir"}`。
+- **安全日志**：依 G46.9「审计与安全日志保留期独立」，安全类（`category=security`，例如 `login.failed`）与审计类共用同一张表、各有自己的数据库保留期；归档**两类都做**（分开的文件，文件名带类别），归档保留期也各自可配。运行日志（stdout、日志文件、转发器）不在数据库，不归档，由上面的轮转、gzip 与 `log_settings` 保留期管理。
+- **检查**：`jelee-cli audit archive list [--dir DIR] [--json]` 列出文件；`jelee-cli audit archive verify [--dir DIR] [--json]` 离线检查每个文件的 gzip 完整性（含校验和）、每行都是稽核记录、`id` 递增、类别与日期符合文件名、首尾 `id` 等于文件名区间，并输出行数；有损坏文件时退出码 3。`--dir` 缺省取 `JELEE_AUDIT_ARCHIVE_DIR`。两者不连数据库、不需令牌。
+- 归档文件含稽核内容（操作者 ID、IP），权限 0600；备份与异地保管同数据库备份的要求，见[备份与还原](backup-restore.md#稽核歸檔g363)。
+
+守门测试：`TestAuditJanitorPassIsBounded`、`TestAuditJanitorOptions`、`TestAuditJanitorRunStopsWithContext`、`TestAuditJanitorArchivesBeforeDelete`、`TestAuditJanitorArchiveFailureKeepsRows`（`internal/app/`），`internal/platform/auditarchive/` 的分檔、不覆盖、保留期与容量、损坏检测测试，`TestAuditArchiveCLI`，真 PG `TestAuditIntegrationArchiveBeforePurge`、`TestAuditIntegrationArchiveFailureDeletesNothing`，`TestAuditConfigDefaultsAndEnvironment`（配置），真 PG `TestAuditJanitorPurgesExpiredRowsPostgres`（分批删除过期行、保留期内的行与清理记录保留、直接 DELETE 仍被拒、日志字段通过正式白名单）。
 
 ## 审计日志不能关闭（G46.10）
 

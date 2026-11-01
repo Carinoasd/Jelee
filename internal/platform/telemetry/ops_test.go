@@ -82,6 +82,9 @@ func newProductionTestExporter(t *testing.T, ops app.OpsMetricsSource, blocked B
 	if err := m.RegisterRequestGuards(guardTestCounters{limited: 5, timedOut: 3}); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.RegisterAuditArchive(archiveTestCounters{rows: 11, failures: 2, pruned: 3}); err != nil {
+		t.Fatal(err)
+	}
 	return m
 }
 
@@ -89,6 +92,12 @@ type guardTestCounters struct{ limited, timedOut int64 }
 
 func (c guardTestCounters) RateLimitedTotal() int64 { return c.limited }
 func (c guardTestCounters) TimeoutsTotal() int64    { return c.timedOut }
+
+type archiveTestCounters struct{ rows, failures, pruned uint64 }
+
+func (c archiveTestCounters) ArchivedRows() uint64       { return c.rows }
+func (c archiveTestCounters) ArchiveFailures() uint64    { return c.failures }
+func (c archiveTestCounters) ArchivePrunedFiles() uint64 { return c.pruned }
 
 type logTestCounters struct{ dropped, failed uint64 }
 
@@ -154,6 +163,7 @@ func TestOpsMetricsExposeTheSharedSnapshot(t *testing.T) {
 		"jelee_client_control_blocked_total": 42, "jelee_runtime_memory_limit_bytes": 512 << 20,
 		"jelee_logging_records_dropped_total": 7, "jelee_logging_write_failures_total": 2,
 		"jelee_http_rate_limited_total": 5, "jelee_http_timeouts_total": 3,
+		"jelee_audit_archive_rows_total": 11, "jelee_audit_archive_failures_total": 2, "jelee_audit_archive_pruned_files_total": 3,
 	} {
 		if got := opsValue(t, families, name, nil); got != want {
 			t.Fatalf("%s = %v, want %v", name, got, want)
@@ -218,6 +228,9 @@ func TestOpsMetricsRegistrationRules(t *testing.T) {
 	}
 	if err := m.RegisterOps(nil); err == nil {
 		t.Fatal("nil operational source registered")
+	}
+	if err := m.RegisterAuditArchive(nil); err == nil {
+		t.Fatal("nil audit archive source accepted")
 	}
 	if err := m.RegisterLogging(nil); err == nil {
 		t.Fatal("nil log counters accepted")

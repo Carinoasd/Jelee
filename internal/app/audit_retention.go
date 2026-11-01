@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -19,6 +20,21 @@ import (
 // AuditPurger is the repository side of the purge.
 type AuditPurger interface {
 	PurgeAudit(ctx context.Context, batch int) (domain.AuditPurgeResult, error)
+}
+
+// AuditArchivePurger is the repository side of an archiving purge (G36.3): it
+// hands the expired rows to the sink and deletes them only after the sink
+// returned, in one transaction.
+type AuditArchivePurger interface {
+	PurgeAuditArchived(ctx context.Context, batch int, sink domain.AuditArchiveSink) (domain.AuditPurgeResult, error)
+}
+
+// AuditArchiver is the archive the janitor writes to before it deletes, and
+// whose own retention it enforces after each pass. Pruning never touches the
+// database.
+type AuditArchiver interface {
+	domain.AuditArchiveSink
+	Prune(ctx context.Context, now time.Time) (domain.AuditArchivePrune, error)
 }
 
 // Bounds of the janitor settings; the batch bound is the database's own.
@@ -39,12 +55,52 @@ type AuditJanitorOptions struct {
 	// Timeout bounds one batch; zero means one minute.
 	Timeout time.Duration
 	Logger  *slog.Logger
+	// Archive, when set, receives every batch before its rows are deleted;
+	// the repository must then implement AuditArchivePurger. Nil keeps the
+	// plain delete-only purge.
+	Archive AuditArchiver
 }
 
 // AuditJanitor runs the scheduled audit retention purge.
 type AuditJanitor struct {
-	repo AuditPurger
-	opts AuditJanitorOptions
+	repo    AuditPurger
+	archive AuditArchivePurger
+	opts    AuditJanitorOptions
+	// Totals since start, read by the metrics callbacks.
+	archivedRows    atomic.Uint64
+	archiveFailures atomic.Uint64
+	prunedFiles     atomic.Uint64
+}
+
+// ArchivedRows is the rows written to the archive since start.
+func (j *AuditJanitor) ArchivedRows() uint64 { return j.archivedRows.Load() }
+
+// ArchiveFailures counts archive writes and archive retention passes that
+// failed since start; a failed write leaves its rows in the database.
+func (j *AuditJanitor) ArchiveFailures() uint64 { return j.archiveFailures.Load() }
+
+// ArchivePrunedFiles is the archive files its own retention removed.
+func (j *AuditJanitor) ArchivePrunedFiles() uint64 { return j.prunedFiles.Load() }
+
+// Archiving reports whether purged rows are archived first.
+func (j *AuditJanitor) Archiving() bool { return j.archive != nil }
+
+// countingSink counts the janitor's archive outcomes around the real sink.
+type countingSink struct {
+	j    *AuditJanitor
+	sink domain.AuditArchiveSink
+}
+
+func (c countingSink) Archive(ctx context.Context, records []domain.AuditRecord) (domain.AuditArchiveReceipt, error) {
+	receipt, err := c.sink.Archive(ctx, records)
+	if err != nil {
+		if ctx.Err() == nil {
+			c.j.archiveFailures.Add(1)
+		}
+		return receipt, err
+	}
+	c.j.archivedRows.Add(uint64(max(len(records), 0))) //nolint:gosec // a length is never negative
+	return receipt, nil
 }
 
 // NewAuditJanitor validates opts; every bound is required.
@@ -56,7 +112,15 @@ func NewAuditJanitor(repo AuditPurger, opts AuditJanitorOptions) (*AuditJanitor,
 	if opts.Timeout == 0 {
 		opts.Timeout = time.Minute
 	}
-	return &AuditJanitor{repo: repo, opts: opts}, nil
+	j := &AuditJanitor{repo: repo, opts: opts}
+	if opts.Archive != nil {
+		archive, ok := repo.(AuditArchivePurger)
+		if !ok {
+			return nil, domain.ErrInvalid
+		}
+		j.archive = archive
+	}
+	return j, nil
 }
 
 // AuditPassResult is one pass: the rows removed per category, the batches
@@ -73,7 +137,13 @@ func (j *AuditJanitor) Pass(ctx context.Context) (AuditPassResult, error) {
 	var result AuditPassResult
 	for result.Batches < j.opts.MaxBatches {
 		batchCtx, cancel := context.WithTimeout(ctx, j.opts.Timeout)
-		got, err := j.repo.PurgeAudit(batchCtx, j.opts.Batch)
+		var got domain.AuditPurgeResult
+		var err error
+		if j.archive != nil {
+			got, err = j.archive.PurgeAuditArchived(batchCtx, j.opts.Batch, countingSink{j: j, sink: j.opts.Archive})
+		} else {
+			got, err = j.repo.PurgeAudit(batchCtx, j.opts.Batch)
+		}
 		cancel()
 		if err != nil {
 			return result, err
@@ -100,6 +170,25 @@ func (j *AuditJanitor) Run(ctx context.Context) {
 		case <-ticker.C:
 		}
 		j.runPass(ctx)
+		j.pruneArchive(ctx)
+	}
+}
+
+// pruneArchive applies the archive's own retention and size cap. It runs after
+// every pass, also when the purge failed, and only removes archive files.
+func (j *AuditJanitor) pruneArchive(ctx context.Context) {
+	if j.archive == nil {
+		return
+	}
+	pruned, err := j.opts.Archive.Prune(ctx, time.Now())
+	j.prunedFiles.Add(uint64(max(pruned.Files, 0))) //nolint:gosec // clamped above zero
+	switch {
+	case err != nil && ctx.Err() != nil:
+	case err != nil:
+		j.archiveFailures.Add(1)
+		j.opts.Logger.Warn("audit archive retention failed; retrying next interval", "component", "gc", "files", pruned.Files)
+	case pruned.Files > 0:
+		j.opts.Logger.Info("audit archive retention removed old archive files", "component", "gc", "files", pruned.Files, "bytes", pruned.Bytes)
 	}
 }
 
@@ -112,6 +201,10 @@ func (j *AuditJanitor) runPass(ctx context.Context) {
 	switch {
 	case err != nil && ctx.Err() != nil:
 		// Shutdown interrupted the pass; the next start resumes it.
+	case err != nil && j.archive != nil:
+		// The archive write failed or the purge disagreed with it: nothing
+		// was deleted for that batch, so no audit row is lost.
+		j.opts.Logger.Warn("audit retention purge failed; expired rows stay in the database and the next interval retries", append(attrs, "archive", true, "error", err.Error())...)
 	case err != nil:
 		j.opts.Logger.Warn("audit retention purge failed; retrying next interval", attrs...)
 	case result.Limited:

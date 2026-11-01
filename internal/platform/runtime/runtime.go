@@ -18,6 +18,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/scan"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/auditarchive"
 	"github.com/MoYuanCN/Jelee/internal/platform/cache"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/consistency"
@@ -103,9 +104,27 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			// G46.9: expired audit rows leave through purge_audit_logs on
 			// the configured interval; zero switches the purge off.
 			if interval := c.Audit.PurgeInterval(); interval > 0 {
-				janitor, err := app.NewAuditJanitor(store, app.AuditJanitorOptions{Interval: interval, Batch: c.Audit.Batch(), MaxBatches: c.Audit.MaxBatches(), Logger: logger})
+				options := app.AuditJanitorOptions{Interval: interval, Batch: c.Audit.Batch(), MaxBatches: c.Audit.MaxBatches(), Logger: logger}
+				// G36.3: with an archive directory, expired rows are written
+				// there and synced before the purge deletes them.
+				if c.Audit.ArchiveDir != "" {
+					archive, err := auditarchive.Open(auditarchive.Options{
+						Dir: c.Audit.ArchiveDir, RetentionDays: c.Audit.ArchiveRetentionDays,
+						SecurityRetentionDays: c.Audit.ArchiveSecurityRetentionDays, MaxBytes: int64(c.Audit.ArchiveMaxMB) << 20,
+					})
+					if err != nil {
+						store.Pool.Close()
+						return nil, err
+					}
+					lifetime.closeAuditArchive = archive.Close
+					options.Archive = archive
+				}
+				janitor, err := app.NewAuditJanitor(store, options)
 				if err != nil {
 					store.Pool.Close()
+					if lifetime.closeAuditArchive != nil {
+						_ = lifetime.closeAuditArchive()
+					}
 					return nil, err
 				}
 				lifetime.audit = janitor
@@ -246,6 +265,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			// G46.8: records the log queues dropped or the sinks refused.
 			if lifetime.logs != nil {
 				if err := metrics.RegisterLogging(logCounterSource{lifetime.logs}); err != nil {
+					return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+				}
+			}
+			// G36.3: archive rows, failures and files its retention removed.
+			if lifetime.audit != nil && lifetime.audit.Archiving() {
+				if err := metrics.RegisterAuditArchive(lifetime.audit); err != nil {
 					return nil, errors.Join(err, metrics.Shutdown(context.Background()))
 				}
 			}
@@ -657,6 +682,8 @@ type lifetime struct {
 	// audit purges expired audit rows (G46.9); auditDone joins it.
 	audit     *app.AuditJanitor
 	auditDone chan struct{}
+	// closeAuditArchive releases the archive directory handle (G36.3).
+	closeAuditArchive func() error
 	// webhooks delivers outbox events (G12.3). It stops claiming at
 	// cancellation and joins its in-flight attempts before the pool closes.
 	webhooks           *app.WebhookDispatcher
@@ -712,6 +739,9 @@ func (l *lifetime) closePool() {
 	l.closeOnce.Do(func() {
 		if l.closeTMDB != nil {
 			l.closeTMDB()
+		}
+		if l.closeAuditArchive != nil {
+			_ = l.closeAuditArchive()
 		}
 		if l.closeIgnore != nil {
 			if err := l.closeIgnore(); err != nil {

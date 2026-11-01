@@ -511,6 +511,20 @@ func (s *Store) SetAuditRetention(ctx context.Context, actor domain.Actor, audit
 // through purge_audit_logs, the only deletion path the table accepts, and
 // records the purge itself. Callers repeat it until both counts are zero.
 func (s *Store) PurgeAudit(ctx context.Context, batch int) (domain.AuditPurgeResult, error) {
+	return s.PurgeAuditArchived(ctx, batch, nil)
+}
+
+// PurgeAuditArchived is PurgeAudit that first hands the rows it is about to
+// delete to sink (G36.3). In one transaction it locks the expired rows (oldest
+// first, FOR UPDATE, so nothing can change them), asks the sink to make them
+// durable, and only then runs purge_audit_logs, which selects the same rows:
+// now() is fixed for the transaction, the retention row is held FOR SHARE and
+// both statements order by id. If the sink fails nothing is deleted and the
+// transaction rolls back. If the purge removes a different number of rows than
+// were archived, the transaction rolls back too; the extra archive file is
+// harmless because a later attempt archives the same ids again and readers
+// deduplicate by id. A nil sink is the plain purge.
+func (s *Store) PurgeAuditArchived(ctx context.Context, batch int, sink domain.AuditArchiveSink) (domain.AuditPurgeResult, error) {
 	if batch < 1 || batch > 10000 {
 		return domain.AuditPurgeResult{}, domain.ErrInvalid
 	}
@@ -519,6 +533,27 @@ func (s *Store) PurgeAudit(ctx context.Context, batch int) (domain.AuditPurgeRes
 		return domain.AuditPurgeResult{}, storageError(err)
 	}
 	defer tx.Rollback(ctx)
+	var receipt domain.AuditArchiveReceipt
+	var archived domain.AuditPurgeResult
+	if sink != nil {
+		var records []domain.AuditRecord
+		if records, err = expiredAudit(ctx, tx, batch); err != nil {
+			return domain.AuditPurgeResult{}, err
+		}
+		if len(records) == 0 {
+			return domain.AuditPurgeResult{}, storageError(tx.Commit(ctx))
+		}
+		for _, r := range records {
+			if r.Category == domain.AuditCategorySecurity {
+				archived.Security++
+			} else {
+				archived.Audit++
+			}
+		}
+		if receipt, err = sink.Archive(ctx, records); err != nil {
+			return domain.AuditPurgeResult{}, err
+		}
+	}
 	rows, err := tx.Query(ctx, `SELECT purged_category,purged FROM purge_audit_logs(current_schema(),$1)`, batch)
 	if err != nil {
 		return domain.AuditPurgeResult{}, storageError(err)
@@ -543,10 +578,42 @@ func (s *Store) PurgeAudit(ctx context.Context, batch int) (domain.AuditPurgeRes
 	if err != nil {
 		return domain.AuditPurgeResult{}, storageError(err)
 	}
+	if sink != nil && (result.Audit != archived.Audit || result.Security != archived.Security) {
+		return domain.AuditPurgeResult{}, domain.ErrConflict
+	}
+	result.ArchivedFiles = receipt.Files
 	if result.Audit+result.Security > 0 {
 		if err = appendAudit(ctx, tx, AuditEntry{Event: "audit.retention_purged", TargetRef: "audit_logs", After: result}); err != nil {
 			return domain.AuditPurgeResult{}, err
 		}
 	}
 	return result, storageError(tx.Commit(ctx))
+}
+
+// expiredAudit locks and returns the oldest batch of rows purge_audit_logs
+// would delete in this transaction. It reads the retention row FOR SHARE, as
+// the purge function does, so the two see the same periods.
+func expiredAudit(ctx context.Context, tx pgx.Tx, batch int) ([]domain.AuditRecord, error) {
+	var auditDays, securityDays int
+	if err := tx.QueryRow(ctx, `SELECT audit_days,security_days FROM audit_retention WHERE singleton FOR SHARE`).Scan(&auditDays, &securityDays); err != nil {
+		return nil, storageError(err)
+	}
+	rows, err := tx.Query(ctx, `SELECT `+auditColumns+` FROM audit_logs
+	 WHERE (category='audit' AND occurred_at<now()-make_interval(days=>$1)) OR (category='security' AND occurred_at<now()-make_interval(days=>$2))
+	 ORDER BY id LIMIT $3 FOR UPDATE`, auditDays, securityDays, batch)
+	if err != nil {
+		return nil, storageError(err)
+	}
+	defer rows.Close()
+	records := make([]domain.AuditRecord, 0, batch)
+	for rows.Next() {
+		var r domain.AuditRecord
+		var b, a string
+		if err = rows.Scan(&r.ID, &r.Category, &r.Event, &r.TargetID, &r.TargetRef, &r.ActorID, &r.ActorIP, &r.RequestID, &b, &a, &r.OccurredAt); err != nil {
+			return nil, storageError(err)
+		}
+		r.Before, r.After = json.RawMessage(b), json.RawMessage(a)
+		records = append(records, r)
+	}
+	return records, storageError(rows.Err())
 }

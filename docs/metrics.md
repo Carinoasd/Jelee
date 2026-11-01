@@ -148,6 +148,9 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_logging_forward_failures_total{destination}` | counter | 程序啟動後對該目的地的投遞嘗試失敗次數（含之後重試成功的） |
 | `jelee_logging_forward_sent_total{destination}` | counter | 程序啟動後該目的地已接收的日誌紀錄數 |
 | `jelee_logging_write_failures_total` | counter | 程序啟動後被日誌輸出（檔案、轉發器）拒絕寫入的紀錄數 |
+| `jelee_audit_archive_rows_total` | counter | 程序啟動後在保留期清理前寫入稽核歸檔的列數（G36.3；只在設定 `JELEE_AUDIT_ARCHIVE_DIR` 時輸出） |
+| `jelee_audit_archive_failures_total` | counter | 程序啟動後歸檔寫入或歸檔自身保留期清理失敗的次數；寫入失敗時該批不刪（告警 `JeleeAuditArchiveFailed`） |
+| `jelee_audit_archive_pruned_files_total` | counter | 程序啟動後因歸檔自身保留期或容量上限而刪除的歸檔檔數 |
 | `jelee_runtime_memory_limit_bytes` | gauge | Go soft memory limit（`GOMEMLIMIT`）；未設定時為 0 |
 | `jelee_storage_available_bytes{volume}` | gauge | 設定目錄所在檔案系統可供服務使用的 bytes |
 | `jelee_storage_size_bytes{volume}` | gauge | 該檔案系統總 bytes |
@@ -168,7 +171,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_subtitle_ocr_skipped_total` | counter | 解碼器判為損壞而略過的圖片數 |
 | `jelee_subtitle_ocr_throttled_total` | counter | 因每分鐘上限而等待的圖片數 |
 
-`volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
+`volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`、`audit.archiveDir`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
 
 工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074）、`nfo_apply`（遷移 000088）與 `nfo_export`（遷移 000089），共用工作指標固定 14 組 kind／priority、42 個 outcome 點；測試中的工作 exposition 為 22 families／533 series、約 52 KiB，仍在 64 KiB 上限內。匯出任務每次讓出後回到佇列不計入等待或完成，只在首次領取與終止時各記一次。之後 `image_refresh`（遷移 000096）使共用工作指標成為固定 16 組 kind／priority、48 個 outcome 點，測試中的工作 exposition 為 22 families／607 series；最大測試刻度（每個計數 2^40）時約 68 KiB，測試上限因此由 64 KiB 調為 80 KiB。再之後 `metadata_refresh`（遷移 000103，暫定編號）使共用工作指標成為固定 18 組 kind／priority、54 個 outcome 點，測試中的工作 exposition 為 22 families／681 series；最大測試刻度時約 76 KiB，工作與資源 exposition 測試上限調為 96 KiB，執行期整合測試讀取上限同為 96 KiB。再之後 `subtitle_cache_cleanup`、`backup_reminder` 與 `external_metadata_removal`（遷移 000105，暫定編號）使共用工作指標成為固定 24 組 kind／priority、72 個 outcome 點，測試中的工作 exposition 為 22 families／903 series；最大測試刻度時約 88 KiB，工作、資源與圖片 exposition 測試上限與執行期整合測試讀取上限調為 128 KiB（[維護任務](maintenance-jobs.md)）。
 
