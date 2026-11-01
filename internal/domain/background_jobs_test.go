@@ -17,7 +17,7 @@ func TestBackgroundJobKinds(t *testing.T) {
 			t.Fatalf("%q is a background kind", other)
 		}
 	}
-	if !BackgroundJobClusterWide(JobWebhookDelivery) || !BackgroundJobClusterWide(JobWatchStatsAggregation) || BackgroundJobClusterWide(JobPlaybackProgressFlush) {
+	if !BackgroundJobClusterWide(JobWebhookDelivery) || !BackgroundJobClusterWide(JobWatchStatsAggregation) || !BackgroundJobClusterWide(JobSubtitleOCR) || BackgroundJobClusterWide(JobPlaybackProgressFlush) {
 		t.Fatal("scope of the background kinds")
 	}
 	if got := BackgroundRunOutcomes(); got != [4]string{"succeeded", "failed", "cancelled", "skipped"} {

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,6 +28,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/probe"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 )
 
 const (
@@ -79,10 +81,14 @@ type fakeExtractor struct {
 	err    error
 	errs   []error
 	block  chan struct{}
+	order  []string
 }
 
-func (f *fakeExtractor) ExtractBitmaps(ctx context.Context, _ domain.ProbeSource, input *probe.Input, directory string) ([]matroska.BitmapTrack, error) {
+func (f *fakeExtractor) ExtractBitmaps(ctx context.Context, source domain.ProbeSource, input *probe.Input, directory string) ([]matroska.BitmapTrack, error) {
 	f.calls.Add(1)
+	f.mu.Lock()
+	f.order = append(f.order, source.RelativePath)
+	f.mu.Unlock()
 	if input == nil {
 		return nil, matroska.ErrUnavailable
 	}
@@ -153,6 +159,8 @@ func (f *fakeRecognizer) Recognize(ctx context.Context, picture *image.Gray, lan
 
 type env struct {
 	service    *Service
+	lane       *jobworker.Background
+	stopLane   func()
 	extractor  *fakeExtractor
 	recognizer *fakeRecognizer
 	clock      *fakeClock
@@ -172,6 +180,13 @@ func privateDir(t *testing.T) string {
 }
 
 func newEnv(t *testing.T, config Config) env {
+	t.Helper()
+	return newEnvOn(t, config, &clusterLock{}, nil)
+}
+
+// newEnvOn builds a service whose queue a background lane with locker and
+// budget dispatches.
+func newEnvOn(t *testing.T, config Config, locker jobworker.BackgroundLocker, budget app.WorkBudget, options ...func(*Service)) env {
 	t.Helper()
 	library := t.TempDir()
 	media := filepath.Join(library, "Film.mkv")
@@ -201,8 +216,67 @@ func newEnv(t *testing.T, config Config) env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = service.Close() })
+	for _, option := range options {
+		option(service)
+	}
 	e.service = service
+	e.lane, e.stopLane = newLane(t, service, locker, budget)
+	t.Cleanup(e.stopLane)
 	return e
+}
+
+// clusterLock stands in for the database advisory lock: one holder at a
+// time across the lanes sharing it.
+type clusterLock struct {
+	mu     sync.Mutex
+	held   bool
+	denied atomic.Int64
+}
+
+func (l *clusterLock) TryBackgroundLock(_ context.Context, kind string) (func(), bool, error) {
+	if kind != domain.JobSubtitleOCR {
+		return nil, false, domain.ErrInvalid
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.held {
+		l.denied.Add(1)
+		return nil, false, nil
+	}
+	l.held = true
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			l.mu.Lock()
+			l.held = false
+			l.mu.Unlock()
+		})
+	}, true, nil
+}
+
+// newLane dispatches the service on a background lane of its own, as the
+// runtime does; stop cancels the lane and waits for it. Registered with
+// t.Cleanup after the service, the lane stops before the service closes.
+func newLane(t *testing.T, service *Service, locker jobworker.BackgroundLocker, budget app.WorkBudget) (*jobworker.Background, func()) {
+	t.Helper()
+	lane, err := jobworker.NewBackground(jobworker.BackgroundOptions{Locker: locker, Budget: budget, Logger: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = lane.Register(service.Task()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	if err = lane.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	return lane, func() { cancel(); lane.Wait() }
+}
+
+// runs returns the subtitle_ocr outcomes of a lane: succeeded, failed,
+// cancelled, skipped.
+func runs(lane *jobworker.Background) app.BackgroundJobGroup {
+	return lane.BackgroundJobMetrics().Groups[domain.BackgroundJobKindIndex(domain.JobSubtitleOCR)]
 }
 
 // locate polls until the OCR result exists or fails.

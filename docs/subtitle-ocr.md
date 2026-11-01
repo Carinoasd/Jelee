@@ -69,6 +69,7 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 
 1. **觸發**：原生會話讀播放資訊（自有 API `GET /api/v1/items/{id}/playback`、相容層 PlaybackInfo）時，對每條 Matroska 內的 PGS（`hdmv_pgs_subtitle`）或 VobSub（`dvd_subtitle`）軌，以與直投相同的授權查詢詢問 OCR 結果；沒有結果就把該來源排入佇列（不阻塞回應），有結果才列出衍生軌。直接請求衍生軌網址也會排入。Web 會話拿不到播放資訊，也碰不到這些路由。
 2. **佇列**：有界（`JELEE_SUBTITLE_OCR_QUEUE_SIZE`，預設 16 個來源），同一來源修訂只排一次；滿了就丟棄並計數，下次查詢再排。一次只處理一個來源。失敗的修訂 10 分鐘內不重排，避免壞檔一直佔用。關閉服務時取消執行中的工作，staging 與工作檔一併刪除。
+   佇列由任務執行器的背景工作 `subtitle_ocr` 派送（第 13 階段 F5，G41.1，見[背景工作](jobs-api.md#背景工作)），服務不再自己起派送 goroutine：排入時立刻喚醒；每次執行取最舊的一個來源，佇列還有來源就立刻下一次。它是**叢集單例**：每次執行先取 PostgreSQL session 建議鎖，多個實例同時只有一個在辨識，拿不到鎖的實例這一次跳過、來源留在自己的佇列，5 秒後或下一次排入時再試；鎖在一個來源辨識完就釋放，所以持有者佇列清空後其他實例接手。執行本身不持有共用配額，每張圖照舊各取一個 CPU。服務停止時背景工作線先取消執行中的工作（不記為失敗、不進退避），等它返回後才關閉連線池與 OCR 服務。不寫 `jobs` 表，佇列與快取仍是各實例自己的；沒有新增設定。
 3. **擷取**：以既有 mkvmerge 識別與 mkvextract（同一沙箱模式）把來源的點陣字幕軌原樣抽到私有工作目錄：PGS 為 `t<id>.sup`，VobSub 為 `t<id>.idx`＋`t<id>.sub`（mkvextract 102.0 實測的命名）。每來源至多 8 軌、合計 256 MiB、每檔 64 MiB（超過即被核心以 FSIZE 終止）。文字擷取快取不受影響；mkvextract 忙碌時退避重試 4 次。DVB（`S_DVBSUB`）不處理。
 4. **解碼**（`internal/adapter/bitmapsub`，純 Go、只吃 `io.Reader`／`io.ReaderAt`）：
    - PGS：PCS／WDS／PDS／ODS／END 段、epoch 物件與調色盤、多物件合成與裁切、RLE；VobSub：`.idx`（第一個 `id:` 區段、16 色調色盤、timestamp／filepos）與 MPEG-2／MPEG-1 PS、跨 PES 的 SPU、控制序列、交錯 RLE。
@@ -170,13 +171,13 @@ docker build -f deploy/ocr/Dockerfile --build-arg JELEE_IMAGE=jelee:local -t jel
 ## 驗證
 
 - 解碼：`internal/adapter/bitmapsub` 26 個測試＋2 個 fuzz（往返、多物件、裁切、epoch 物件重用、跨 PES 的 SPU、交錯行、所有截斷前綴、超大尺寸、錯誤 RLE、ODS 超限、PDS 長度不符、`.idx` 超大、filepos 越界、控制序列迴圈、事件數與像素預算），覆蓋率 99.3%。
-- 服務：`internal/adapter/subtitleocr` 的假時鐘限流（任一 60 秒最多 N 張、隨機到達的性質測試）、並發峰值等於設定值、佇列上限與丟棄、失敗退避、取消後 staging 與工作檔清空、損壞軌保留已解出的句子、重複圖片只辨識一次、CPU 預算、修訂更替、原檔 SHA 不變。
+- 服務：`internal/adapter/subtitleocr` 的假時鐘限流（任一 60 秒最多 N 張、隨機到達的性質測試）、並發峰值等於設定值、佇列上限與丟棄、失敗退避、取消後 staging 與工作檔清空、損壞軌保留已解出的句子、重複圖片只辨識一次、CPU 預算、修訂更替、原檔 SHA 不變；背景工作線派送（`lane_test.go`）：任務屬性、佇列順序、失敗為失敗的執行且下一個來源立刻開始、兩個實例共用叢集鎖時只有一個辨識且另一個跳過後接手、停止背景工作線取消執行中的工作且之後不再派送（無殘留 goroutine）、真 Budget 下每張圖等 CPU 的時間計入執行耗時且結束後配額歸零。`internal/platform/runtime` 的註冊與關機順序（OCR 工作在連線池與 OCR 服務關閉前返回），真 PG 的 `TestBackgroundSubtitleOCROneInstancePostgres`（兩個實例的背景工作線只有一個持有 `17481270` 鎖並執行、另一個跳過後接手）。
 - 沙箱：`TestRealTesseractInSandboxWithExplicitHostRuntime`（`JELEE_OCR_HOST_RUNTIME=true`）在 Landlock＋seccomp 下實際辨識、不寫工作目錄、輸入不變、未授權語言與被改的語言資料被拒；描述子與政策上限的單元測試。
 - 全流程：`TestRealOCRPipelineFromMatroska`（另需 `JELEE_MATROSKA_HOST_RUNTIME=true`）以固定的 mkvmerge 把合成 PGS 與 VobSub 封裝成 MKV，再經沙箱內的 mkvmerge 識別、mkvextract 擷取、解碼與 Tesseract 產出兩條 SRT，原檔 SHA 不變、文字擷取快取未被寫入。
 - 外掛點陣字幕：`internal/adapter/subtitleocr/sidecar_test.go`（外掛 `.sup` 原地辨識、未呼叫 mkvextract、外掛檔與媒體檔 SHA 不變、未寫入外掛檔旁或工作目錄；`.idx`＋`.sub` 依軌語言選 Tesseract 語言、只改 `.sub` 也換修訂；無效請求、跳出根目錄、超過 256 MiB 不排入；工作時限到時保留已辨識句子並標截斷）、`internal/platform/runtime` 的授權先於 OCR（`.sub` 半邊另行授權、未配對與文字軌不觸達）、`internal/domain` 的相容層編號（沒有外掛點陣字幕時編號不變）、真 PG 的 `ResolveTrack` 回報語言與配對、`TestRealOCRPipelineFromSidecarFiles`（`JELEE_OCR_HOST_RUNTIME=true`，外掛 `.sup` 與 `.idx`＋`.sub` 經沙箱 Tesseract 產出 SRT；本機未安裝 Tesseract 時略過，見擁有者驗證 D43）。
 - 路由與相容層：原生會話取得 SRT、Web 會話 403 且不觸達解析器、轉換參數 409、畸形索引 404、未完成與不存在相同答覆、OCR 未開時沒有路由；相容層的固定編號、只列已完成者、只接受 srt；`leakRouteTable` 登記新路由（真 PG 遍歷）。
 - 容器：[證據](evidence/ocr-runtime-image.txt)。以 `deploy/ocr/Dockerfile` 疊在含固定 glibc 與 `tools/ocr-smoke`（建置標籤 `jelee_ocr_tests`）的拋棄式基底上：`runtime-image -ocr` 通過；UID 65532、唯讀根、`--network none`、Docker 預設 seccomp 下 doctor 狀態全部 `verified`，經服務辨識出三句（其中一句重複只辨識一次）；以 root 執行、改一個語言資料、改一個函式庫，註冊全部被拒。
-- 反向驗證：拿掉 Landlock 對語言資料的授權後真 Tesseract 失敗（`Could not initialize tesseract`）；把 OCR 查詢移到授權之前後「未授權不觸達 OCR」測試失敗；讓限流器直接放行後三個限流測試失敗。
+- 反向驗證：拿掉 Landlock 對語言資料的授權後真 Tesseract 失敗（`Could not initialize tesseract`）；把 OCR 查詢移到授權之前後「未授權不觸達 OCR」測試失敗；讓限流器直接放行後三個限流測試失敗；讓背景工作線對 `subtitle_ocr` 不取叢集鎖後，真 PG 單例測試（第二實例從未跳過）與服務的雙實例測試都失敗。
 
 ## 授權
 

@@ -22,6 +22,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/probe"
 	"github.com/MoYuanCN/Jelee/internal/adapter/subtitleocr"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/ocrruntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
@@ -112,6 +113,15 @@ func run(ctx context.Context) (map[string]any, error) {
 		return report, err
 	}
 	defer service.Close()
+	// The service's subtitle_ocr job dispatches the queue as the background
+	// lane does in the server.
+	lane, stop := context.WithCancel(ctx)
+	dispatched := make(chan struct{})
+	go func() {
+		defer close(dispatched)
+		app.RunBackground(lane, service.Task(), nil)
+	}()
+	defer func() { stop(); <-dispatched }()
 	// Any regular file stands in for the source; only its revision matters.
 	media := filepath.Join(temp, "source.mkv")
 	if err := os.WriteFile(media, track.Bytes(), 0o600); err != nil {

@@ -154,7 +154,7 @@ type BackgroundJobGroup struct {
 // The values are per process and start at StartedAt.
 type BackgroundJobMetricsSnapshot struct {
 	StartedAt time.Time
-	Groups    [3]BackgroundJobGroup
+	Groups    [domain.BackgroundJobKindCount]BackgroundJobGroup
 }
 
 // BackgroundJobMetricsSource reads the background job metrics from memory.

@@ -103,8 +103,8 @@
 
 ### JeleeBackgroundJobFailing
 
-- **意義**：某個背景工作（`webhook_delivery`、`watch_stats_aggregation`、`playback_progress_flush`，見[背景工作](jobs-api.md#背景工作)）在所有實例上連續 30 分鐘只有失敗、沒有成功。Webhook 不再送出、觀看統計不再更新，或播放進度只留在記憶體（實例重啟會失去）。
-- **確認**：`jelee_jobs_background_runs_total` 依 `kind`、`outcome` 看失敗與跳過；服務日誌中該元件的警告：`webhook delivery round failed`、`watch statistics aggregation failed`、`playback progress flush failed`，以及 `background_lock_unavailable`（取叢集鎖時資料庫不可用）。`jelee_db_pool_connections_acquired` 是否已滿。只有 `skipped` 增加而沒有失敗時不會觸發：那是另一個實例在跑（叢集單例），或共用配額滿（`jelee_resources_waiting`）。
+- **意義**：某個背景工作（`webhook_delivery`、`watch_stats_aggregation`、`playback_progress_flush`、`subtitle_ocr`，見[背景工作](jobs-api.md#背景工作)）在所有實例上連續 30 分鐘只有失敗、沒有成功。Webhook 不再送出、觀看統計不再更新，或播放進度只留在記憶體（實例重啟會失去）。`subtitle_ocr` 佇列空時每 5 秒有一次成功的空執行，單一壞檔的失敗不會觸發；觸發時通常是取叢集鎖的資料庫不可用，或 Tesseract 執行環境整體失效。
+- **確認**：`jelee_jobs_background_runs_total` 依 `kind`、`outcome` 看失敗與跳過；服務日誌中該元件的警告：`webhook delivery round failed`、`watch statistics aggregation failed`、`playback progress flush failed`、`subtitle OCR job failed`（`code` 為 `subtitle_ocr_*`），以及 `background_lock_unavailable`（取叢集鎖時資料庫不可用）。`jelee_db_pool_connections_acquired` 是否已滿。只有 `skipped` 增加而沒有失敗時不會觸發：那是另一個實例在跑（叢集單例），或共用配額滿（`jelee_resources_waiting`）。
 - **處置**：先恢復資料庫連線（池滿就調高 `JELEE_MAX_CONNECTIONS` 或降低工作並行；每個叢集單例工作執行時佔一條連線）；Webhook 的主鑰問題見 [JeleeWebhookDeadLetters](#jeleewebhookdeadletters) 與 [Webhook](webhooks.md)。進度 flush 長期失敗時不要重啟實例，修好資料庫後下一次 flush 會寫入緩衝中的位置。
 - **回復驗證**：`increase(jelee_jobs_background_runs_total{outcome="succeeded"}[15m])` 對該 `kind` 大於 0，告警解除。
 

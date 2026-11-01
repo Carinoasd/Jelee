@@ -52,7 +52,7 @@ schema47工作指標固定222個series，連同本機指標共22個families／23
 
 ## 背景工作指標
 
-Webhook 投遞、觀看統計彙總與播放進度 flush 是任務執行器的背景工作（G41.1，[背景工作](jobs-api.md#背景工作)），每個實例另輸出 4 個家族：
+Webhook 投遞、觀看統計彙總、播放進度 flush 與字幕 OCR 派送是任務執行器的背景工作（G41.1，[背景工作](jobs-api.md#背景工作)），每個實例另輸出 4 個家族：
 
 | Prometheus 名稱 | 型別 | 意義 |
 | --- | --- | --- |
@@ -61,9 +61,9 @@ Webhook 投遞、觀看統計彙總與播放進度 flush 是任務執行器的�
 | `jelee_jobs_background_wait_seconds` | histogram | 一次執行從到期（間隔、喚醒或整批再跑）到開始的等待，包含取得叢集鎖與共用配額 |
 | `jelee_jobs_background_duration_seconds` | histogram | 一次執行從開始到結束的耗時 |
 
-固定 labels：`kind`（playback_progress_flush／watch_stats_aggregation／webhook_delivery）、`priority`（只有 background），runs 另有 `outcome`。三個種類都會輸出，本實例沒有啟用的種類為零。`skipped` 是沒有開始的執行：另一個實例持有叢集鎖，或共用配額滿；服務停止時還沒開始的執行記為 `cancelled`，沒有等待與耗時樣本。兩個 histogram 的上界與共享工作的等待相同（0.1、0.5、1、2.5、5、10、30、60、300、1800、3600、86400 秒、+Inf），因為一次執行通常不到一秒。
+固定 labels：`kind`（playback_progress_flush／subtitle_ocr／watch_stats_aggregation／webhook_delivery）、`priority`（只有 background），runs 另有 `outcome`。四個種類都會輸出，本實例沒有啟用的種類（例如沒開字幕 OCR）為零。`subtitle_ocr` 的一次執行是辨識一個來源（佇列空時是一次不做事的成功執行，每 5 秒一次）；`failed` 是該來源辨識失敗（壞檔、工具不可用），與 `jelee_subtitle_ocr_jobs_failed_total` 同步增加；每張圖等共用 CPU 配額的時間算在 `duration` 內。`skipped` 是沒有開始的執行：另一個實例持有叢集鎖，或共用配額滿；服務停止時還沒開始的執行記為 `cancelled`，沒有等待與耗時樣本。兩個 histogram 的上界與共享工作的等待相同（0.1、0.5、1、2.5、5、10、30、60、300、1800、3600、86400 秒、+Inf），因為一次執行通常不到一秒。
 
-這些值在程序記憶體內、隨程序啟動歸零，和 `jelee_jobs_shared_*` 不同：多個副本的數值可以相加。共 4 個家族、105 個系列（3＋12＋45＋45）；正式端點因此由 55 個家族變為 59 個。
+這些值在程序記憶體內、隨程序啟動歸零，和 `jelee_jobs_shared_*` 不同：多個副本的數值可以相加。共 4 個家族、140 個系列（4＋16＋60＋60；第 13 階段加入 `subtitle_ocr` 前為 105 個）；正式端點因此由 55 個家族變為 59 個，加入 `subtitle_ocr` 不增加家族。
 
 ## 共用配額等待時長分布（G41.8）
 
@@ -202,6 +202,8 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_subtitle_ocr_rejected_total` | counter | Tesseract 拒絕或逾時的圖片數（該句略過） |
 | `jelee_subtitle_ocr_skipped_total` | counter | 解碼器判為損壞而略過的圖片數 |
 | `jelee_subtitle_ocr_throttled_total` | counter | 因每分鐘上限而等待的圖片數 |
+
+佇列由背景工作 `subtitle_ocr` 派送（叢集單例），每次執行的結果、等待與耗時見上方[背景工作指標](#背景工作指標)；被另一個實例佔著鎖而跳過的執行只計入 `jelee_jobs_background_runs_total{kind="subtitle_ocr",outcome="skipped"}`，來源留在本實例的 `jelee_subtitle_ocr_queued`。
 
 `volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`、`audit.archiveDir`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
 

@@ -79,6 +79,7 @@ func TestRealOCRPipelineFromSidecarFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = service.Close() }()
+	dispatchOCR(t, service)
 	const sourceID = "00000000-0000-4000-8000-0000000000b1"
 	file := func(name string) domain.ProbeSource { return domain.ProbeSource{RootPath: library, RelativePath: name} }
 	locate := func(request subtitleocr.SidecarRequest) string {

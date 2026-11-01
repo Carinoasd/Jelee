@@ -55,6 +55,11 @@ const (
 	// truncated, so a huge or slow track cannot hold the single job slot
 	// for ever and is not retried in a loop either.
 	MaxJobDuration = 4 * time.Hour
+	// DispatchPoll is how long the subtitle_ocr background job idles
+	// before it looks at the queue again. A lookup that queues a source
+	// wakes it at once; the poll only retries a run skipped while another
+	// instance held the cluster-wide lock.
+	DispatchPoll = 5 * time.Second
 )
 
 // Lookup results. ErrPending means the result is not built yet and the
@@ -121,7 +126,8 @@ type job struct {
 
 // Service queues, runs and serves OCR results. Methods are safe for
 // concurrent use; at most one source is processed at a time and at most
-// Concurrency pictures are recognized at once.
+// Concurrency pictures are recognized at once. The queue is dispatched by
+// the job executor's background lane (Task), not by a goroutine of its own.
 type Service struct {
 	extractor  Extractor
 	recognizer PictureRecognizer
@@ -129,9 +135,15 @@ type Service struct {
 	limiter    *RateLimiter
 	logger     *slog.Logger
 
-	queue    chan job
+	queue chan job
+	// wake asks the background job for a run when a source is queued;
+	// poll is its idle interval (DispatchPoll).
+	wake chan struct{}
+	poll time.Duration
+	// ctx ends with Close; it cancels the job in progress.
+	ctx      context.Context
 	cancel   context.CancelFunc
-	done     chan struct{}
+	inflight sync.WaitGroup
 	mu       sync.Mutex
 	pending  map[string]bool
 	failures map[string]time.Time
@@ -144,7 +156,8 @@ type Service struct {
 	skipped                                atomic.Uint64
 }
 
-// New validates the configuration and starts the background dispatcher.
+// New validates the configuration. Nothing is recognized until Task runs on
+// the background lane.
 func New(extractor Extractor, recognizer PictureRecognizer, config Config) (*Service, error) {
 	if !supportedPlatform || extractor == nil || recognizer == nil || !privateDirectory(config.CacheRoot) || !privateDirectory(config.WorkRoot) || config.Identity == "" ||
 		len(config.Languages) == 0 || config.Concurrency < 1 || config.Concurrency > MaxConcurrency || config.QueueSize < 1 || config.QueueSize > MaxQueue {
@@ -168,10 +181,8 @@ func New(extractor Extractor, recognizer PictureRecognizer, config Config) (*Ser
 		logger = slog.New(slog.DiscardHandler)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{extractor: extractor, recognizer: recognizer, config: config, limiter: limiter, logger: logger,
-		queue: make(chan job, config.QueueSize), cancel: cancel, done: make(chan struct{}), pending: make(map[string]bool), failures: make(map[string]time.Time)}
-	go s.dispatch(ctx)
-	return s, nil
+	return &Service{extractor: extractor, recognizer: recognizer, config: config, limiter: limiter, logger: logger,
+		queue: make(chan job, config.QueueSize), wake: make(chan struct{}, 1), poll: DispatchPoll, ctx: ctx, cancel: cancel, pending: make(map[string]bool), failures: make(map[string]time.Time)}, nil
 }
 
 func privateDirectory(path string) bool {
@@ -182,8 +193,8 @@ func privateDirectory(path string) bool {
 	return err == nil && info.IsDir() && info.Mode()&os.ModeSymlink == 0 && info.Mode().Perm()&0o077 == 0
 }
 
-// Close stops the dispatcher, cancels the running job (its staging and
-// work files are removed) and waits for it. Queued jobs are dropped.
+// Close stops dispatching, cancels the running job (its staging and work
+// files are removed) and waits for it. Queued jobs are dropped.
 func (s *Service) Close() error {
 	if s == nil {
 		return nil
@@ -192,7 +203,7 @@ func (s *Service) Close() error {
 	s.closed = true
 	s.mu.Unlock()
 	s.cancel()
-	<-s.done
+	s.inflight.Wait()
 	return nil
 }
 
@@ -262,44 +273,87 @@ func (s *Service) enqueue(next job) {
 	select {
 	case s.queue <- next:
 		s.pending[next.key] = true
+		s.signal()
 	default:
 		// A full queue drops the request; the next lookup asks again.
 		s.dropped.Add(1)
 	}
 }
 
-func (s *Service) dispatch(ctx context.Context) {
-	defer close(s.done)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case next := <-s.queue:
-			s.running.Store(1)
-			started := time.Now()
-			summary, err := s.run(ctx, next)
-			s.running.Store(0)
-			s.mu.Lock()
-			delete(s.pending, next.key)
-			if err != nil && ctx.Err() == nil {
-				if len(s.failures) >= maxFailures {
-					clear(s.failures)
-				}
-				s.failures[next.key] = s.config.Clock.Now()
-			}
-			s.mu.Unlock()
-			switch {
-			case ctx.Err() != nil:
-				return
-			case err != nil:
-				s.failed.Add(1)
-				s.logger.Warn("subtitle OCR job failed", "component", "subtitle_ocr", "code", errorCode(err))
-			default:
-				s.completed.Add(1)
-				s.logger.Info("subtitle OCR job finished", "component", "subtitle_ocr", "tracks", summary.tracks, "pictures", summary.pictures, "cues", summary.cues, "durationMs", time.Since(started).Milliseconds())
-			}
-		}
+// signal wakes the background job; a wake already pending covers this one.
+func (s *Service) signal() {
+	select {
+	case s.wake <- struct{}{}:
+	default:
 	}
+}
+
+// Task is the subtitle_ocr background job (G41.1) that dispatches the
+// queue on the job executor's background lane. Each run takes the oldest
+// queued source and recognizes it; another queued source asks for the next
+// run at once. The kind is cluster-wide, so the lane holds the database
+// advisory lock for the run and no two instances recognize at the same
+// time; a run skipped for the lock leaves the queue as it is and the next
+// poll or wake tries again. A run holds no shared budget permit: every
+// picture takes its own WorkCPU, and permits do not nest. The run stops
+// with the lane (no stop grace) or with Close, like the job did before.
+func (s *Service) Task() app.BackgroundTask {
+	if s == nil {
+		return app.BackgroundTask{}
+	}
+	return app.BackgroundTask{Kind: domain.JobSubtitleOCR, Interval: s.poll, IdleWait: true, Wake: s.wake, Cluster: true, Run: s.dispatch}
+}
+
+// dispatch runs the oldest queued job, if any. A failed job is the run's
+// error; a cancelled one returns the cancellation and records nothing.
+func (s *Service) dispatch(_, work context.Context) (bool, error) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return false, nil
+	}
+	var next job
+	select {
+	case next = <-s.queue:
+	default:
+		s.mu.Unlock()
+		return false, nil
+	}
+	s.inflight.Add(1)
+	s.mu.Unlock()
+	defer s.inflight.Done()
+	ctx, cancel := context.WithCancel(work)
+	defer cancel()
+	defer context.AfterFunc(s.ctx, cancel)() //nolint:contextcheck // Close also cancels the job; ctx itself derives from work
+	s.running.Store(1)
+	started := time.Now()
+	summary, err := s.run(ctx, next)
+	s.running.Store(0)
+	s.mu.Lock()
+	delete(s.pending, next.key)
+	if err != nil && ctx.Err() == nil {
+		if len(s.failures) >= maxFailures {
+			clear(s.failures)
+		}
+		s.failures[next.key] = s.config.Clock.Now()
+	}
+	s.mu.Unlock()
+	switch {
+	case ctx.Err() != nil:
+		return false, ctx.Err()
+	case err != nil:
+		s.failed.Add(1)
+		s.logger.Warn("subtitle OCR job failed", "component", "subtitle_ocr", "code", errorCode(err))
+		// A failed run is not repeated at once by the lane; the next
+		// queued source still starts right away.
+		if len(s.queue) > 0 {
+			s.signal()
+		}
+		return false, err
+	}
+	s.completed.Add(1)
+	s.logger.Info("subtitle OCR job finished", "component", "subtitle_ocr", "tracks", summary.tracks, "pictures", summary.pictures, "cues", summary.cues, "durationMs", time.Since(started).Milliseconds())
+	return len(s.queue) > 0, nil
 }
 
 func errorCode(err error) string {

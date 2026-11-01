@@ -296,7 +296,7 @@ Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整
 | `JeleeMemoryNearLimit` | warning | heap 超過 `GOMEMLIMIT` 的 90% |
 | `JeleeScanConsecutiveFailures` | warning | 任一媒體庫連續 3 次掃描失敗 |
 | `JeleeJobLeasesExpired` | warning | 工作租約過期而無 worker 接手 |
-| `JeleeBackgroundJobFailing` | warning | Webhook 投遞、觀看統計彙總或播放進度 flush 的背景工作 30 分鐘內只有失敗 |
+| `JeleeBackgroundJobFailing` | warning | Webhook 投遞、觀看統計彙總、播放進度 flush 或字幕 OCR 的背景工作 30 分鐘內只有失敗 |
 | `JeleeWebhookDeadLetters`／`JeleeWebhookDeadLettersHigh` | warning／critical | Webhook 死信增加／累積達 100 |
 | `JeleeClientBlockBurst` | warning | 客戶端控制每分鐘拒絕超過 100 個請求（G47.8） |
 | `JeleeDevModeActive`／`JeleeDevModeLongRunning` | warning／critical | 開發者模式開啟 30 分鐘／超過 8 小時 |

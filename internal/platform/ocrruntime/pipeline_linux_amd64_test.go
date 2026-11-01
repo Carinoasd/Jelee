@@ -16,9 +16,23 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/bitmapsub/bitmapsubtest"
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/subtitleocr"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
 )
+
+// dispatchOCR runs the service's subtitle_ocr job as the background lane
+// does, until the test ends.
+func dispatchOCR(t *testing.T, service *subtitleocr.Service) {
+	t.Helper()
+	ctx, stop := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		app.RunBackground(ctx, service.Task(), nil)
+	}()
+	t.Cleanup(func() { stop(); <-done })
+}
 
 func privateDirectory(t *testing.T, name string) string {
 	t.Helper()
@@ -97,6 +111,7 @@ func TestRealOCRPipelineFromMatroska(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = service.Close() }()
+	dispatchOCR(t, service)
 	source := domain.ProbeSource{RootPath: filepath.Dir(media), RelativePath: filepath.Base(media)}
 	const sourceID = "00000000-0000-4000-8000-0000000000a1"
 	locate := func(index int) string {
