@@ -112,6 +112,8 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 
 伺服器執行檔因此約增加 3.3 MB（`CGO_ENABLED=0 -trimpath`：50.4 → 53.7 MB）。比照圖片縮放依賴，BSD／MIT 元件的完整授權與 gRPC 的 `NOTICE.txt`（Apache-2.0 元件中只有它附 NOTICE，內容為「Copyright 2014 gRPC authors.」與授權聲明）保留於 `internal/platform/tracing/otlpexport/`：`LICENSE.grpc-gateway`、`LICENSE.backoff`、`LICENSE.x-net`、`NOTICE.grpc`，正式容器另附於 `/licenses/grpc-gateway/LICENSE`、`/licenses/cenkalti-backoff/LICENSE`、`/licenses/x-net/LICENSE`、`/licenses/grpc/NOTICE`。`golang.org/x/net` 的專利授權與 Go 的 `PATENTS` 相同（容器 `/licenses/go/PATENTS`）。`go mod tidy` 另把只在模組圖中、不參與任何建置的 `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`、`github.com/felixge/httpsnoop`、`github.com/golang/protobuf`、`gonum.org/v1/gonum` 的新版本加入 go.sum 以供校驗；它們不進入任何執行檔。此項不代表其他依賴的整體發行審計已完成。
 
+OTLP 日誌轉發（第 13 階段 F3，G46.1，見[日誌外部轉發](logging.md#外部转发g461)）沒有新增模組：`internal/platform/logging/otlplog` 直接用上表既有的 `go.opentelemetry.io/proto/otlp` v1.11.0（只匯入 `logs/v1`、`common/v1`、`resource/v1`，不匯入含 gRPC 存根的 `collector/logs/v1`）與 `google.golang.org/protobuf` 編碼請求，HTTP 用標準庫。派工允許的 `go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp`（與 OTel v1.47.0 相容的是 beta 版線 v0.23.0）與 `go.opentelemetry.io/otel/sdk/log` v1.47.0 未採用，理由見驗證清單 E21。只連結進伺服器 `jelee`。
+
 ## 靜態分析工具（golangci-lint）
 
 `golangci-lint` 2.14.0 以 GPL-3.0 授權，版權屬 golangci-lint 作者與貢獻者；所含各 linter 保留各自授權。它只在開發機與 CI 中被執行（`make lint`／`scripts/make.ps1 lint`），不被 Jelee 程式匯入或連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。官方發行包中的完整 `LICENSE` 隨安裝保留在被忽略的 `.tools/golangci-lint/` 目錄，並在 `tools-verify` 時與已校驗壓縮包逐位元組比對。版本、官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。

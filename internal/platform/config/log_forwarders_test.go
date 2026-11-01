@@ -6,11 +6,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
+	_ "github.com/MoYuanCN/Jelee/internal/platform/logging/otlplog"
 )
 
 func forwardLoad(t *testing.T, values map[string]string) (Config, error) {
@@ -134,13 +136,13 @@ func TestLogForwardersRefuseHalfAndBadConfigurations(t *testing.T) {
 		}
 	}
 	for name, body := range map[string]string{
-		"file kind":      `{"logging":{"forwarders":[{"kind":"gelf","address":"a:1"}]}}`,
-		"otlp":           `{"logging":{"forwarders":[{"kind":"otlp"}]}}`,
-		"mixed options":  `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","address":"a:1"}]}}`,
-		"duplicate name": `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","name":"x"},{"kind":"syslog","address":"a:1","name":"x"}]}}`,
-		"too many":       `{"logging":{"forwarders":[` + strings.Repeat(`{"kind":"syslog","address":"a:1"},`, 9) + `{"kind":"syslog","address":"a:1"}]}}`,
-		"relative file":  `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","bearerTokenFile":"rel"}]}}`,
-		"inline secret":  `{"logging":{"forwarders":[{"kind":"loki","url":"http://l.example.org","username":"u"}]}}`,
+		"file kind":        `{"logging":{"forwarders":[{"kind":"gelf","address":"a:1"}]}}`,
+		"otlp no endpoint": `{"logging":{"forwarders":[{"kind":"otlp"}]}}`,
+		"mixed options":    `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","address":"a:1"}]}}`,
+		"duplicate name":   `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","name":"x"},{"kind":"syslog","address":"a:1","name":"x"}]}}`,
+		"too many":         `{"logging":{"forwarders":[` + strings.Repeat(`{"kind":"syslog","address":"a:1"},`, 9) + `{"kind":"syslog","address":"a:1"}]}}`,
+		"relative file":    `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","bearerTokenFile":"rel"}]}}`,
+		"inline secret":    `{"logging":{"forwarders":[{"kind":"loki","url":"http://l.example.org","username":"u"}]}}`,
 	} {
 		if _, err := forwardLoad(t, map[string]string{"JELEE_CONFIG": accountConfigFile(t, body)}); err == nil {
 			t.Errorf("%s accepted", name)
@@ -198,6 +200,145 @@ func TestLogForwardersOpenAndShipThroughTheRouter(t *testing.T) {
 	select {
 	case msg := <-got:
 		if !strings.HasPrefix(msg, "/loki/api/v1/push ") || !strings.Contains(msg, "config probe") {
+			t.Fatalf("collector got %q", msg)
+		}
+	default:
+		t.Fatal("collector received nothing")
+	}
+}
+
+func TestLogForwardersOTLPFromEnvironment(t *testing.T) {
+	c, err := forwardLoad(t, map[string]string{
+		"JELEE_LOG_FORWARD_OTLP_ENDPOINT":          "https://otel-collector.internal:4318",
+		"JELEE_LOG_FORWARD_OTLP_HEADERS":           "Authorization=Bearer%20otlp-s3cret, X-Scope-OrgID=home",
+		"JELEE_LOG_FORWARD_OTLP_NAME":              "collector",
+		"JELEE_LOG_FORWARD_OTLP_BATCH_SIZE":        "200",
+		"JELEE_LOG_FORWARD_OTLP_BATCH_INTERVAL_MS": "500",
+		"JELEE_LOG_FORWARD_OTLP_TIMEOUT_MS":        "4000",
+		"JELEE_LOG_FORWARD_OTLP_QUEUE_ENTRIES":     "2048",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := c.Logging.Options().Forward
+	if len(opts) != 1 {
+		t.Fatalf("%d forwarders", len(opts))
+	}
+	o := opts[0]
+	if o.Kind != logging.ForwardOTLP || o.Name != "collector" || o.OTLP.Endpoint != "https://otel-collector.internal:4318" || o.OTLP.Insecure ||
+		o.OTLP.Headers["Authorization"] != "Bearer otlp-s3cret" || o.OTLP.Headers["X-Scope-OrgID"] != "home" ||
+		o.BatchSize != 200 || o.BatchInterval != 500*time.Millisecond || o.Timeout != 4*time.Second || o.QueueEntries != 2048 {
+		t.Fatalf("otlp options %+v", o)
+	}
+	data, err := json.Marshal(c.Logging)
+	if err != nil || strings.Contains(string(data), "otlp-s3cret") {
+		t.Fatalf("serialized logging config exposes the headers (%v): %s", err, data)
+	}
+	c, err = forwardLoad(t, map[string]string{"JELEE_LOG_FORWARD_OTLP_ENDPOINT": "http://127.0.0.1:4318", "JELEE_LOG_FORWARD_OTLP_INSECURE": "true"})
+	if err != nil || !c.Logging.Forwarders[0].Insecure {
+		t.Fatalf("loopback insecure: %v", err)
+	}
+}
+
+func TestLogForwardersOTLPHeadersFile(t *testing.T) {
+	headers := filepath.Join(t.TempDir(), "otlp-headers")
+	if err := os.WriteFile(headers, []byte("Authorization=Bearer otlp-file-s3cret\r\nX-Scope-OrgID=home,X-Extra=a%2Cb\n\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file := accountConfigFile(t, `{"logging":{"forwarders":[{"kind":"otlp","endpoint":"https://collector.internal","headersFile":`+strconv.Quote(headers)+`,"batchSize":10}]}}`)
+	for name, values := range map[string]map[string]string{
+		"file":        {"JELEE_CONFIG": file},
+		"environment": {"JELEE_LOG_FORWARD_OTLP_ENDPOINT": "https://collector.internal", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": headers},
+	} {
+		c, err := forwardLoad(t, values)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		h := c.Logging.Options().Forward[0].OTLP.Headers
+		if len(h) != 3 || h["Authorization"] != "Bearer otlp-file-s3cret" || h["X-Scope-OrgID"] != "home" || h["X-Extra"] != "a,b" {
+			t.Fatalf("%s: headers %v", name, h)
+		}
+	}
+}
+
+func TestLogForwardersOTLPRefusesHalfAndBadConfigurations(t *testing.T) {
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty")
+	if err := os.WriteFile(empty, []byte(" \n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	garbage := filepath.Join(dir, "garbage")
+	if err := os.WriteFile(garbage, []byte("no separator here"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ep := "JELEE_LOG_FORWARD_OTLP_ENDPOINT"
+	for name, values := range map[string]map[string]string{
+		"option without endpoint":   {"JELEE_LOG_FORWARD_OTLP_HEADERS": "Authorization=Bearer%20otlp-s3cret"},
+		"insecure without endpoint": {"JELEE_LOG_FORWARD_OTLP_INSECURE": "true"},
+		"two header sources":        {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS": "A=b", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": empty},
+		"bad insecure":              {ep: "http://127.0.0.1:4318", "JELEE_LOG_FORWARD_OTLP_INSECURE": "maybe"},
+		"bad headers":               {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS": "otlp-s3cret"},
+		"reserved header":           {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS": "Content-Type=otlp-s3cret"},
+		"plain remote":              {ep: "http://10.1.2.3:4318", "JELEE_LOG_FORWARD_OTLP_INSECURE": "true"},
+		"plain without insecure":    {ep: "http://127.0.0.1:4318"},
+		"https insecure":            {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_INSECURE": "true"},
+		"empty headers file":        {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": empty},
+		"garbage headers file":      {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": garbage},
+		"missing headers file":      {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": filepath.Join(dir, "nope")},
+		"relative headers file":     {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_HEADERS_FILE": "headers"},
+		"ca with plain http":        {ep: "http://127.0.0.1:4318", "JELEE_LOG_FORWARD_OTLP_INSECURE": "true", "JELEE_LOG_FORWARD_OTLP_CA_FILE": empty},
+		"bad batch":                 {ep: "https://c.example.org", "JELEE_LOG_FORWARD_OTLP_BATCH_SIZE": "0x10"},
+	} {
+		_, err := forwardLoad(t, values)
+		if err == nil {
+			t.Errorf("%s accepted", name)
+			continue
+		}
+		for _, needle := range []string{"otlp-s3cret", "10.1.2.3", dir} {
+			if strings.Contains(err.Error(), needle) {
+				t.Errorf("%s: error repeats %q: %v", name, needle, err)
+			}
+		}
+	}
+	for name, body := range map[string]string{
+		"otlp with loki url":    `{"logging":{"forwarders":[{"kind":"otlp","endpoint":"https://c.example.org","url":"https://l.example.org"}]}}`,
+		"otlp with address":     `{"logging":{"forwarders":[{"kind":"otlp","endpoint":"https://c.example.org","address":"a:1"}]}}`,
+		"loki with endpoint":    `{"logging":{"forwarders":[{"kind":"loki","url":"https://l.example.org","endpoint":"https://c.example.org"}]}}`,
+		"syslog with insecure":  `{"logging":{"forwarders":[{"kind":"syslog","address":"a:1","insecure":true}]}}`,
+		"inline headers":        `{"logging":{"forwarders":[{"kind":"otlp","endpoint":"https://c.example.org","headers":{"Authorization":"x"}}]}}`,
+		"relative headers file": `{"logging":{"forwarders":[{"kind":"otlp","endpoint":"https://c.example.org","headersFile":"h"}]}}`,
+	} {
+		if _, err := forwardLoad(t, map[string]string{"JELEE_CONFIG": accountConfigFile(t, body)}); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+}
+
+func TestLogForwardersOTLPOpenAndShipThroughTheRouter(t *testing.T) {
+	got := make(chan string, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- r.URL.Path + " " + r.Header.Get("Content-Type") + " " + r.Header.Get("X-Scope-OrgID")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	c, err := forwardLoad(t, map[string]string{"JELEE_LOG_FORWARD_OTLP_ENDPOINT": srv.URL, "JELEE_LOG_FORWARD_OTLP_INSECURE": "1", "JELEE_LOG_FORWARD_OTLP_HEADERS": "X-Scope-OrgID=home"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := logging.Open(c.Logging.Options(), &strings.Builder{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Logger().Info("config probe", "component", "http")
+	if err := r.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case msg := <-got:
+		if msg != "/v1/logs application/x-protobuf home" {
 			t.Fatalf("collector got %q", msg)
 		}
 	default:

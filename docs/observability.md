@@ -76,7 +76,7 @@ Webhook 分派器原本用的元件名 `webhooks` 不在 G46.2 元件清單內�
 
 ## OTLP 匯出
 
-預設關閉。開啟後，每個寫出 `span completed` 記錄的 span 同時交給匯出器，在背景以 OTLP/HTTP（protobuf、gzip）批次送到 Collector。
+預設關閉。開啟後，每個寫出 `span completed` 記錄的 span 同時交給匯出器，在背景以 OTLP/HTTP（protobuf、gzip）批次送到 Collector。日誌也可以另外設一個 `kind: otlp` 的轉發器送到同一個 Collector（`/v1/logs`），LogRecord 的 `trace_id`／`span_id` 就是這裡匯出的識別碼，見[日誌外部轉發](logging.md#外部转发g461)。
 
 ### 設定
 

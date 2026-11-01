@@ -176,6 +176,11 @@
       "path": "internal/platform/tracing/otlpexport",
       "tier": "core",
       "minimum": 94
+    },
+    {
+      "path": "internal/platform/logging/otlplog",
+      "tier": "core",
+      "minimum": 89
     }
   ]
 }

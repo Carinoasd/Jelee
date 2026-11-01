@@ -54,9 +54,9 @@
 
 ### 外部转发（G46.1）
 
-每条 JSON 记录（与日志文件同一份：已脱敏，字段相同）可以同时转发到 syslog 与 Loki，最多 8 个目的地，默认全部关闭。转发器与文件、stdout 一样走各自的有界队列，请求路径只做一次入队，收集器变慢、离线或拒收都不会让请求等待。OTLP 日志转发没有实现（追踪导出见 OpenTelemetry 相关文档）。
+每条 JSON 记录（与日志文件同一份：已脱敏，字段相同）可以同时转发到 syslog、Loki 与 OTLP/HTTP（OpenTelemetry Collector），最多 8 个目的地，默认全部关闭。转发器与文件、stdout 一样走各自的有界队列，请求路径只做一次入队，收集器变慢、离线或拒收都不会让请求等待。
 
-配置写在 `logging.forwarders[]`，或用环境变量（每种至多一个，环境变量给出的种类会替换配置文件里同种类的全部条目）。密码与 token 不能写在配置文件里，只能用环境变量或 `*File`（配置文件写文件路径，≤ 4 KiB，去掉首尾空白）。只设了某一种的选项却没有设它的开关项（syslog 的 `ADDRESS`、Loki 的 `URL`）、认证只给一半、同时给两种认证、凭证用明文 http 送往非环回主机，都会拒绝启动，错误信息不含配置值。
+配置写在 `logging.forwarders[]`，或用环境变量（每种至多一个，环境变量给出的种类会替换配置文件里同种类的全部条目）。密码与 token 不能写在配置文件里，只能用环境变量或 `*File`（配置文件写文件路径，≤ 4 KiB，去掉首尾空白）。只设了某一种的选项却没有设它的开关项（syslog 的 `ADDRESS`、Loki 的 `URL`、OTLP 的 `ENDPOINT`）、认证只给一半、同时给两种认证、凭证用明文 http 送往非环回主机、OTLP 明文 http 送往环回 IP 以外的地址，都会拒绝启动，错误信息不含配置值。
 
 | 环境变量（`JELEE_LOG_FORWARD_` 之后） | 配置文件键 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -70,26 +70,41 @@
 | `LOKI_BEARER_TOKEN`（或 `_BEARER_TOKEN_FILE`） | `bearerTokenFile` | 空 | Bearer 认证；与基本认证互斥 |
 | `LOKI_TENANT_ID` | `tenantId` | 空 | 多租户 Loki 的 `X-Scope-OrgID` |
 | `LOKI_SERVICE` | `service` | `jelee` | 标签 `service` 的值 |
-| `SYSLOG_`／`LOKI_` 加 `CA_FILE` | `caFile` | 空 | PEM 文件（可含多张 CA 证书），设定后只信任这些证书、不再用系统根证书；只用于 syslog `tls` 与 Loki `https`，其他网络或 `http` 拒绝启动；文件不存在、读不了、不是纯证书 PEM（例如混入私钥）也拒绝启动 |
-| `SYSLOG_`／`LOKI_` 加 `NAME` | `name` | 种类名 | 指标标签 `destination`，1–32 个小写字母、数字、`-`、`_`；重名自动加序号 |
-| `SYSLOG_`／`LOKI_` 加 `QUEUE_ENTRIES` | `queueEntries` | 4096 | 该目的地自己的队列长度，1–1048576 |
-| `SYSLOG_`／`LOKI_` 加 `BATCH_SIZE` | `batchSize` | 100 | 每次推送最多条数，1–10000（也受每批 1 MiB 限制） |
-| `SYSLOG_`／`LOKI_` 加 `BATCH_INTERVAL_MS` | `batchIntervalMs` | 1000 | 记录最多等多久凑批，10–60000 |
-| `SYSLOG_`／`LOKI_` 加 `TIMEOUT_MS` | `timeoutMs` | 10000 | 一次连接或推送的上限，≤ 120000 |
+| `OTLP_ENDPOINT` | `endpoint` | 空 | 开关。Collector 的基础地址，自动补 `/v1/logs`（已以它结尾则不补，可带反向代理前缀）；不能含用户信息、查询或片段 |
+| `OTLP_HEADERS`（或 `_HEADERS_FILE`） | `headersFile` | 空 | 每次推送附带的标头（认证、租户），写成 `名称=值,名称=值`，值按百分号编码解码（同 `OTEL_EXPORTER_OTLP_HEADERS`）；文件里也可以一行一个，≤ 16 KiB。最多 16 个、合计 8 KiB，不能覆写 `Content-Type`、`Content-Encoding`、`Host`、`User-Agent` 等；标头多半是令牌，配置文件只能写文件路径 |
+| `OTLP_INSECURE` | `insecure` | `false` | 允许明文 `http://`，**只限环回 IP 字面值**（`127.0.0.0/8`、`[::1]`，不接受 `localhost`）；其余一律 `https://`，`https` 配 `insecure` 拒绝启动 |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `CA_FILE` | `caFile` | 空 | PEM 文件（可含多张 CA 证书），设定后只信任这些证书、不再用系统根证书；只用于 syslog `tls`、Loki 与 OTLP 的 `https`，其他网络或 `http` 拒绝启动；文件不存在、读不了、不是纯证书 PEM（例如混入私钥）也拒绝启动 |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `NAME` | `name` | 种类名 | 指标标签 `destination`，1–32 个小写字母、数字、`-`、`_`；重名自动加序号 |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `QUEUE_ENTRIES` | `queueEntries` | 4096 | 该目的地自己的队列长度，1–1048576 |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `BATCH_SIZE` | `batchSize` | 100 | 每次推送最多条数，1–10000（也受每批 1 MiB 限制） |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `BATCH_INTERVAL_MS` | `batchIntervalMs` | 1000 | 记录最多等多久凑批，10–60000 |
+| `SYSLOG_`／`LOKI_`／`OTLP_` 加 `TIMEOUT_MS` | `timeoutMs` | 10000 | 一次连接或推送的上限，≤ 120000 |
 
 **syslog 消息**：RFC 5424，`<PRI>1 时间戳 主机名 jelee 进程号 组件 - BOM+JSON`。PRI＝facility×8＋severity（DEBUG→7、INFO→6、WARN→4、ERROR→3），时间戳取记录自己的时间（UTC，微秒），MSGID 是记录的 `component`，没有结构化数据，MSG 是完整的 JSON 记录，因此收集器可以直接解析所有字段。数据报每条一个包（超过 32 KiB 的记录丢弃并计数）；流式连接断开后在下一批自动重连。
 
 **Loki 推送**：`POST /loki/api/v1/push`，`{"streams":[{"stream":{"service","component","level"},"values":[["<unix 纳秒>","<JSON 记录>"]]}]}`；同一批按 `component`＋`level` 分流、流内按时间排序。`component` 只允许 32 字符内的标识符（否则 `unknown`），`level` 是 `debug`／`info`／`warn`／`error`。其他字段留在日志行里，用 LogQL 的 `| json` 取出。TLS 一律校验证书：默认用系统根证书，设了 `caFile` 就只信任该文件里的证书（自签或内部 CA 的收集器用它），没有关闭校验的选项；不跟随重定向（避免把凭证带到别处）。
 
+**OTLP 推送**：`POST <endpoint>/v1/logs`，OTLP/HTTP **protobuf** 编码（`Content-Type: application/x-protobuf`）、gzip 压缩，一批一个请求（`ExportLogsServiceRequest`，一个 Resource、一个 Scope）。每条 JSON 记录对应一条 LogRecord：
+
+| JSON 字段 | LogRecord |
+| --- | --- |
+| `msg` | `body`（字符串） |
+| `level` | `severity_number`＝slog 级别＋9（DEBUG→5、INFO→9、WARN→13、ERROR→17，`INFO+2` 之类按偏移，限制在 1–24）；`severity_text` 是原样的级别名 |
+| `time` | `time_unix_nano`；`observed_time_unix_nano` 是转发器打包的时间 |
+| `traceId`（32 位十六进制）＋`spanId`（16 位） | `trace_id`／`span_id`，与日志文件、追踪导出（[可观测性](observability.md#otlp-匯出)）的识别码相同；格式不对或全零时留作普通属性，没有 `traceId` 时 `spanId` 也留作属性 |
+| 其他字段 | 同名属性，按记录中的顺序；数字是 int／double、布尔是 bool、`null` 是空值，slog 分组是 kvlist、数组是 array |
+
+Resource 只有 `service.name=jelee` 与 `service.version`（构建版本），Scope 是 `github.com/MoYuanCN/Jelee/internal/platform/logging`＋同一版本；不读 `OTEL_RESOURCE_ATTRIBUTES`、`OTEL_SERVICE_NAME`、主机名或进程信息，`OTEL_EXPORTER_OTLP_*` 也不能改变端点、标头、压缩或超时。属性就是已脱敏记录的字段，不会比日志文件多任何信息（`TestSensitiveSamplesDoNotReachOTLPCollector` 扫描请求字节零命中）。连接比照追踪导出：不使用 `HTTP_PROXY` 等环境代理、不跟随重定向（标头里的令牌不会被带到别处）、TLS 1.2 以上并校验证书（系统根证书或 `caFile`），没有关闭校验的选项。只有服务器 `jelee` 链接 OTLP 编码（`internal/platform/logging/otlplog`），`jelee-cli`、`jelee-migrate` 不链接；配置检查在 `internal/platform/logging`，三个程序都会拒绝半套配置。
+
 **队列、重试与丢弃**：
 
 - 请求路径的 `Write` 只复制记录并入队；队列满时丢弃新记录并计数，绝不阻塞。超过 256 KiB（数据报 32 KiB）的记录丢弃并计数，不截断 JSON。
-- 一批推送失败（连不上、超时、证书不被信任、HTTP 429／408／5xx）时，指数退避（0.5 秒起，上限 30 秒，带抖动，`Retry-After` 优先，最长 60 秒）重试同一批，最多 8 次，用尽后整批丢弃并计数。Loki 回 400／401／403 等其他 4xx（条目过旧、过长、认证错误）重试无用，整批丢弃并计数，不重试。
+- 一批推送失败（连不上、超时、证书不被信任、HTTP 429／408／5xx）时，指数退避（0.5 秒起，上限 30 秒，带抖动，`Retry-After` 优先，最长 60 秒）重试同一批，最多 8 次，用尽后整批丢弃并计数。Loki 或 OTLP Collector 回 400／401／403／413 等其他 4xx（条目过旧、过长、认证错误、请求过大）或 3xx（重定向不跟随）重试无用，整批丢弃并计数，不重试。OTLP 的 2xx 部分成功（`partial_success`）视为已送达。
 - 投递从正常变为失败、再恢复时，行程 stderr 各写一行 `Jelee log forwarder <名称>: delivery failing (<类别>)`／`delivery recovered`，类别是固定词（`network`、`timeout`、`tls`、`status 503`、`rejected 400`），不含地址、凭证或记录内容。
 - 关机时 `Flush`／`Close` 有 5 秒期限（调用方给了期限则以它为准）：在期限内尽力把已入队的记录送出，送不出的计入丢弃，不会因收集器离线而卡住关机。
 - 投递是至少一次：一批中途失败重试时，收集器可能收到重复记录；TCP 对端关闭后的第一次写入可能被内核吞掉，那条记录可能丢失而不报错。
 
-**指标**（见 [metrics](metrics.md)）：`jelee_logging_forward_dropped_total{destination}`、`jelee_logging_forward_failures_total{destination}`、`jelee_logging_forward_sent_total{destination}`；默认告警 `JeleeLogForwardDropped`。原有的 `jelee_logging_records_dropped_total` 只统计路由器入口队列（stdout、文件、各转发器前的缓冲）满了的丢弃；转发器前的缓冲丢弃同时计入该目的地的 `forward_dropped`。
+**指标**（见 [metrics](metrics.md)）：三种目的地共用 `jelee_logging_forward_dropped_total{destination}`、`jelee_logging_forward_failures_total{destination}`、`jelee_logging_forward_sent_total{destination}`；默认告警 `JeleeLogForwardDropped`。原有的 `jelee_logging_records_dropped_total` 只统计路由器入口队列（stdout、文件、各转发器前的缓冲）满了的丢弃；转发器前的缓冲丢弃同时计入该目的地的 `forward_dropped`。
 
 Loki 示例（环境变量，凭证走 Docker／systemd 的文件机密）：
 
@@ -129,6 +144,62 @@ JELEE_LOG_FORWARD_LOKI_CA_FILE=/run/secrets/log-ca.pem
 ```
 
 查询：`{service="jelee-prod", component="http", level="error"} | json | status >= 500`。仍然保留 stdout 或文件输出时，`jelee-cli logs` 与诊断导出照常可用。
+
+OTLP 示例（经 OpenTelemetry Collector 转到 Loki、Elasticsearch 等任意后端；令牌放在文件机密里）：
+
+```
+JELEE_LOG_FORWARD_OTLP_ENDPOINT=https://otel-collector.internal:4318
+JELEE_LOG_FORWARD_OTLP_HEADERS_FILE=/run/secrets/otlp_headers
+JELEE_LOG_FORWARD_OTLP_CA_FILE=/run/secrets/collector-ca.pem
+```
+
+`/run/secrets/otlp_headers`（一行一个，值中的逗号写成 `%2C`）：
+
+```
+Authorization=Bearer <collector-token>
+X-Scope-OrgID=home
+```
+
+等价的配置文件片段：
+
+```json
+{"logging": {"forwarders": [
+  {"kind": "otlp", "endpoint": "https://otel-collector.internal:4318",
+   "headersFile": "/run/secrets/otlp_headers", "caFile": "/run/secrets/collector-ca.pem"}
+]}}
+```
+
+Collector 端（`otelcol-contrib`，OTLP/HTTP 接收并验 Bearer 令牌，转送 Loki；与追踪导出可共用同一个 Collector 与接收端口）：
+
+```yaml
+extensions:
+  bearertokenauth:
+    token: ${env:COLLECTOR_TOKEN}
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: bearertokenauth
+        tls:
+          cert_file: /etc/otelcol/collector.pem
+          key_file: /etc/otelcol/collector-key.pem
+processors:
+  batch: {}
+exporters:
+  otlphttp/loki:
+    endpoint: https://loki.internal/otlp
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
+```
+
+同机测试可以不设 TLS：Collector 只听 `127.0.0.1:4318`，Jelee 设 `JELEE_LOG_FORWARD_OTLP_ENDPOINT=http://127.0.0.1:4318`、`JELEE_LOG_FORWARD_OTLP_INSECURE=true`。在 Collector 加 `debug` exporter（`verbosity: detailed`）可以逐条看到 `SeverityNumber`、`TraceId`、`SpanId` 与属性。
 
 ### 运行时调整级别（G46.2）
 
@@ -348,7 +419,7 @@ code : "db_slow_query" and durationMs > 2000
 ## 尚未完成
 
 - 没有通用的审计查询接口（G49.6）；审计行只能直接查询数据库，分享链接的访问记录除外。
-- OTLP 日志转发尚未实现（syslog 与 Loki 见上文「外部转发」）；真实 Loki／rsyslog／syslog-ng 收集器的端到端验证见验证清单 D49。
+- 真实 Loki／rsyslog／syslog-ng 收集器的端到端验证见验证清单 D49，真实 OpenTelemetry Collector 见 D54；OTLP 只支持 HTTP／protobuf，不提供 gRPC 或 JSON 编码。
 - `jelee-cli logs` 只读本机日志文件；多实例部署请在日志系统中集中查询。
 - 级别覆写在其他实例上最多延迟 15 秒生效。
 - 高 QPS 压测（P95）只有开发机基准，尚未在固定硬件上做端到端压测（需要长时间验证）。

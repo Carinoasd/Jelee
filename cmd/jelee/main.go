@@ -5,6 +5,8 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/legacyignorehelper"
 	"github.com/MoYuanCN/Jelee/internal/platform/logging"
+	// The otlp log forwarder kind; only the server links the OTLP modules.
+	_ "github.com/MoYuanCN/Jelee/internal/platform/logging/otlplog"
 	"github.com/MoYuanCN/Jelee/internal/platform/ocrruntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/runtime"

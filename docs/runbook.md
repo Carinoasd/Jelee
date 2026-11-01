@@ -74,9 +74,9 @@
 
 ### JeleeLogForwardDropped
 
-- **意義**：某個副本 10 分鐘內有送往外部收集器（syslog 或 Loki）的日誌紀錄被丟棄（G46.1、G46.8）。每個轉發器有自己的有界佇列，收集器變慢、連不上或拒收時，佇列滿了就丟棄新紀錄、重試用完的批次也丟棄並計數；本機 stdout 與檔案日誌不受影響，請求也不會被拖慢，但收集器那一份不完整。
-- **確認**：`increase(jelee_logging_forward_dropped_total[10m])` 看是哪個 `destination`；`jelee_logging_forward_failures_total` 增加表示投遞失敗（收集器離線、憑證錯、被拒收），`jelee_logging_forward_sent_total` 停止增加表示完全送不出去。行程 stderr 會在投遞開始失敗與恢復時各寫一行 `Jelee log forwarder <名稱>: delivery failing (<類別>)`，類別是 `network`、`timeout`、`tls`、`status 5xx`／`status 429`（可重試）或 `rejected 4xx`（Loki 認證錯誤、條目過舊或過長，重試無用，整批丟棄）。
-- **處置**：`tls` 是收集器憑證不被系統根憑證信任，請換成受信任的憑證或把 CA 裝進系統信任庫（沒有關閉驗證的選項）；`rejected 401／403` 檢查 `JELEE_LOG_FORWARD_LOKI_USERNAME`／`PASSWORD(_FILE)`／`BEARER_TOKEN(_FILE)`、`TENANT_ID`；`status 429` 調高 Loki 的 ingestion 限額或調大 `BATCH_INTERVAL_MS`／`BATCH_SIZE` 減少請求數；收集器正常卻仍丟棄，調大該轉發器的 `QUEUE_ENTRIES`。syslog 經 UDP 送不出時不會有連線錯誤，請確認收集器位址與防火牆。見[日誌](logging.md#外部转发g461)。
+- **意義**：某個副本 10 分鐘內有送往外部收集器（syslog、Loki 或 OTLP Collector）的日誌紀錄被丟棄（G46.1、G46.8）。每個轉發器有自己的有界佇列，收集器變慢、連不上或拒收時，佇列滿了就丟棄新紀錄、重試用完的批次也丟棄並計數；本機 stdout 與檔案日誌不受影響，請求也不會被拖慢，但收集器那一份不完整。
+- **確認**：`increase(jelee_logging_forward_dropped_total[10m])` 看是哪個 `destination`；`jelee_logging_forward_failures_total` 增加表示投遞失敗（收集器離線、憑證錯、被拒收），`jelee_logging_forward_sent_total` 停止增加表示完全送不出去。行程 stderr 會在投遞開始失敗與恢復時各寫一行 `Jelee log forwarder <名稱>: delivery failing (<類別>)`，類別是 `network`、`timeout`、`tls`、`status 5xx`／`status 429`（可重試）或 `rejected 4xx`／`rejected 3xx`（Loki／Collector 認證錯誤、條目過舊或過長、請求過大、重新導向，重試無用，整批丟棄）。
+- **處置**：`tls` 是收集器憑證不被系統根憑證信任，請換成受信任的憑證或把 CA 裝進系統信任庫（沒有關閉驗證的選項）；`rejected 401／403` 檢查 `JELEE_LOG_FORWARD_LOKI_USERNAME`／`PASSWORD(_FILE)`／`BEARER_TOKEN(_FILE)`、`TENANT_ID`；OTLP 的 `rejected 401／403` 檢查 `JELEE_LOG_FORWARD_OTLP_HEADERS(_FILE)` 的令牌，`rejected 413` 調小 `BATCH_SIZE` 或調高 Collector 的請求上限，`rejected 307／308` 表示端點被轉址（不跟隨），請改成最終位址；`status 429` 調高 Loki 的 ingestion 限額或調大 `BATCH_INTERVAL_MS`／`BATCH_SIZE` 減少請求數；收集器正常卻仍丟棄，調大該轉發器的 `QUEUE_ENTRIES`。syslog 經 UDP 送不出時不會有連線錯誤，請確認收集器位址與防火牆。見[日誌](logging.md#外部转发g461)。
 - **回復驗證**：`increase(jelee_logging_forward_dropped_total[10m])` 回到 0，告警解除；收集器端查得到新紀錄。
 ### JeleeAuditArchiveFailed
 
