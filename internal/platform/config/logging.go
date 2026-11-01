@@ -40,7 +40,7 @@ type LoggingConfig struct {
 	// arguments. Zero switches the log off.
 	SlowQueryMs *int `json:"slowQueryMs"`
 	// Forwarders are the external destinations of the JSON records (G46.1):
-	// syslog and Loki. Empty keeps logging local.
+	// syslog, Loki and OTLP/HTTP. Empty keeps logging local.
 	Forwarders []LogForwarderConfig `json:"forwarders"`
 }
 

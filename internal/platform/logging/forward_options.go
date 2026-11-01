@@ -31,6 +31,7 @@ type ForwarderOptions struct {
 	Timeout time.Duration
 	Syslog  SyslogOptions
 	Loki    LokiOptions
+	OTLP    OTLPOptions
 }
 
 // SyslogOptions selects the RFC 5424 destination.
@@ -94,17 +95,20 @@ func (o ForwarderOptions) validate(goos string) error {
 	}
 	switch o.Kind {
 	case ForwardSyslog:
-		if o.Loki != (LokiOptions{}) {
-			return errors.New("log forwarder of kind syslog has Loki options")
+		if o.Loki != (LokiOptions{}) || o.OTLP.set() {
+			return errors.New("log forwarder of kind syslog has options of another kind")
 		}
 		return o.Syslog.validate(goos)
 	case ForwardLoki:
-		if o.Syslog != (SyslogOptions{}) {
-			return errors.New("log forwarder Loki log forwarder has syslog options")
+		if o.Syslog != (SyslogOptions{}) || o.OTLP.set() {
+			return errors.New("log forwarder of kind loki has options of another kind")
 		}
 		return o.Loki.validate()
 	case ForwardOTLP:
-		return errors.New("log forwarder kind otlp is not available")
+		if o.Syslog != (SyslogOptions{}) || o.Loki != (LokiOptions{}) {
+			return errors.New("log forwarder of kind otlp has options of another kind")
+		}
+		return o.OTLP.validate()
 	default:
 		return errors.New("unknown log forwarder kind")
 	}
@@ -329,6 +333,16 @@ func NewForwarder(o ForwarderOptions) (Forwarder, error) {
 		}
 		s := newSyslogSender(o.Syslog, timeout, pool)
 		co.maxRecord = s.maxRecord()
+		return newForwardCore(co, s), nil
+	case ForwardOTLP:
+		pool, err := caPool(o.OTLP.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		s, err := newOTLPSender(o.OTLP, timeout, pool)
+		if err != nil {
+			return nil, err
+		}
 		return newForwardCore(co, s), nil
 	default:
 		pool, err := caPool(o.Loki.CAFile)
