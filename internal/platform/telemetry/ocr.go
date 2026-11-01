@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 
-	"github.com/MoYuanCN/Jelee/internal/adapter/subtitleocr"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"go.opentelemetry.io/otel/metric"
 )
 
 // SubtitleOCRStats reports the background subtitle OCR counters (G15.6). It
 // must only read memory.
 type SubtitleOCRStats interface {
-	Stats() subtitleocr.Stats
+	Stats() app.SubtitleOCRStats
 }
 
 // RegisterSubtitleOCR exports the queue, outcome and picture counters of
@@ -23,19 +23,19 @@ func (m *Metrics) RegisterSubtitleOCR(source SubtitleOCRStats) error {
 	meter := m.provider.Meter(telemetryMeter)
 	type counter struct {
 		name, description string
-		value             func(subtitleocr.Stats) uint64
+		value             func(app.SubtitleOCRStats) uint64
 		instrument        metric.Int64ObservableCounter
 	}
 	counters := []counter{
-		{name: "jelee.subtitle_ocr.jobs.completed", description: "Sources whose bitmap subtitles OCR finished since process start.", value: func(s subtitleocr.Stats) uint64 { return s.Completed }},
-		{name: "jelee.subtitle_ocr.jobs.failed", description: "OCR jobs that failed since process start.", value: func(s subtitleocr.Stats) uint64 { return s.Failed }},
-		{name: "jelee.subtitle_ocr.jobs.dropped", description: "OCR requests dropped because the queue was full.", value: func(s subtitleocr.Stats) uint64 { return s.Dropped }},
-		{name: "jelee.subtitle_ocr.pictures", description: "Bitmap subtitle pictures decoded for OCR.", value: func(s subtitleocr.Stats) uint64 { return s.Pictures }},
-		{name: "jelee.subtitle_ocr.recognized", description: "Pictures Tesseract recognized.", value: func(s subtitleocr.Stats) uint64 { return s.Recognized }},
-		{name: "jelee.subtitle_ocr.reused", description: "Pictures identical to an earlier one of the same track, recognized once.", value: func(s subtitleocr.Stats) uint64 { return s.Reused }},
-		{name: "jelee.subtitle_ocr.rejected", description: "Pictures Tesseract refused or timed out on; their cues are left out.", value: func(s subtitleocr.Stats) uint64 { return s.Rejected }},
-		{name: "jelee.subtitle_ocr.skipped", description: "Pictures the decoder skipped as corrupt.", value: func(s subtitleocr.Stats) uint64 { return s.Skipped }},
-		{name: "jelee.subtitle_ocr.throttled", description: "Pictures that waited for the per-minute OCR limit.", value: func(s subtitleocr.Stats) uint64 { return s.Throttled }},
+		{name: "jelee.subtitle_ocr.jobs.completed", description: "Sources whose bitmap subtitles OCR finished since process start.", value: func(s app.SubtitleOCRStats) uint64 { return s.Completed }},
+		{name: "jelee.subtitle_ocr.jobs.failed", description: "OCR jobs that failed since process start.", value: func(s app.SubtitleOCRStats) uint64 { return s.Failed }},
+		{name: "jelee.subtitle_ocr.jobs.dropped", description: "OCR requests dropped because the queue was full.", value: func(s app.SubtitleOCRStats) uint64 { return s.Dropped }},
+		{name: "jelee.subtitle_ocr.pictures", description: "Bitmap subtitle pictures decoded for OCR.", value: func(s app.SubtitleOCRStats) uint64 { return s.Pictures }},
+		{name: "jelee.subtitle_ocr.recognized", description: "Pictures Tesseract recognized.", value: func(s app.SubtitleOCRStats) uint64 { return s.Recognized }},
+		{name: "jelee.subtitle_ocr.reused", description: "Pictures identical to an earlier one of the same track, recognized once.", value: func(s app.SubtitleOCRStats) uint64 { return s.Reused }},
+		{name: "jelee.subtitle_ocr.rejected", description: "Pictures Tesseract refused or timed out on; their cues are left out.", value: func(s app.SubtitleOCRStats) uint64 { return s.Rejected }},
+		{name: "jelee.subtitle_ocr.skipped", description: "Pictures the decoder skipped as corrupt.", value: func(s app.SubtitleOCRStats) uint64 { return s.Skipped }},
+		{name: "jelee.subtitle_ocr.throttled", description: "Pictures that waited for the per-minute OCR limit.", value: func(s app.SubtitleOCRStats) uint64 { return s.Throttled }},
 	}
 	instruments := make([]metric.Observable, 0, len(counters)+2)
 	for i := range counters {

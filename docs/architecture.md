@@ -10,6 +10,16 @@
 
 领域与应用层不得依赖适配器，架构测试检查这条依赖方向。当前 HTTP 与 PostgreSQL 适配器都直接依赖 `internal/adapter/media` 中的资源、解析器及错误契约；HTTP 还使用其传输实现。因此，适配器尚未完全解耦。`internal/platform/runtime` 通过 fx 装配服务，CLI 入口装配各自使用的适配器。
 
+适配器依赖平台层，反向不行（G28.2）：`internal/platform/**` 的非测试代码不得导入 `internal/adapter/**`，由 `internal/architecture/platform_direction_test.go` 强制；新增反向边即失败，白名单中不再使用的条目也失败。适配器与平台都要读的类型下沉到 `internal/app` 或 `internal/domain`（例：作业时间窗 `domain.DailyWindow`、图片与字幕 OCR 计数快照 `app.ImageProcessorStats`／`app.ImageStoreStats`／`app.SubtitleOCRStats`，适配器以类型别名沿用原名）。白名单 3 个包、4 条：
+
+| 平台包 | 可导入的适配器 | 理由 |
+| --- | --- | --- |
+| `internal/platform/runtime` | 全部 | 组合根：按配置构建每个适配器并接入 fx 生命周期 |
+| `internal/platform/consistency` | `adapter/images`、`adapter/scan` | 作业执行器与 `jelee-cli` 检查／修复共用的装配片段：图片变体探针与 `os.Root` 文件探针 |
+| `internal/platform/setupenv` | `adapter/postgres` | `NewPostgresSetup` 是服务与 `jelee-cli setup` 共用的装配片段：读数据库事实与本二进制要求的 schema 版本 |
+
+测试文件不受此限：平台测试可驱动真实适配器验证契约（例如处理器满足遥测数据源接口），不会进入二进制。
+
 领域对象与主要数据表见[领域模型](domain-model.md)；各功能的当前状态以[需求追溯矩阵](requirements-traceability.md)为准。
 
 ## 请求管线（G08.1、G08.7）
@@ -27,6 +37,8 @@
 ## 错误与生命周期
 
 所有外部错误使用固定错误码与可本地化的安全消息，不回传路径、连接串或原始数据库错误。日志不记录请求体、令牌、查询字符串与原始底层错误。HTTP 关闭先停止接受连接，再排空请求，最后关闭连接池。后台生命周期必须可取消。
+
+goroutine 泄漏检测（G29.3）不引入第三方依赖：`internal/platform/testutil` 的 `TrackGoroutines(t, 忽略前缀...)` 在测试开始时快照全部 goroutine 栈，测试与其 cleanup 结束后比对，新增且仍在运行的 goroutine 在 2 秒宽限内未退出即失败并打印其栈；测试框架、`runtime.runfinq`／`runCleanups`、`os/signal` 默认忽略。需要在测试中途检查时用 `SnapshotGoroutines(...).Check(t)`。忽略前缀只用于确实应活过测试的 goroutine（如测试替身服务端的连接），不得掩盖被测代码该回收的 goroutine。已接入：HTTP 服务器关闭（含中途断开的流与客户端控制写入器）、作业执行器 `Runner` 与背景工作线 `Background`、`app.RunBackground`、日志路由与转发器（含收集端挂起时关闭）、OTLP 导出器关闭（含截止时间与收集端挂起）。
 
 ## 验证与切换
 

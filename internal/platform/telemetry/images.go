@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math"
 
-	imageadapter "github.com/MoYuanCN/Jelee/internal/adapter/images"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,8 +15,8 @@ import (
 // methods must only read local state; they run inside metric collection.
 // StoreStats must report the same ok value for the lifetime of the source.
 type ImageStatsSource interface {
-	Stats() imageadapter.Stats
-	StoreStats() (imageadapter.StoreStats, bool)
+	Stats() app.ImageProcessorStats
+	StoreStats() (app.ImageStoreStats, bool)
 }
 
 // NewWithImages adds image cache and store metrics to the production
@@ -36,8 +35,8 @@ func NewWithImages(pool app.PoolStatsSource, jobs app.JobMetricsSource, budget *
 }
 
 type imageSnapshot struct {
-	processor imageadapter.Stats
-	store     imageadapter.StoreStats
+	processor app.ImageProcessorStats
+	store     app.ImageStoreStats
 }
 
 type imageMetric struct {

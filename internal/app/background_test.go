@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/testutil"
 )
 
 func noopRun(context.Context, context.Context) (bool, error) { return false, nil }
@@ -40,6 +41,7 @@ func TestBackgroundTaskValidate(t *testing.T) {
 // A poll runs at once, runs again at once when asked to, waits the
 // interval otherwise and wakes early.
 func TestRunBackgroundPoll(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	wake := make(chan struct{}, 1)
 	var runs atomic.Int32
 	ran := make(chan int32, 16)
@@ -83,6 +85,7 @@ func TestRunBackgroundPoll(t *testing.T) {
 // A fixed cadence waits one interval for its first run; a burst of wakes
 // is handled by one run after the wake delay.
 func TestRunBackgroundCadenceAndWakeDelay(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	wake := make(chan struct{}, 1)
 	ran := make(chan time.Time, 16)
 	task := BackgroundTask{Kind: domain.JobWatchStatsAggregation, Interval: time.Hour, Wake: wake, WakeDelay: 30 * time.Millisecond, Cluster: true,
@@ -141,6 +144,7 @@ func TestRunBackgroundCadenceAndWakeDelay(t *testing.T) {
 // Stopping cancels the stop context at once and the work context after the
 // grace; RunBackground returns when the run does.
 func TestRunBackgroundStopGrace(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	for _, grace := range []time.Duration{0, 80 * time.Millisecond} {
 		started := make(chan struct{})
 		var stopAt, workAt time.Time
