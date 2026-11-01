@@ -135,7 +135,7 @@ func (w *WatchStats) Counters() WatchStatsCounters {
 	return WatchStatsCounters{Aggregated: w.aggregated.Load(), Runs: w.runs.Load(), Conflicts: w.conflicts.Load()}
 }
 
-// Wake asks the running aggregator to run soon; playback calls it when
+// Wake asks the aggregation job to run soon; playback calls it when
 // sessions end. It never blocks.
 func (w *WatchStats) Wake() {
 	if w == nil {
@@ -178,30 +178,27 @@ func (w *WatchStats) Aggregate(ctx context.Context) (int, error) {
 	return total, nil
 }
 
-// Run aggregates every Interval, and WakeDelay after a Wake, until ctx ends.
-func (w *WatchStats) Run(ctx context.Context) {
-	ticker := time.NewTicker(w.opts.Interval)
-	defer ticker.Stop()
-	var delay <-chan time.Time
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-w.wake:
-			if delay == nil {
-				delay = time.After(w.opts.WakeDelay)
+// Task is the watch_stats_aggregation background job: every Interval, and
+// WakeDelay after a Wake, it aggregates the pending sessions and applies
+// the retention. Instances take turns; the repository's advisory lock still
+// keeps each batch to one instance and lets a repair hold aggregation off.
+func (w *WatchStats) Task() BackgroundTask {
+	return BackgroundTask{
+		Kind: domain.JobWatchStatsAggregation, Interval: w.opts.Interval, Wake: w.wake, WakeDelay: w.opts.WakeDelay, Cluster: true, Class: WorkIO,
+		Run: func(stop, _ context.Context) (bool, error) {
+			_, err := w.Aggregate(stop)
+			if err != nil && stop.Err() == nil {
+				w.opts.Logger.Warn("watch statistics aggregation failed; retrying next interval", "component", "watch_stats")
 			}
-			continue
-		case <-delay:
-			delay = nil
-		case <-ticker.C:
-		}
-		if _, err := w.Aggregate(ctx); err != nil && ctx.Err() == nil {
-			w.opts.Logger.Warn("watch statistics aggregation failed; retrying next interval", "component", "watch_stats")
-		}
-		if err := w.Purge(ctx); err != nil && ctx.Err() == nil {
-			w.opts.Logger.Warn("watch statistics retention purge failed", "component", "watch_stats")
-		}
+			purge := w.Purge(stop)
+			if purge != nil && stop.Err() == nil {
+				w.opts.Logger.Warn("watch statistics retention purge failed", "component", "watch_stats")
+			}
+			if err == nil {
+				err = purge
+			}
+			return false, err
+		},
 	}
 }
 

@@ -130,7 +130,7 @@ func TestWatchStatsAggregateRunsBatchesUntilDrained(t *testing.T) {
 	}
 }
 
-// Session ends wake the aggregator after the wake delay, well before the
+// Session ends wake the aggregation job after the wake delay, well before the
 // interval.
 func TestWatchStatsRunWakesOnSessionEnd(t *testing.T) {
 	repo := &fakeWatchStatsRepo{runs: make(chan struct{}, 1)}
@@ -142,7 +142,7 @@ func TestWatchStatsRunWakesOnSessionEnd(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		w.Run(ctx)
+		RunBackground(ctx, w.Task(), nil)
 	}()
 	p, _, clock := newTestProgress(t, ProgressOptions{OnEnded: w.Wake})
 	actor := progressActor(1)

@@ -587,8 +587,9 @@ func (p *Progress) write(ctx context.Context, entries []domain.PlaybackFlush) (d
 }
 
 // Flush writes every dirty session and closes the sessions that stopped
-// reporting for SessionTimeout. Run calls it every FlushInterval and when
-// MaxBatch sessions are dirty; tests call it with a fake clock.
+// reporting for SessionTimeout. Its background job calls it every
+// FlushInterval and when MaxBatch sessions are dirty; tests call it with a
+// fake clock.
 func (p *Progress) Flush(ctx context.Context) (domain.PlaybackFlushResult, error) {
 	if p == nil || ctx == nil {
 		return domain.PlaybackFlushResult{}, domain.ErrInvalid
@@ -702,28 +703,28 @@ func (p *Progress) Maintain(ctx context.Context) error {
 	return nil
 }
 
-// Run flushes every FlushInterval, or earlier when MaxBatch sessions are
-// dirty, and maintains storage every few flushes, until ctx ends. The caller
-// then calls Flush once more with a shutdown deadline.
-func (p *Progress) Run(ctx context.Context) {
-	ticker := time.NewTicker(p.opts.FlushInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		case <-p.wake:
-		}
-		if _, err := p.Flush(ctx); err != nil && ctx.Err() == nil {
-			continue
-		}
-		p.flushCount++
-		if p.flushCount%orphanSweepFlushes == 0 {
-			if err := p.Maintain(ctx); err != nil && ctx.Err() == nil {
+// Task is the playback_progress_flush background job of this instance: it
+// flushes every FlushInterval, or at once when MaxBatch sessions are dirty,
+// and maintains storage every few successful flushes. The buffer is this
+// process's memory, so every instance runs its own. When the job stops, the
+// caller flushes once more with a shutdown deadline after HTTP drained.
+func (p *Progress) Task() BackgroundTask {
+	return BackgroundTask{
+		Kind: domain.JobPlaybackProgressFlush, Interval: p.opts.FlushInterval, Wake: p.wake, Class: WorkIO,
+		Run: func(stop, _ context.Context) (bool, error) {
+			if _, err := p.Flush(stop); err != nil {
+				return false, err
+			}
+			p.flushCount++
+			if p.flushCount%orphanSweepFlushes != 0 {
+				return false, nil
+			}
+			err := p.Maintain(stop)
+			if err != nil && stop.Err() == nil {
 				p.opts.Logger.Warn("playback maintenance failed", "component", "playback")
 			}
-		}
+			return false, err
+		},
 	}
 }
 

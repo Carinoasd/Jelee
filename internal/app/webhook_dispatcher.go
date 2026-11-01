@@ -28,17 +28,22 @@ type WebhookDispatcherOptions struct {
 	PollInterval time.Duration
 	// Retention deletes settled events older than this.
 	Retention time.Duration
-	// StopGrace is how long in-flight attempts may finish after Run's
-	// context is cancelled before they are cancelled too.
+	// StopGrace is how long in-flight attempts may finish after the
+	// delivery job stops before they are cancelled too.
 	StopGrace time.Duration
 	Logger    *slog.Logger
 	// Spans starts the span of one delivery attempt for an event and
 	// returns its end function (G46.6). Nil starts none.
 	Spans func(ctx context.Context, eventID string) (context.Context, func(outcome string))
+	// Budget admits every attempt as one I/O operation of the shared work
+	// budget (G41.3) before it is signed and sent; the deliverer must not
+	// admit it again. Nil admits none.
+	Budget WorkBudget
 }
 
 // WebhookDispatcher fans outbox events out to subscribed endpoints and
-// delivers them with retries, backoff and dead-lettering.
+// delivers them with retries, backoff and dead-lettering. The job executor
+// runs it as the webhook_delivery background job (Task).
 type WebhookDispatcher struct {
 	endpoints WebhookRepository
 	store     WebhookDeliveryStore
@@ -106,12 +111,13 @@ type WebhookRound struct {
 	Retrying  int
 	Dead      int
 	// Skipped attempts were not recorded (stopping, stale lease, sealed
-	// secret unreadable); their lease expires and they are sent again.
+	// secret unreadable, no room in the shared budget); their lease expires
+	// and they are sent again.
 	Skipped int
 	Purged  int
 }
 
-// Wake asks a running dispatcher to start a round now.
+// Wake asks the running delivery job to start a round now.
 func (d *WebhookDispatcher) Wake() {
 	select {
 	case d.wake <- struct{}{}:
@@ -135,13 +141,14 @@ func (d *WebhookDispatcher) round(ctx, attemptCtx context.Context) (WebhookRound
 		return round, err
 	}
 	now := d.opts.Clock.Now()
-	claimed, err := d.store.ClaimDue(ctx, now, now.Add(d.opts.Lease), d.opts.Batch)
+	leaseUntil := now.Add(d.opts.Lease)
+	claimed, err := d.store.ClaimDue(ctx, now, leaseUntil, d.opts.Batch)
 	if err != nil {
 		return round, err
 	}
 	round.Claimed = len(claimed)
 	if len(claimed) > 0 {
-		d.deliverAll(attemptCtx, claimed, &round)
+		d.deliverAll(attemptCtx, claimed, leaseUntil, &round)
 	}
 	d.mu.Lock()
 	due := d.lastPurge.IsZero() || now.Sub(d.lastPurge) >= webhookPurgeEvery
@@ -213,7 +220,7 @@ func (d *WebhookDispatcher) loadEndpoint(ctx context.Context, cache *webhookEndp
 	return entry.endpoint, entry.keys, entry.err
 }
 
-func (d *WebhookDispatcher) deliverAll(ctx context.Context, claimed []WebhookDelivery, round *WebhookRound) {
+func (d *WebhookDispatcher) deliverAll(ctx context.Context, claimed []WebhookDelivery, leaseUntil time.Time, round *WebhookRound) {
 	cache := &webhookEndpointCache{entries: map[string]*webhookEndpointEntry{}}
 	slots := make(chan struct{}, d.opts.Concurrency)
 	var wg sync.WaitGroup
@@ -223,7 +230,7 @@ func (d *WebhookDispatcher) deliverAll(ctx context.Context, claimed []WebhookDel
 		wg.Add(1)
 		go func(delivery WebhookDelivery) {
 			defer func() { <-slots; wg.Done() }()
-			state, ok := d.deliverOne(ctx, cache, delivery)
+			state, ok := d.deliverOne(ctx, cache, delivery, leaseUntil)
 			mu.Lock()
 			defer mu.Unlock()
 			if !ok {
@@ -245,21 +252,21 @@ func (d *WebhookDispatcher) deliverAll(ctx context.Context, claimed []WebhookDel
 
 // deliverOne sends one claimed delivery and records the attempt. It reports
 // false when nothing was recorded.
-func (d *WebhookDispatcher) deliverOne(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery) (domain.WebhookDeliveryState, bool) {
+func (d *WebhookDispatcher) deliverOne(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery, leaseUntil time.Time) (domain.WebhookDeliveryState, bool) {
 	outcome := "skipped"
 	if d.opts.Spans != nil {
 		var end func(string)
 		ctx, end = d.opts.Spans(ctx, delivery.Event.EventID)
 		defer func() { end(outcome) }()
 	}
-	state, recorded := d.attempt(ctx, cache, delivery)
+	state, recorded := d.attempt(ctx, cache, delivery, leaseUntil)
 	if recorded {
 		outcome = string(state)
 	}
 	return state, recorded
 }
 
-func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery) (domain.WebhookDeliveryState, bool) {
+func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointCache, delivery WebhookDelivery, leaseUntil time.Time) (domain.WebhookDeliveryState, bool) {
 	endpoint, keys, err := d.loadEndpoint(ctx, cache, delivery.EndpointID)
 	if errors.Is(err, domain.ErrNotFound) {
 		// Deleted while claimed: its deliveries went with it.
@@ -277,6 +284,13 @@ func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointC
 	if policy.Validate() != nil {
 		policy = domain.DefaultWebhookRetryPolicy()
 	}
+	release, admitted := d.admit(ctx, endpoint.Timeout, leaseUntil)
+	if !admitted {
+		// Backpressure is not a failed attempt: nothing is recorded and the
+		// delivery is sent again once its lease expires.
+		return "", false
+	}
+	defer release()
 	started := d.opts.Clock.Now()
 	var outcome domain.WebhookOutcome
 	request, err := BuildWebhookRequest(endpoint, keys, delivery.Event, started)
@@ -298,6 +312,8 @@ func (d *WebhookDispatcher) attempt(ctx context.Context, cache *webhookEndpointC
 			d.opts.Logger.WarnContext(ctx, "outbound request blocked", "component", "security", "event", "ssrf_blocked", "webhookId", delivery.EndpointID, "deliveryId", delivery.ID)
 		}
 	}
+	// The permit covers the request only, not its recording.
+	release()
 	finished := d.opts.Clock.Now()
 	record := ResolveWebhookAttempt(delivery, policy, outcome, started, finished, d.opts.Jitter)
 	recordCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), webhookRecordTimeout)
@@ -325,37 +341,42 @@ func (d *WebhookDispatcher) warnSealed() {
 	d.opts.Logger.Error("webhook secrets cannot be opened; check JELEE_WEBHOOK_MASTER_KEY", "component", "webhooks")
 }
 
-// Run delivers until ctx is cancelled. After cancellation no new round
-// starts; attempts in flight get StopGrace to finish and record before they
-// are cancelled. Run returns when they have.
-func (d *WebhookDispatcher) Run(ctx context.Context) {
-	attemptCtx, cancelAttempts := context.WithCancel(context.WithoutCancel(ctx))
-	defer cancelAttempts()
-	stop := context.AfterFunc(ctx, func() {
-		timer := time.NewTimer(d.opts.StopGrace)
-		defer timer.Stop()
-		select {
-		case <-timer.C:
-			cancelAttempts()
-		case <-attemptCtx.Done():
-		}
-	})
-	defer stop()
-	for ctx.Err() == nil {
-		round, err := d.round(ctx, attemptCtx)
-		if err != nil && ctx.Err() == nil {
-			d.opts.Logger.Warn("webhook delivery round failed", "component", "webhooks")
-		}
-		// A full batch suggests more work: continue at once.
-		if err == nil && (round.Planned == d.opts.Batch || round.Claimed == d.opts.Batch) {
-			continue
-		}
-		timer := time.NewTimer(d.opts.PollInterval)
-		select {
-		case <-ctx.Done():
-		case <-d.wake:
-		case <-timer.C:
-		}
-		timer.Stop()
+// admit takes the attempt's I/O permit. The wait ends early enough for the
+// attempt (timeout) and its recording to finish inside the claim's lease;
+// a permit not granted by then, or a full budget queue, skips the attempt.
+func (d *WebhookDispatcher) admit(ctx context.Context, timeout time.Duration, leaseUntil time.Time) (func(), bool) {
+	if d.opts.Budget == nil {
+		return func() {}, true
+	}
+	wait := leaseUntil.Add(-timeout - 2*webhookRecordTimeout).Sub(d.opts.Clock.Now())
+	if wait <= 0 {
+		return nil, false
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	release, err := d.opts.Budget.Acquire(waitCtx, WorkIO)
+	if err != nil {
+		return nil, false
+	}
+	return release, true
+}
+
+// Task is the webhook_delivery background job. Each run plans new events,
+// delivers the due deliveries and, at most once an hour, purges settled
+// history; a full batch asks for the next run at once, otherwise the job
+// waits PollInterval or a Wake. When the job stops no new round starts;
+// attempts in flight get StopGrace to finish and record before they are
+// cancelled, and their deliveries are sent again after the lease expires.
+func (d *WebhookDispatcher) Task() BackgroundTask {
+	return BackgroundTask{
+		Kind: domain.JobWebhookDelivery, Interval: d.opts.PollInterval, IdleWait: true, Wake: d.wake, Cluster: true,
+		StopGrace: d.opts.StopGrace,
+		Run: func(stop, work context.Context) (bool, error) {
+			round, err := d.round(stop, work)
+			if err != nil && stop.Err() == nil {
+				d.opts.Logger.Warn("webhook delivery round failed", "component", "webhooks")
+			}
+			return err == nil && (round.Planned == d.opts.Batch || round.Claimed == d.opts.Batch), err
+		},
 	}
 }

@@ -22,7 +22,7 @@ G13.6 原文列出：元數據刷新、NFO 寫回、圖片抓取／重建、探�
 | 探測快取清理 | 探測快取在資料庫內，有 TTL 與配額回收（[探測快取](probe-cache.md)），不另設任務 |
 | **關鍵幀索引快取清理** | **不適用**：Jelee 沒有關鍵幀索引。服務端只做原檔直投，Seek 由客戶端依自身索引定位、服務端以 Range 回應（G10.7「服務端不得為 Seek 重新編碼」），程式碼與資料庫都沒有關鍵幀表或其快取，因此沒有可清理的對象。若日後新增（G10.6 的啟動加速），應以同一套 `Kinds` 機制加一個種類 |
 | 提取字幕清理 | **本頁** `subtitle_cache_cleanup` |
-| 統計聚合 | 觀看統計的排程彙總（[觀看統計](watch-statistics.md)） |
+| 統計聚合 | 觀看統計的排程彙總，任務執行器的背景工作 `watch_stats_aggregation`（[觀看統計](watch-statistics.md)、[背景工作](jobs-api.md#背景工作)） |
 | 資料一致性校驗 | `consistency_check`（[一致性檢查](consistency.md)） |
 | 備份提醒 | **本頁** `backup_reminder` |
 

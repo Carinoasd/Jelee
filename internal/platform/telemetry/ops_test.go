@@ -89,6 +89,9 @@ func newProductionTestExporter(t *testing.T, ops app.OpsMetricsSource, blocked B
 	if err := m.RegisterTraceExport(traceExportTestCounters{exported: 3, full: 1}, []string{"queue_full", "export_failed", "shutdown"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.RegisterBackgroundJobs(&backgroundSource{snapshot: sampleBackground()}); err != nil {
+		t.Fatal(err)
+	}
 	return m
 }
 

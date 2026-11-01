@@ -178,7 +178,10 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if err != nil {
 				return nil, err
 			}
-			lifetime.progress, lifetime.stats = progress, stats
+			lifetime.progress = progress
+			if err = lifetime.registerBackground(store, budget, progress.Task(), stats.Task()); err != nil {
+				return nil, err
+			}
 			if catalog, err = catalog.WithProgress(progress); err != nil {
 				return nil, err
 			}
@@ -271,6 +274,14 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				}
 			}
 			if err := registerOpsMetrics(c, store, metrics); err != nil {
+				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+			}
+			// G41.8: background job runs, waits and durations.
+			lane, err := lifetime.backgroundJobs(store, budget)
+			if err != nil {
+				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+			}
+			if err := metrics.RegisterBackgroundJobs(lane); err != nil {
 				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
 			}
 			// G46.8: records the log queues dropped or the sinks refused.
@@ -683,22 +694,20 @@ type lifetime struct {
 	closeImages    func(context.Context) error
 	// closeClientControl writes buffered client control hits and activity.
 	closeClientControl func(context.Context) error
-	// progress buffers playback reports; it runs with the workers and is
-	// flushed once more after HTTP has drained (G23.2).
-	progress     *app.Progress
-	progressDone chan struct{}
-	// stats rolls ended sessions up into the daily statistics (G23.5).
-	stats     *app.WatchStats
-	statsDone chan struct{}
+	// progress buffers playback reports; its flush job runs on the
+	// background lane and it is flushed once more after HTTP has drained
+	// (G23.2).
+	progress *app.Progress
+	// background is the job executor's lane for webhook delivery, the
+	// watch statistics roll-up and the progress flush (G41.1).
+	background *jobworker.Background
 	// audit purges expired audit rows (G46.9); auditDone joins it.
 	audit     *app.AuditJanitor
 	auditDone chan struct{}
 	// closeAuditArchive releases the archive directory handle (G36.3).
 	closeAuditArchive func() error
-	// webhooks delivers outbox events (G12.3). It stops claiming at
-	// cancellation and joins its in-flight attempts before the pool closes.
-	webhooks           *app.WebhookDispatcher
-	webhooksDone       chan struct{}
+	// closeWebhookClient closes the idle connections of the webhook clients
+	// once the delivery job has joined (G12.3).
 	closeWebhookClient func()
 	// alerts collects system.alert; producers appends them and sweeps
 	// session expiry while webhooks run (G12.1).
@@ -851,19 +860,10 @@ func (l *lifetime) start(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if l.progress != nil {
-		l.progressDone = make(chan struct{})
-		go func() {
-			defer close(l.progressDone)
-			l.progress.Run(l.ctx)
-		}()
-	}
-	if l.stats != nil {
-		l.statsDone = make(chan struct{})
-		go func() {
-			defer close(l.statsDone)
-			l.stats.Run(l.ctx)
-		}()
+	if l.background != nil {
+		if err := l.background.Start(l.ctx); err != nil { //nolint:contextcheck // background jobs live for the process lifetime, not for the OnStart hook
+			return errors.New("cannot start background jobs")
+		}
 	}
 	if l.audit != nil {
 		l.auditDone = make(chan struct{})
@@ -891,13 +891,6 @@ func (l *lifetime) start(ctx context.Context) error {
 		go func() {
 			defer close(l.adaptiveDone)
 			l.adaptive.Run(l.ctx)
-		}()
-	}
-	if l.webhooks != nil {
-		l.webhooksDone = make(chan struct{})
-		go func() {
-			defer close(l.webhooksDone)
-			l.webhooks.Run(l.ctx)
 		}()
 	}
 	if l.producers != nil {
@@ -956,9 +949,7 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	}
 	<-l.exited
 	l.flushProgress() //nolint:contextcheck // final progress flush runs after the stop deadline by design
-	if l.statsDone != nil {
-		<-l.statsDone
-	}
+	l.joinBackground()
 	if l.auditDone != nil {
 		<-l.auditDone
 	}
@@ -979,15 +970,11 @@ func (l *lifetime) shutdown(ctx context.Context) {
 	l.closePool() //nolint:contextcheck // shutdown closes the pool after the stop deadline by design
 }
 
-// joinWebhooks waits for the deliverer, which was cancelled with the
-// lifetime context and finishes or abandons its in-flight attempts within
-// its stop grace. Abandoned attempts are re-sent after their lease expires.
+// joinWebhooks waits for the event producers and closes the webhook
+// clients; the delivery job joined with the background lane before.
 func (l *lifetime) joinWebhooks() {
 	if l.producersDone != nil {
 		<-l.producersDone
-	}
-	if l.webhooksDone != nil {
-		<-l.webhooksDone
 	}
 	if l.closeWebhookClient != nil {
 		l.closeWebhookClient()
@@ -1001,9 +988,7 @@ func (l *lifetime) flushProgress() {
 	if l.progress == nil {
 		return
 	}
-	if l.progressDone != nil {
-		<-l.progressDone
-	}
+	l.joinProgressFlush()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if _, err := l.progress.Flush(ctx); err != nil {

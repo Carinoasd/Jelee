@@ -91,7 +91,7 @@ func TestProgressWriteAmplificationPostgres(t *testing.T) {
 	handler := leakHandlerWithProgress(t, store, cfg, &httpAccountPasswords{}, progress)
 	runCtx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})
-	go func() { defer close(done); progress.Run(runCtx) }()
+	go func() { defer close(done); app.RunBackground(runCtx, progress.Task(), nil) }()
 
 	// Backends report table statistics when they go idle or exit: replace
 	// the pool so the fixture's writes are counted before the baseline.

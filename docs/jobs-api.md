@@ -105,3 +105,44 @@ CLI 仅输出重新编码的公开 JSON 字段，丢弃未知字段；`progress`
 任务表由 migration 000003 引入；当前 binary 启动要求 schema 4 clean。部署先备份，再 `jelee-migrate up`。关闭任务开关是首选回滚方式。`down --i-understand` 每次只回退一版：004 down 丢失 probe cache/phase，保留任务/盘点/基准；再回退003才删除任务/盘点/基准表。必须停止相应 worker 并配合接受该 schema 的 binary，生产数据回退须单独规划。000001–000003 保持不变，详见[快取回滚](probe-cache.md#升级与回滚)。
 
 本段未实现 ffprobe、快取、增量指纹、忽略规则、cron/fsnotify、人工基准确认、图片/NFO解析或目录级并发，不能视为完整 G13/G19/G41/G42 验收。
+
+## 背景工作
+
+Webhook 投遞、觀看統計彙總與播放進度 flush（G41.1、G41.3、G41.8）原本是 runtime 各自起的背景迴圈，現在是任務執行器的**背景工作**：`internal/platform/jobs.Background` 擁有每個種類的一個 goroutine（與服務同生命週期），每次執行前先做准入（叢集鎖、共用配額）並記錄指標；步調（間隔、喚醒、停止寬限）由 `app.RunBackground` 負責，各子系統只提供「做一次」的內容（`WebhookDispatcher.Task`、`WatchStats.Task`、`Progress.Task`）。runtime 只啟動這一條背景工作線，關機時依序等待：先等 flush 工作停下再做最後一次 flush，再等其餘背景工作，最後才關連線池。
+
+| 種類 | 範圍 | 間隔（沿用原設定） | 批量（沿用原設定） | 共用配額 | 提前執行 |
+| --- | --- | --- | --- | --- | --- |
+| `webhook_delivery` | 叢集單例 | 一輪結束後閒置 `webhooks.pollMilliseconds`（預設 1 秒）；啟動時立刻一輪；整批滿了立刻下一輪 | 每輪 `webhooks.batch`（50）、並行 `webhooks.concurrency`（4）、租約 `webhooks.leaseSeconds`（120） | 每次投遞嘗試一個 I/O（輪次本身不持有） | `Wake` |
+| `watch_stats_aggregation` | 叢集單例 | 固定節奏 `stats.aggregateSeconds`（60 秒），第一次在一個間隔後 | 每批 200 個會話、每次最多 50 批；每小時一次保留期清理 | 每次執行一個 I/O | 會話結束後延遲 5 秒，期間的喚醒合併 |
+| `playback_progress_flush` | 每個實例 | 固定節奏 `playback.flushSeconds`（10 秒）；每 6 次成功 flush 做一次維護（關閉遺留會話、保留期清理） | `playback.maxBatch`（500） | 每次執行一個 I/O | dirty 會話達 `maxBatch` 時立刻 |
+
+沒有新增設定，也沒有遷移：三者都不寫 `jobs` 表。
+
+### 為什麼不是 `jobs` 表的任務
+
+`jobs` 表的任務掛在一個媒體庫上，而一個媒體庫同時只能有一個進行中的任務（[維護任務](maintenance-jobs.md#執行個體層級任務掛在哪個媒體庫)）；排程最短間隔是 60 秒（[任務排程](job-schedules.md)）。Webhook 每秒輪詢、進度每 10 秒 flush，若每次都排一個任務，`jobs` 表一天多出十萬列，而且會不斷佔住錨點媒體庫，讓那個庫的掃描與手動任務收到 `409 job_busy`；輪詢間隔也只能放寬到 60 秒，違反「間隔語意不變」。所以三者沿用任務模型的其餘部分，不佔佇列列：
+
+- **種類白名單**：`domain.BackgroundJobKinds()` 只有上表三種；執行器拒絕其他名稱，每種只能註冊一次。它們不在 `GET /api/v1/jobs` 的 `kind` 列舉裡，也不能用 `/api/v1/schedules` 排程。
+- **優先序**：一律 `background`（指標的 `priority` 維度）。
+- **單例**：叢集單例的種類每次執行前以 `pg_try_advisory_lock(hashtext(current_schema()), 17481268／17481269)` 取 session 層級的建議鎖，拿不到（另一個實例正在跑）就跳過這一次（`skipped`），由下一次再試；鎖在這次執行期間佔用一條池連線，結束時解鎖並歸還，解鎖失敗就關掉那條連線（鎖隨 session 釋放），實例崩潰時同樣由資料庫釋放。統計彙總原本交易內的 `pg_try_advisory_xact_lock` 保留，修復工具仍可用它擋住彙總。
+- **每個實例**：進度緩衝在各實例的記憶體裡，只有該實例能寫，所以 flush 不能是單例；跨實例的遺留會話清掃本來就只關閉資料庫中逾時、本實例沒持有的會話，多實例同時做也不衝突。
+- **取消**：工作隨服務生命週期取消：停止後不再開始新的一次；Webhook 進行中的投遞嘗試有 `StopGrace`（5 秒）完成並記錄，逾時才取消，未記錄的投遞在租約到期後以同一個 `eventId` 重送；統計與 flush 的執行直接取消，flush 在 HTTP 排空後再以 10 秒期限做最後一次。
+- **租約**：Webhook 的每筆投遞仍是原本的資料庫租約（`webhooks.leaseSeconds`）；叢集鎖本身就是這次執行的租約，持有者連線中斷即失效。
+
+### 共用配額（G41.3）
+
+- Webhook：投遞器在**簽章之前**為每次嘗試取得一個 I/O 配額，請求結束就釋放（不涵蓋寫回嘗試紀錄）；投遞器用的 HTTP client 不再自己取配額，避免巢狀。等待最多到「租約到期 − 端點逾時 − 10 秒」，保證嘗試與紀錄仍在租約內完成；佇列滿或等不到時**不記錄嘗試**（不計入重試次數、不會因背壓進死信），租約到期後重送。管理員的測試送出仍由它自己的 client 取配額。
+- 統計彙總與進度 flush：每次執行在開始前取得一個 I/O 配額（資料庫讀寫為主；彙總的計算在交易內，若在交易中再等 CPU 配額會延長鎖的持有），最多等一個間隔，佇列滿或等不到就跳過這一次（`skipped`），留給下一次；flush 的狀態仍在記憶體，不會遺失。關機時的最後一次 flush 與停止回報的即時寫入不經配額。
+
+### 指標（G41.8）
+
+每個實例輸出四個背景工作家族，維度沿用工作指標的 `kind`、`priority`（固定 `background`）、`outcome`，再加 `skipped`：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_jobs_background_running` | gauge | 本實例正在執行的次數（每種 0 或 1） |
+| `jelee_jobs_background_runs_total` | counter | 執行次數，`outcome`＝succeeded／failed／cancelled／skipped |
+| `jelee_jobs_background_wait_seconds` | histogram | 到期到真正開始（取得叢集鎖與配額之後）的等待 |
+| `jelee_jobs_background_duration_seconds` | histogram | 一次執行的耗時 |
+
+細節與數量見[指標](metrics.md#背景工作指標)。

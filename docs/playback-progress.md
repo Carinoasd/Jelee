@@ -23,7 +23,7 @@
 | --- | --- |
 | 開始（或未知播放鍵的第一個回報） | 1 個語句：同一語句內檢查 live native 工作階段、使用者與媒體庫授權後 `INSERT … ON CONFLICT (user_id, play_key)`。同鍵 active 或 timed_out 且同條目 → 接回原會話；已 stopped／failed 或條目不同 → 衝突，不寫 |
 | 重複的開始、進度、Ping | **不寫**，只改記憶體；兩次 flush 之間只保留最新狀態 |
-| 定期 flush（`playback.flushSeconds`，預設 10 秒；dirty 會話達 `playback.maxBatch` 時提前） | 每批最多 `maxBatch` 個會話**一個語句**：以 `unnest` 一次更新所有會話列、合併寫入條目進度、插入保留樣本。只更新仍為 active 的會話；進度與樣本只跟著被更新的列，所以已結束、已清除歷史、已刪除使用者的會話不會被寫回 |
+| 定期 flush（背景工作 `playback_progress_flush`，`playback.flushSeconds`，預設 10 秒；dirty 會話達 `playback.maxBatch` 時提前） | 每批最多 `maxBatch` 個會話**一個語句**：以 `unnest` 一次更新所有會話列、合併寫入條目進度、插入保留樣本。只更新仍為 active 的會話；進度與樣本只跟著被更新的列，所以已結束、已清除歷史、已刪除使用者的會話不會被寫回 |
 | 停止 | 立即寫 1 個語句（同上，單一會話），讓客戶端停止後馬上讀得到續播點；寫入失敗則保留到下次 flush 重試。重複的停止不寫 |
 | 逾時（`playback.sessionTimeoutSeconds`，預設 300 秒沒有回報） | 由下次 flush 關閉為 `timed_out`，依停止規則計算續播點／已播放 |
 | 其他實例遺留的 active 會話 | 每 6 次 flush 查一次逾時的 active 會話（部分索引），本實例沒有持有的就以儲存的位置關閉 |
@@ -39,7 +39,9 @@
 
 上限：記憶體內最多 `playback.maxSessions`（預設 10000）個會話，超過時新的開始回 503 `playback_busy`（`Retry-After: 5`）。
 
-關機：HTTP 排空後再 flush 一次。會話在資料庫維持 active：客戶端繼續回報就接回，否則逾時關閉。
+flush 是任務執行器的背景工作 `playback_progress_flush`（[背景工作](jobs-api.md#背景工作)）。緩衝在各實例的記憶體裡，所以它**每個實例各跑一個**，不是叢集單例。每次定期 flush 先取一個共用 I/O 配額（G41.3），最多等一個 flush 間隔，佇列滿或等不到就跳過這一次（`jelee_jobs_background_runs_total{kind="playback_progress_flush",outcome="skipped"}`），狀態留在記憶體由下一次寫入；停止回報的即時寫入與關機時的最後一次 flush 不經配額。
+
+關機：flush 工作停下、HTTP 排空後再 flush 一次。會話在資料庫維持 active：客戶端繼續回報就接回，否則逾時關閉。
 
 ### 設定
 
@@ -125,7 +127,7 @@
 
 ## 測試
 
-- 單元（`internal/app/progress_test.go`，假時鐘、假儲存）：100 會話 × 30 秒每秒回報只產生 3 個 flush 語句且只帶最新位置；`maxBatch` 分批與提前喚醒；開始／停止去重、已停止會話不能重開、播放鍵換條目衝突；停止規則（播完、中段、開頭、失敗）；逾時關閉；統計樣本保留與完整串流計算一致；flush 失敗重試（含停止）；會話上限；清除歷史後緩衝不寫回；UserData 疊加不讓看不到的條目出現；遺留會話關閉與每小時清理；無效回報拒絕。
+- 單元（`internal/app/progress_test.go`，假時鐘、假儲存）：100 會話 × 30 秒每秒回報只產生 3 個 flush 語句且只帶最新位置；`maxBatch` 分批與提前喚醒；開始／停止去重、已停止會話不能重開、播放鍵換條目衝突；停止規則（播完、中段、開頭、失敗）；逾時關閉；統計樣本保留與完整串流計算一致；flush 失敗重試（含停止）；會話上限；清除歷史後緩衝不寫回；UserData 疊加不讓看不到的條目出現；遺留會話關閉與每小時清理；無效回報拒絕。背景工作（`internal/app/background_test.go`）：每 6 次成功 flush 維護一次、失敗的 flush 不計數；`internal/adapter/postgres/background_locks_test.go` 以真 PG 驗證緩衝經背景工作線寫入、配額歸零。
 - 領域與設定：`internal/domain/progress_test.go`、`internal/platform/config/playback_test.go`。
 - 真 PG（`internal/adapter/postgres/progress_test.go`）：起播 → 進度 → flush → 停止 → 續播點、會話列、樣本、重複停止、續播清單、播完標記已播放、標記／取消、web 工作階段與他條目版本被拒；兩裝置合併；收回授權後隱藏、恢復後回來；清除歷史（含審計與緩衝）、軟刪除使用者（緩衝中的會話不寫回、還原不帶回）、硬刪除級聯；逾時、接回、遺留會話關閉、保留期清除、管理員列表；資料庫約束；遷移 up/down（保留資料時拒絕）/up。
 - 真 PG HTTP（`internal/adapter/http/progress_test.go`、`progress_load_test.go`）與存取外洩表（新增 9 條自有路由與 12 條相容路由）。

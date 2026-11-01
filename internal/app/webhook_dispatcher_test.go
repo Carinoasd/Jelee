@@ -339,7 +339,7 @@ func TestWebhookDispatcherRunStopsGracefully(t *testing.T) {
 	d.opts.PollInterval = 10 * time.Millisecond
 	ctx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan struct{})
-	go func() { d.Run(ctx); close(stopped) }()
+	go func() { RunBackground(ctx, d.Task(), nil); close(stopped) }()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		store.mu.Lock()

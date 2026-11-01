@@ -50,6 +50,21 @@ schema47工作指標固定222個series，連同本機指標共22個families／23
 
 預讀查詢、取消、逾時或快照驗證失敗時回安全 503，不輸出舊值或只剩本機指標的部分結果。私有 gather guard 核對本輪 Producer 收集及完整工作家族；內部收集不完整時，由官方 HTTP exporter 回安全 500。每次成功重試都重新讀取資料庫。
 
+## 背景工作指標
+
+Webhook 投遞、觀看統計彙總與播放進度 flush 是任務執行器的背景工作（G41.1，[背景工作](jobs-api.md#背景工作)），每個實例另輸出 4 個家族：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_jobs_background_running` | gauge | 本實例正在執行的次數（每種 0 或 1） |
+| `jelee_jobs_background_runs_total` | counter | 執行次數，`outcome`＝succeeded／failed／cancelled／skipped |
+| `jelee_jobs_background_wait_seconds` | histogram | 一次執行從到期（間隔、喚醒或整批再跑）到開始的等待，包含取得叢集鎖與共用配額 |
+| `jelee_jobs_background_duration_seconds` | histogram | 一次執行從開始到結束的耗時 |
+
+固定 labels：`kind`（playback_progress_flush／watch_stats_aggregation／webhook_delivery）、`priority`（只有 background），runs 另有 `outcome`。三個種類都會輸出，本實例沒有啟用的種類為零。`skipped` 是沒有開始的執行：另一個實例持有叢集鎖，或共用配額滿；服務停止時還沒開始的執行記為 `cancelled`，沒有等待與耗時樣本。兩個 histogram 的上界與共享工作的等待相同（0.1、0.5、1、2.5、5、10、30、60、300、1800、3600、86400 秒、+Inf），因為一次執行通常不到一秒。
+
+這些值在程序記憶體內、隨程序啟動歸零，和 `jelee_jobs_shared_*` 不同：多個副本的數值可以相加。共 4 個家族、105 個系列（3＋12＋45＋45）；正式端點因此由 55 個家族變為 59 個。
+
 ## 收集與關閉
 
 Exporter 關閉 target_info、scope_info 及 resource constant labels，也不註冊預設 Go／process collectors。SDK 仍可能讀入 `OTEL_RESOURCE_ATTRIBUTES`；本端點不輸出這些屬性，固定 `service.name=jelee` 不能被解讀為 SDK 內完全沒有環境屬性。OTLP trace 匯出（預設關閉）另有自己的過濾契約：Resource 只有 `service.name` 與 `service.version`、不讀環境屬性，span 屬性只有五個白名單欄位，見[日誌與追蹤串聯](observability.md#otlp-匯出)。

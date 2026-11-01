@@ -115,6 +115,17 @@ groups:
           summary: "Running jobs lost their worker"
           description: "Jobs have held an expired lease for 15 minutes; no worker is claiming work, or every worker stopped."
           runbook: "docs/runbook.md#jeleejobleasesexpired"
+      - alert: JeleeBackgroundJobFailing
+        expr: |
+          sum by (kind) (increase(jelee_jobs_background_runs_total{outcome="failed"}[15m])) > 0
+          and sum by (kind) (increase(jelee_jobs_background_runs_total{outcome="succeeded"}[15m])) == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Background job {{ $labels.kind }} keeps failing"
+          description: "Every run of the {{ $labels.kind }} background job failed for 30 minutes on all instances; webhooks, watch statistics or playback progress are not being written."
+          runbook: "docs/runbook.md#jeleebackgroundjobfailing"
   - name: jelee-integrations
     rules:
       - alert: JeleeWebhookDeadLetters

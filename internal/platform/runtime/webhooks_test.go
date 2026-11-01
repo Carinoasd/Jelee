@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
+	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
@@ -64,14 +66,21 @@ type lifetimeBox struct{}
 func (lifetimeBox) Seal(string, []byte) ([]byte, error) { return nil, nil }
 func (lifetimeBox) Open(string, []byte) ([]byte, error) { return nil, nil }
 
+// lifetimeLocker grants every cluster-wide lock.
+type lifetimeLocker struct{}
+
+func (lifetimeLocker) TryBackgroundLock(context.Context, string) (func(), bool, error) {
+	return func() {}, true, nil
+}
+
 type lifetimeDeliverer struct{}
 
 func (lifetimeDeliverer) Deliver(context.Context, app.WebhookRequest) (domain.WebhookOutcome, error) {
 	return domain.WebhookOutcome{Kind: domain.WebhookOutcomeDelivered}, nil
 }
 
-// The deliverer starts with the workers, is cancelled with the lifetime
-// and joined before the pool closes.
+// The delivery job starts with the workers on the background lane, is
+// cancelled with the lifetime and joined before the pool closes.
 func TestWebhookDispatcherJoinsBeforePoolCloses(t *testing.T) {
 	l, a, closed, _ := testLifetime(t, nil, http.NotFoundHandler())
 	store := &lifetimeWebhookStore{closed: closed}
@@ -79,7 +88,14 @@ func TestWebhookDispatcherJoinsBeforePoolCloses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l.webhooks = dispatcher
+	lane, err := jobworker.NewBackground(jobworker.BackgroundOptions{Locker: lifetimeLocker{}, Logger: l.logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = lane.Register(dispatcher.Task()); err != nil {
+		t.Fatal(err)
+	}
+	l.background = lane
 	var clientClosed atomic.Int32
 	l.closeWebhookClient = func() {
 		if closed.Load() != 0 {
@@ -102,7 +118,7 @@ func TestWebhookDispatcherJoinsBeforePoolCloses(t *testing.T) {
 	if err = a.Stop(ctx); err != nil {
 		t.Fatal(err)
 	}
-	waitChannel(t, l.webhooksDone)
+	l.background.Wait()
 	if closed.Load() != 1 || clientClosed.Load() != 1 || store.misused.Load() {
 		t.Fatalf("closed=%d client=%d misused=%t", closed.Load(), clientClosed.Load(), store.misused.Load())
 	}
@@ -117,7 +133,7 @@ func TestNewWebhooksRequiresMasterKeyAndEnablesEvents(t *testing.T) {
 	store := &postgres.Store{}
 	cfg := config.Config{EnableAccounts: true}
 	l := newLifetime(logger)
-	if service, err := newWebhooks(cfg, store, budget, logger, l); service != nil || err != nil || l.webhooks != nil {
+	if service, err := newWebhooks(cfg, store, budget, logger, l); service != nil || err != nil || l.background != nil {
 		t.Fatal("disabled webhooks built a service")
 	}
 	cfg.EnableWebhooks, cfg.Webhooks = true, config.DefaultWebhooksConfig()
@@ -126,7 +142,7 @@ func TestNewWebhooksRequiresMasterKeyAndEnablesEvents(t *testing.T) {
 	}
 	cfg.Webhooks.MasterKey = config.MasterKey(strings.Repeat("ab", 32))
 	service, err := newWebhooks(cfg, store, budget, logger, l)
-	if err != nil || service == nil || l.webhooks == nil || l.closeWebhookClient == nil {
+	if err != nil || service == nil || l.background == nil || !slices.Equal(l.background.Kinds(), []string{domain.JobWebhookDelivery}) || l.closeWebhookClient == nil {
 		t.Fatalf("enabled webhooks: %v", err)
 	}
 	cfg.Webhooks.CAFile = "/nonexistent/jelee-ca.pem"

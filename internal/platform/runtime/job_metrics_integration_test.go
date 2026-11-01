@@ -215,9 +215,15 @@ func scrapeSharedMetricsSnapshot(t *testing.T, ctx context.Context, store *postg
 	// HTTP server's OpenAPI cache in the process-wide cache registry, and the
 	// 12 operational families of the default alert rules (G50.6): 8 shared,
 	// memory limit, client control and two storage gauges, plus the 2 HTTP
-	// guard counters (rate limited, timeouts).
-	if len(families) != 55 {
-		t.Fatalf("production metrics exposed %d families, want 55", len(families))
+	// guard counters (rate limited, timeouts), and the 4 background job
+	// families (G41.8), present even when no background job runs.
+	if len(families) != 59 {
+		t.Fatalf("production metrics exposed %d families, want 59", len(families))
+	}
+	for _, name := range []string{"jelee_jobs_background_running", "jelee_jobs_background_runs_total", "jelee_jobs_background_wait_seconds", "jelee_jobs_background_duration_seconds"} {
+		if family := families[name]; family == nil || len(family.Metric) == 0 {
+			t.Fatalf("production metrics lack %s", name)
+		}
 	}
 	for _, name := range []string{"jelee_webhooks_deliveries_dead", "jelee_scan_consecutive_failures", "jelee_devmode_active", "jelee_consistency_findings", "jelee_client_control_blocked_total", "jelee_runtime_memory_limit_bytes", "jelee_storage_available_bytes"} {
 		if families[name] == nil {
