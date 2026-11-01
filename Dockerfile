@@ -45,6 +45,10 @@ COPY --chmod=0444 internal/adapter/images/LICENSE.nativewebp /licenses/nativeweb
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.modernc-sqlite /licenses/modernc-sqlite/LICENSE
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.public-domain-sqlite /licenses/modernc-sqlite/LICENSE-SQLITE
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.modernc-sqlite-third-party.txt /licenses/modernc-sqlite/LICENSE-3RD-PARTY.md
+COPY --chmod=0444 internal/platform/tracing/otlpexport/LICENSE.grpc-gateway /licenses/grpc-gateway/LICENSE
+COPY --chmod=0444 internal/platform/tracing/otlpexport/LICENSE.backoff /licenses/cenkalti-backoff/LICENSE
+COPY --chmod=0444 internal/platform/tracing/otlpexport/LICENSE.x-net /licenses/x-net/LICENSE
+COPY --chmod=0444 internal/platform/tracing/otlpexport/NOTICE.grpc /licenses/grpc/NOTICE
 USER 65532:65532
 EXPOSE 8097
 ENV JELEE_LISTEN=0.0.0.0:8097

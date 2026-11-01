@@ -93,6 +93,25 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 
 `go mod tidy` 另把只在模組圖中、不參與任何建置的工具模組（`modernc.org/ccgo/v4`、`modernc.org/cc/v4`、`golang.org/x/tools` 等，驅動的轉譯工具鏈）加入 go.sum 以供校驗；它們不進入任何執行檔。此項不代表其他依賴的整體發行審計已完成。
 
+## OTLP 追蹤匯出的依賴
+
+可選的 OTLP 追蹤匯出（G46.6、需求原則第 5 條，見[日誌與追蹤串聯](observability.md#otlp-匯出)）使用 OpenTelemetry Go 的 OTLP/HTTP trace exporter。依第 12 階段的派工決定新增，版本與既有 OTel v1.47.0 對齊，以 `GOFLAGS= go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0` 取得、`GOFLAGS= go mod tidy` 整理，沒有升級任何既有的直接依賴；版本與校驗值由 go.mod/go.sum 固定。`go.opentelemetry.io/otel/sdk` v1.47.0 原本就在 go.mod（指標 SDK 的依賴），這裡使用其中的 `sdk/trace`。只連結進伺服器 `jelee`；`jelee-cli` 與 `jelee-migrate` 不經任何匯入鏈到達下列模組（設定檢查在不依賴它們的 `internal/platform/tracing`）。
+
+| 模組 | 版本 | 授權 | 連結進 `jelee` |
+| --- | --- | --- | --- |
+| `go.opentelemetry.io/otel/exporters/otlp/otlptrace` | v1.47.0 | Apache-2.0 | 是 |
+| `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp` | v1.47.0 | Apache-2.0 | 是 |
+| `go.opentelemetry.io/otel/trace` | v1.47.0（既有間接依賴，改列直接） | Apache-2.0 | 是 |
+| `go.opentelemetry.io/proto/otlp` | v1.11.0 | Apache-2.0 | 是 |
+| `google.golang.org/grpc` | v1.83.2 | Apache-2.0 | 是（OTLP protobuf 定義套件連帶匯入） |
+| `github.com/grpc-ecosystem/grpc-gateway/v2` | v2.30.0 | BSD-3-Clause，Copyright (c) 2015, Gengo, Inc. | 是（同上） |
+| `google.golang.org/genproto/googleapis/api`、`…/rpc` | v0.0.0-20260928230214-8a89bd6388cc | Apache-2.0 | 是 |
+| `github.com/cenkalti/backoff/v5` | v5.0.3 | MIT，Copyright (c) 2014 Cenk Altı | 是（匯出重試） |
+| `golang.org/x/net` | v0.59.0 | BSD-3-Clause，Copyright 2009 The Go Authors | 是 |
+| `google.golang.org/protobuf` | v1.36.12（既有間接依賴，改列直接） | BSD-3-Clause | 是 |
+
+伺服器執行檔因此約增加 3.3 MB（`CGO_ENABLED=0 -trimpath`：50.4 → 53.7 MB）。比照圖片縮放依賴，BSD／MIT 元件的完整授權與 gRPC 的 `NOTICE.txt`（Apache-2.0 元件中只有它附 NOTICE，內容為「Copyright 2014 gRPC authors.」與授權聲明）保留於 `internal/platform/tracing/otlpexport/`：`LICENSE.grpc-gateway`、`LICENSE.backoff`、`LICENSE.x-net`、`NOTICE.grpc`，正式容器另附於 `/licenses/grpc-gateway/LICENSE`、`/licenses/cenkalti-backoff/LICENSE`、`/licenses/x-net/LICENSE`、`/licenses/grpc/NOTICE`。`golang.org/x/net` 的專利授權與 Go 的 `PATENTS` 相同（容器 `/licenses/go/PATENTS`）。`go mod tidy` 另把只在模組圖中、不參與任何建置的 `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp`、`github.com/felixge/httpsnoop`、`github.com/golang/protobuf`、`gonum.org/v1/gonum` 的新版本加入 go.sum 以供校驗；它們不進入任何執行檔。此項不代表其他依賴的整體發行審計已完成。
+
 ## 靜態分析工具（golangci-lint）
 
 `golangci-lint` 2.14.0 以 GPL-3.0 授權，版權屬 golangci-lint 作者與貢獻者；所含各 linter 保留各自授權。它只在開發機與 CI 中被執行（`make lint`／`scripts/make.ps1 lint`），不被 Jelee 程式匯入或連結，也不進入任何建置產物、容器映像或發行包，因此不構成 Jelee 的分發內容。官方發行包中的完整 `LICENSE` 隨安裝保留在被忽略的 `.tools/golangci-lint/` 目錄，並在 `tools-verify` 時與已校驗壓縮包逐位元組比對。版本、官方 HTTPS 來源與 SHA256 固定在 `tools/manifest.json`，來源細節見 `docs/THIRD-PARTY-TOOLS.md`。

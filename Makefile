@@ -3,11 +3,11 @@ export PATH := $(CURDIR)/.bin:$(PATH)
 GO := $(CURDIR)/.bin/go
 PYTHON := python3
 # Hot-path benchmarks (G26.1/G26.4). BENCH_COUNT repetitions are reduced to a
-# median by tools/benchgate; BENCH_SKIP drops disk-bound benchmarks too noisy
+# median by tools/benchgate; BENCH_SKIP drops disk- and network-bound benchmarks too noisy
 # for a percentage gate.
 BENCH_PKGS := ./internal/access ./internal/domain ./internal/domain/medianame ./internal/adapter/nfo ./internal/adapter/images ./internal/adapter/subtitles ./internal/adapter/http ./internal/platform/logging
 BENCH ?= .
-BENCH_SKIP ?= ObservedHundredFiles
+BENCH_SKIP ?= ObservedHundredFiles|BoundaryRequestTraceExport
 BENCH_COUNT ?= 6
 BENCH_TIME ?= 500ms
 BENCH_CURRENT ?= .testdata/bench-current.txt

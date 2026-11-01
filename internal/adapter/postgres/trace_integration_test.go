@@ -51,7 +51,14 @@ func (b *traceLogBuffer) records(t *testing.T) []map[string]any {
 
 func installTracer(t *testing.T, rate float64, logs *traceLogBuffer) {
 	t.Helper()
-	tracer, err := tracing.New(tracing.Options{SampleRate: rate, Logger: logging.New(logs), Links: tracing.NewLinks(64)})
+	installExportingTracer(t, rate, logs, nil)
+}
+
+// installExportingTracer also hands the ended spans to exporter (nil for
+// none).
+func installExportingTracer(t *testing.T, rate float64, logs *traceLogBuffer, exporter tracing.Exporter) {
+	t.Helper()
+	tracer, err := tracing.New(tracing.Options{SampleRate: rate, Logger: logging.New(logs), Links: tracing.NewLinks(64), Exporter: exporter})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,6 +73,50 @@ func installTracer(t *testing.T, rate float64, logs *traceLogBuffer) {
 func TestTraceHTTPScanJobPostgres(t *testing.T) {
 	logs := &traceLogBuffer{}
 	installTracer(t, 1, logs)
+	requestID, jobID := scanThroughHTTP(t, logs)
+	found := map[string]bool{}
+	for _, record := range logs.records(t) {
+		msg, _ := record["msg"].(string)
+		key := msg
+		if msg == "span completed" {
+			key, _ = record["span"].(string)
+		}
+		switch key {
+		case "request completed":
+			if record["requestId"] != requestID {
+				continue
+			}
+		case "job started", "inventory job completed":
+			if record["taskId"] != jobID {
+				continue
+			}
+		case "http.request", "job.inventory_scan", "scan.inventory":
+		default:
+			continue
+		}
+		if record["traceId"] != requestID {
+			t.Fatalf("%s record left the request trace: %v", key, record)
+		}
+		if span, _ := record["spanId"].(string); len(span) != 16 {
+			t.Fatalf("%s record has no span: %v", key, record)
+		}
+		if key == "job.inventory_scan" && (record["linked"] != true || record["linkKind"] != tracing.LinkJob || record["parentSpanId"] == nil) {
+			t.Fatalf("job span not linked to its submitter: %v", record)
+		}
+		found[key] = true
+	}
+	for _, key := range []string{"request completed", "job started", "inventory job completed", "http.request", "job.inventory_scan", "scan.inventory"} {
+		if !found[key] {
+			t.Fatalf("no %q record in the request trace", key)
+		}
+	}
+}
+
+// scanThroughHTTP submits a scan over HTTP, runs it with one job worker
+// until it succeeds and stops the worker. It returns the request ID and the
+// job ID.
+func scanThroughHTTP(t *testing.T, logs *traceLogBuffer) (string, string) {
+	t.Helper()
 	logger := logging.New(logs)
 	f := newJobFixture(t)
 	grant := accountLogin(t, f.ctx, f.s, "job-admin")
@@ -123,42 +174,7 @@ func TestTraceHTTPScanJobPostgres(t *testing.T) {
 	if err := runner.Stop(stop); err != nil {
 		t.Fatal(err)
 	}
-	found := map[string]bool{}
-	for _, record := range logs.records(t) {
-		msg, _ := record["msg"].(string)
-		key := msg
-		if msg == "span completed" {
-			key, _ = record["span"].(string)
-		}
-		switch key {
-		case "request completed":
-			if record["requestId"] != requestID {
-				continue
-			}
-		case "job started", "inventory job completed":
-			if record["taskId"] != job.Data.ID {
-				continue
-			}
-		case "http.request", "job.inventory_scan", "scan.inventory":
-		default:
-			continue
-		}
-		if record["traceId"] != requestID {
-			t.Fatalf("%s record left the request trace: %v", key, record)
-		}
-		if span, _ := record["spanId"].(string); len(span) != 16 {
-			t.Fatalf("%s record has no span: %v", key, record)
-		}
-		if key == "job.inventory_scan" && (record["linked"] != true || record["linkKind"] != tracing.LinkJob || record["parentSpanId"] == nil) {
-			t.Fatalf("job span not linked to its submitter: %v", record)
-		}
-		found[key] = true
-	}
-	for _, key := range []string{"request completed", "job started", "inventory job completed", "http.request", "job.inventory_scan", "scan.inventory"} {
-		if !found[key] {
-			t.Fatalf("no %q record in the request trace", key)
-		}
-	}
+	return requestID, job.Data.ID
 }
 
 // TestTraceSecurityEventsBypassSamplingPostgres (G46.6): with sampling off,

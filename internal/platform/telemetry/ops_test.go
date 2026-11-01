@@ -85,6 +85,10 @@ func newProductionTestExporter(t *testing.T, ops app.OpsMetricsSource, blocked B
 	if err := m.RegisterAuditArchive(archiveTestCounters{rows: 11, failures: 2, pruned: 3}); err != nil {
 		t.Fatal(err)
 	}
+	// Trace export is optional; the alert rules reference its families.
+	if err := m.RegisterTraceExport(traceExportTestCounters{exported: 3, full: 1}, []string{"queue_full", "export_failed", "shutdown"}); err != nil {
+		t.Fatal(err)
+	}
 	return m
 }
 

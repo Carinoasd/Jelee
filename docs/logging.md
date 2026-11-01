@@ -32,6 +32,7 @@
 | `JELEE_LOG_PATH_MODE` | `pathMode` | `redact` | `redact` 删除路径；`relative` 对位于 `pathRoots` 下的路径只输出相对路径 |
 | `JELEE_LOG_PATH_ROOTS` | `pathRoots` | 空 | 用系统路径分隔符分隔的绝对路径，最多 64 个 |
 | `JELEE_TRACE_SAMPLE_RATE` | `traceSampleRate` | 0.1 | 0–1，只影响 span 记录，普通日志从不采样 |
+| `JELEE_TRACE_EXPORTER`、`JELEE_TRACE_OTLP_*` | 顶层 `tracing.*` | `none` | 可选的 OTLP 追踪导出，导出的 span 与 span 记录同一采样；见[可观测性](observability.md#otlp-匯出) |
 | `JELEE_DB_SLOW_QUERY_MS` | `slowQueryMs` | 500 | 0–600000，慢查询日志阈值（毫秒），0 关闭 |
 
 配置校验失败时，错误信息不包含配置值。

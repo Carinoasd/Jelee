@@ -30,6 +30,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/platform/setupenv"
 	"github.com/MoYuanCN/Jelee/internal/platform/telemetry"
 	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
+	"github.com/MoYuanCN/Jelee/internal/platform/tracing/otlpexport"
 	"go.uber.org/fx"
 )
 
@@ -59,8 +60,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
-	// G46.6: one process tracer writes span records through the log router.
-	tracer, err := tracing.New(tracing.Options{SampleRate: cfg.Logging.TraceSampleRate, Logger: logger})
+	// G46.6: one process tracer writes span records through the log router
+	// and, when configured, hands the same spans to the OTLP exporter.
+	if lifetime.traceExport, err = newTraceExporter(cfg.Tracing, logger); err != nil {
+		return build(lifetime, fx.NopLogger, fx.Error(err))
+	}
+	tracer, err := tracing.New(tracing.Options{SampleRate: cfg.Logging.TraceSampleRate, Logger: logger, Exporter: spanExporter(lifetime.traceExport)})
 	if err != nil {
 		return build(lifetime, fx.NopLogger, fx.Error(err))
 	}
@@ -258,6 +263,12 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			if err := metrics.RegisterCaches(cache.Default()); err != nil {
 				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+			}
+			// G46.6: spans the OTLP exporter delivered, dropped or failed.
+			if lifetime.traceExport != nil {
+				if err := metrics.RegisterTraceExport(lifetime.traceExport, otlpexport.DropReasons); err != nil {
+					return nil, errors.Join(err, metrics.Shutdown(context.Background()))
+				}
 			}
 			if err := registerOpsMetrics(c, store, metrics); err != nil {
 				return nil, errors.Join(err, metrics.Shutdown(context.Background()))
@@ -718,6 +729,9 @@ type lifetime struct {
 	// adaptiveDone joins its loop.
 	adaptive     *resources.Adaptive
 	adaptiveDone chan struct{}
+	// traceExport sends sampled spans to an OTLP collector (G46.6); it is
+	// flushed after everything that ends spans has stopped.
+	traceExport *otlpexport.Exporter
 }
 
 func newLifetime(logger *slog.Logger) *lifetime {
@@ -731,6 +745,7 @@ func build(l *lifetime, options ...fx.Option) *fx.App {
 		// Fx does not start or stop lifecycle hooks when graph construction fails.
 		l.cancel()
 		l.closePool()
+		l.flushTraces()
 	}
 	return a
 }
@@ -921,6 +936,8 @@ func (l *lifetime) stop(ctx context.Context) error {
 
 func (l *lifetime) shutdown(ctx context.Context) {
 	defer close(l.stopped)
+	// Runs before stopped closes, after workers and deliveries ended.
+	defer l.flushTraces() //nolint:contextcheck // the final span flush has its own bound and runs after the stop deadline by design
 	workerDone := make(chan error, 1)
 	go func() { //nolint:gosec,contextcheck // G118: worker shutdown must join every goroutine even after the stop deadline
 		if l.worker == nil {

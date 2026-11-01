@@ -56,7 +56,7 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 | `internal/adapter/subtitles` | `DetectCharset/*` | UTF-8、GB18030、Big5、Shift_JIS、EUC-KR 各 48 行 SRT 的編碼偵測 |
 | `internal/adapter/http` | `WriteJSONItemPage`、`WriteJSONError` | `writeJSON` 編碼 50 筆列表信封與錯誤信封（假資料、丟棄式 ResponseWriter） |
 
-輸入皆固定且在計時迴圈外準備，全部 `b.ReportAllocs()`；不需要資料庫。讀 100 個檔案的 `ObservedHundredFiles` 受磁碟影響太大，預設以 `BENCH_SKIP` 排除，需要時可手動執行。
+輸入皆固定且在計時迴圈外準備，全部 `b.ReportAllocs()`；不需要資料庫。讀 100 個檔案的 `ObservedHundredFiles` 受磁碟影響太大、`BoundaryRequestTraceExport`（OTLP 追蹤匯出開啟時的請求邊界，背景匯出經本機 HTTP）受網路與排程影響太大，預設都以 `BENCH_SKIP` 排除，需要時可手動執行。
 
 可調參數：`BENCH`（基準 regexp，預設 `.`）、`BENCH_SKIP`、`BENCH_COUNT`（預設 6）、`BENCH_TIME`（預設 500ms）、`BENCH_CURRENT`、`BENCH_BASELINE`、`BENCHGATE_FLAGS`；PowerShell 用 `JELEE_BENCH`、`JELEE_BENCH_SKIP`、`JELEE_BENCH_COUNT`、`JELEE_BENCH_TIME` 環境變數。
 

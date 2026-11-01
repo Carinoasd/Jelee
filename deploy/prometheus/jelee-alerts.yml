@@ -135,6 +135,15 @@ groups:
           summary: "{{ $value }} webhook deliveries are waiting in the dead-letter state"
           description: "Dead-lettered deliveries pile up; receivers are missing events until they are replayed."
           runbook: "docs/runbook.md#jeleewebhookdeadlettershigh"
+      - alert: JeleeTraceExportFailing
+        expr: sum by (instance) (increase(jelee_tracing_spans_dropped_total{reason!="shutdown"}[10m])) > 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Jelee is dropping sampled spans instead of exporting them"
+          description: "{{ $labels.instance }} dropped {{ $value | humanize }} spans in 10 minutes because the OTLP collector refused or did not answer, or the export queue was full; logs still carry every trace and span ID."
+          runbook: "docs/runbook.md#jeleetraceexportfailing"
   - name: jelee-security
     rules:
       - alert: JeleeClientBlockBurst

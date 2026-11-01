@@ -251,3 +251,53 @@ func TestTraceparentFormatsW3CTraceContext(t *testing.T) {
 		}
 	}
 }
+
+type recordingExporter struct{ records []SpanRecord }
+
+func (r *recordingExporter) ExportSpan(s SpanRecord) { r.records = append(r.records, s) }
+
+func TestExporterReceivesExactlyTheLoggedSpans(t *testing.T) {
+	for _, rate := range []float64{0, 1} {
+		var buf bytes.Buffer
+		exporter := &recordingExporter{}
+		now := time.Unix(1000, 0)
+		tracer, err := New(Options{SampleRate: rate, Logger: logging.New(&buf), Links: NewLinks(8), Exporter: exporter,
+			Now: func() time.Time { now = now.Add(5 * time.Millisecond); return now }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, root := tracer.StartRequest(context.Background(), "", "http.request", "http")
+		tracer.Remember(ctx, LinkJob, "job-9")
+		_, job := tracer.StartLinked(context.Background(), "job.nfo_write", "nfo", LinkJob, "job-9")
+		job.End("failed")
+		job.End("ok") // idempotent: no second record or export
+		_, plain := tracer.StartRequest(context.Background(), "", "http.request", "http")
+		plain.End("ok")
+		domain.ForceTraceSampling(ctx)
+		root.End("ok")
+		records := spanRecords(t, &buf)
+		if len(exporter.records) != len(records) {
+			t.Fatalf("rate %v: %d span records, %d exported", rate, len(records), len(exporter.records))
+		}
+		for i, r := range records {
+			e := exporter.records[i]
+			if r["spanId"] != e.Context.SpanHex() || r["traceId"] != e.Context.TraceHex() || r["span"] != e.Name {
+				t.Fatalf("rate %v: record %v exported as %s %s", rate, r, e.Name, e.Context.SpanHex())
+			}
+			if got := int64(r["durationMs"].(float64)); got != e.End.Sub(e.Start).Milliseconds() {
+				t.Fatalf("duration %d vs %v", got, e.End.Sub(e.Start))
+			}
+			if len(e.Attrs) != len(r)-5 { // time, level, msg, traceId, spanId are the record's own
+				t.Fatalf("attributes %v vs record %v", e.Attrs, r)
+			}
+		}
+		job0 := exporter.records[0]
+		if rate == 1 && (job0.Link != root.Context() || job0.Context.ParentID() != root.Context().SpanID()) {
+			t.Fatal("linked job record lost its link")
+		}
+	}
+	// A nil tracer and a tracer without an exporter still work.
+	var nilTracer *Tracer
+	_, span := nilTracer.Start(context.Background(), "x", "system")
+	span.End("ok")
+}

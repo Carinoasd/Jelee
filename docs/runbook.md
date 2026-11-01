@@ -117,6 +117,13 @@
 - **處置**：同上；大量重放前先確認接收端能承受（重放會依序走一般投遞與重試）。不再需要的事件可以不重放，刪除端點會一併刪除其投遞紀錄。
 - **回復驗證**：`jelee_webhooks_deliveries_dead` 降到 100 以下並不再增加。
 
+### JeleeTraceExportFailing
+
+- **意義**：開啟 OTLP 追蹤匯出（`tracing.exporter=otlp`）的副本 10 分鐘內有被採樣的 span 沒送到 Collector，並持續 15 分鐘（G46.6）。匯出在背景批次進行，失敗或佇列滿時直接丟棄並計數，不讓請求或任務等待；日誌裡的 `span completed` 記錄與每筆日誌的 `traceId`／`spanId` 不受影響，只是追蹤介面上缺了這段時間的 span。只在設定了匯出時才會有這個指標。
+- **確認**：`sum by (reason) (rate(jelee_tracing_spans_dropped_total[5m]))` 看原因：`export_failed` 是 Collector 拒收、逾時或連不到（`jelee_tracing_export_failures_total` 同時增加），`queue_full` 是匯出跟不上產生速度（採樣率高、Collector 慢）。服務日誌每分鐘最多一筆 `trace export failed; spans dropped`（元件 `system`，代碼 `trace_export_failed`），不含端點、標頭或 Collector 回應內容；原因要看 Collector 自己的日誌（認證失敗、TLS、限流）。
+- **處置**：`export_failed`：確認 Collector 在跑、`tracing.otlp.endpoint` 的路徑（預設 `/v1/traces`）與憑證、`headers` 的權杖未過期；Collector 在反向代理後時確認代理沒有回 3xx（匯出不跟隨重新導向）。`queue_full`：降低 `logging.traceSampleRate`，或調大 `tracing.otlp.queueSize`／`batchSize`、縮短 `batchIntervalMs`。不需要追蹤介面時把 `tracing.exporter` 設回 `none` 並重啟。見[日誌與追蹤串聯](observability.md#otlp-匯出)。
+- **回復驗證**：`increase(jelee_tracing_spans_dropped_total{reason!="shutdown"}[10m])` 回到 0、`jelee_tracing_spans_exported_total` 持續增加，Collector 端查得到新的 trace，告警解除。
+
 ## 安全
 
 ### JeleeClientBlockBurst
