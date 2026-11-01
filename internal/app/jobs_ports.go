@@ -48,6 +48,13 @@ type JobCancellationReader interface {
 	ReadJobCancellation(context.Context, domain.JobLease) (bool, error)
 }
 
+// JobProgressReader reads the progress of a claimed job for the task log
+// (G46.3). Like JobCancellationReader it reads committed state only, takes
+// no lock and fails with domain.ErrJobLeaseLost once the lease is gone.
+type JobProgressReader interface {
+	ReadJobProgress(context.Context, domain.JobLease) (domain.JobProgress, error)
+}
+
 // JobPauseRepository returns a live lease to the queue for a planned window
 // closure. Completed checkpoints remain; this claim does not consume a failure
 // attempt. Persisted cancellation wins. Stale or expired leases cannot pause.

@@ -186,13 +186,15 @@ func (w *WatchStats) Task() BackgroundTask {
 	return BackgroundTask{
 		Kind: domain.JobWatchStatsAggregation, Interval: w.opts.Interval, Wake: w.wake, WakeDelay: w.opts.WakeDelay, Cluster: true, Class: WorkIO,
 		Run: func(stop, _ context.Context) (bool, error) {
-			_, err := w.Aggregate(stop)
+			aggregated, err := w.Aggregate(stop)
 			if err != nil && stop.Err() == nil {
-				w.opts.Logger.Warn("watch statistics aggregation failed; retrying next interval", "component", "watch_stats")
+				w.opts.Logger.WarnContext(stop, "watch statistics aggregation failed; retrying next interval", "component", "watch_stats", "count", aggregated)
+			} else if err == nil {
+				w.opts.Logger.DebugContext(stop, "watch statistics aggregated", "component", "watch_stats", "count", aggregated)
 			}
 			purge := w.Purge(stop)
 			if purge != nil && stop.Err() == nil {
-				w.opts.Logger.Warn("watch statistics retention purge failed", "component", "watch_stats")
+				w.opts.Logger.WarnContext(stop, "watch statistics retention purge failed", "component", "watch_stats")
 			}
 			if err == nil {
 				err = purge

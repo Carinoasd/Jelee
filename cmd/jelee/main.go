@@ -35,12 +35,35 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Jelee logging:", err)
 		os.Exit(1)
 	}
+	crash, err := logging.OpenCrashArchive(cfg.Logging.CrashOptions())
+	if err != nil {
+		logs.Close()
+		fmt.Fprintln(os.Stderr, "Jelee logging:", err)
+		os.Exit(1)
+	}
+	if code := serve(cfg, logs, crash); code != 0 {
+		os.Exit(code)
+	}
+}
+
+// serve runs the server. A panic of this goroutine is logged, archived and
+// raised again (G46.3); the crash output of every other goroutine goes to
+// the archive's pending file and is reported by the next start.
+func serve(cfg config.Config, logs *logging.Router, crash *logging.CrashArchive) int {
+	defer logging.CapturePanic(logs, crash)
+	logging.SetCrashArchive(crash)
+	crash.Collect(logs.Logger())
+	if err := crash.Arm(); err != nil {
+		logs.Logger().Warn("crash output cannot be archived", "component", "system", "code", "crash_archive_unavailable")
+	}
+	defer crash.Disarm()
 	a := runtime.NewWithLogs(cfg, logs)
 	if a.Err() != nil {
 		logs.Close()
 		fmt.Fprintln(os.Stderr, "Jelee cannot initialize: verify PostgreSQL connectivity and run jelee-migrate up; a failed startup self-check is named in the log.")
-		os.Exit(1)
+		return 1
 	}
 	a.Run()
-	logs.Close()
+	_ = logs.Close()
+	return 0
 }

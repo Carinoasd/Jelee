@@ -101,7 +101,13 @@ type Runner struct {
 	nfoGate              chan struct{}
 	nfoIdentity          domain.NFOIdentity
 	nfoUnavailable       atomic.Bool
+	// progressInterval spaces the progress records of one job (G46.3).
+	progressInterval time.Duration
 }
+
+// jobProgressLogInterval is how often a running job logs its progress,
+// read at a heartbeat from the repository (app.JobProgressReader).
+const jobProgressLogInterval = time.Minute
 
 func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, opts Options, logger *slog.Logger) (*Runner, error) {
 	if repository == nil || scanner == nil || logger == nil || opts.Workers < 1 || opts.Workers > 8 ||
@@ -217,7 +223,7 @@ func New(repository app.JobExecutionRepository, scanner app.InventoryScanner, op
 		}
 		opts.FamilyIgnore = &i
 	}
-	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger}
+	r := &Runner{repository: repository, scanner: scanner, options: opts, logger: logger, progressInterval: jobProgressLogInterval}
 	if err := r.configureProbe(); err != nil {
 		return nil, err
 	}
@@ -356,6 +362,15 @@ func (r *Runner) wait(ctx context.Context, d time.Duration) bool {
 // monitor is the sole per-job helper goroutine. Its timers are stopped and it
 // is joined before any terminal/release transaction is attempted.
 func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob context.CancelCauseFunc, started, done chan struct{}) {
+	r.monitorProgress(ctx, lease, cancelJob, started, done, nil)
+}
+
+// monitorProgress is monitor that also logs the job's progress after a
+// heartbeat, at most every progressInterval, when the repository reads
+// progress; last keeps the latest reading for the completion record.
+func (r *Runner) monitorProgress(ctx context.Context, lease domain.JobLease, cancelJob context.CancelCauseFunc, started, done chan struct{}, last *domain.JobProgress) {
+	progressReader, _ := r.repository.(app.JobProgressReader)
+	var progressAt time.Time
 	heartbeat := r.options.Clock.NewTimer(r.heartbeatInterval())
 	runtime := r.options.Clock.NewTimer(r.options.MaxJobRuntime)
 	reader, _ := r.repository.(app.JobCancellationReader)
@@ -446,17 +461,54 @@ func (r *Runner) monitor(ctx context.Context, lease domain.JobLease, cancelJob c
 				cancelJob(errCancelRequested)
 				return
 			}
+			if progressReader != nil && (progressAt.IsZero() || r.options.Now().Sub(progressAt) >= r.progressInterval) {
+				progressAt = r.options.Now()
+				r.logProgress(ctx, progressReader, lease, last)
+			}
 			heartbeat.Stop()
 			heartbeat = r.options.Clock.NewTimer(r.heartbeatInterval())
 		}
 	}
 }
 
+// logProgress writes one "job progress" record (G46.3): done count, total
+// and percent when known. ctx carries the claim's taskId, jobRunId, kind
+// and libraryId. A failed read is skipped; the heartbeat decides the lease.
+func (r *Runner) logProgress(ctx context.Context, reader app.JobProgressReader, lease domain.JobLease, last *domain.JobProgress) {
+	dbCtx, cancel := context.WithTimeout(ctx, r.options.DBOperationTimeout)
+	progress, err := reader.ReadJobProgress(dbCtx, lease)
+	cancel()
+	if err != nil || ctx.Err() != nil {
+		return
+	}
+	if last != nil {
+		*last = progress
+	}
+	r.logger.InfoContext(ctx, "job progress", append([]any{"component", "jobs"}, progressAttrs(progress)...)...)
+}
+
+// progressAttrs are the progress fields of a record: count (done units),
+// total and progress (percent) when known.
+func progressAttrs(p domain.JobProgress) []any {
+	attrs := []any{"count", p.Done}
+	if p.Total != nil {
+		attrs = append(attrs, "total", *p.Total)
+	}
+	if p.Percent != nil {
+		attrs = append(attrs, "progress", *p.Percent)
+	}
+	return attrs
+}
+
 const inventoryScanKind = "inventory_scan"
 
 // jobLogFields are the G46.4 fields of one job claim.
 func jobLogFields(lease domain.JobLease) domain.LogFields {
-	return domain.LogFields{TaskID: lease.Job.ID, LibraryID: lease.Job.LibraryID, JobRunID: lease.Job.ID + ":" + strconv.FormatInt(lease.Generation, 10)}
+	kind := lease.Job.Kind
+	if kind == "" {
+		kind = inventoryScanKind
+	}
+	return domain.LogFields{TaskID: lease.Job.ID, LibraryID: lease.Job.LibraryID, JobRunID: lease.Job.ID + ":" + strconv.FormatInt(lease.Generation, 10), Kind: kind}
 }
 
 // jobComponent maps a job kind onto its G46.2 log scope.
@@ -494,7 +546,9 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 	defer r.registerCancellation(lease, cancelJob)()
 	hbCtx, stopHeartbeat := context.WithCancel(ctx)
 	started, monitored := make(chan struct{}), make(chan struct{})
-	go r.monitor(hbCtx, lease, cancelJob, started, monitored)
+	// lastProgress is written by the monitor and read after it joined.
+	var lastProgress domain.JobProgress
+	go r.monitorProgress(hbCtx, lease, cancelJob, started, monitored, &lastProgress)
 	<-started
 	err, repositoryError := r.execute(ctx, lease)
 	if err == nil && lease.Job.Kind == "inventory_scan" {
@@ -649,7 +703,11 @@ func (r *Runner) run(serviceCtx context.Context, lease domain.JobLease) {
 		return
 	}
 	outcome = state
-	r.logger.InfoContext(serviceCtx, "inventory job completed", "component", "jobs", "taskId", lease.Job.ID, "state", state, "code", code)
+	attrs := []any{"component", "jobs", "taskId", lease.Job.ID, "state", state, "code", code}
+	if lastProgress != (domain.JobProgress{}) {
+		attrs = append(attrs, progressAttrs(lastProgress)...)
+	}
+	r.logger.InfoContext(serviceCtx, "inventory job completed", attrs...)
 }
 
 func (r *Runner) logPersistenceFailure(ctx context.Context, lease domain.JobLease) {

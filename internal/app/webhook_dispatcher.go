@@ -374,7 +374,9 @@ func (d *WebhookDispatcher) Task() BackgroundTask {
 		Run: func(stop, work context.Context) (bool, error) {
 			round, err := d.round(stop, work)
 			if err != nil && stop.Err() == nil {
-				d.opts.Logger.Warn("webhook delivery round failed", "component", "webhooks")
+				d.opts.Logger.WarnContext(stop, "webhook delivery round failed", "component", "webhooks")
+			} else if err == nil {
+				d.opts.Logger.DebugContext(stop, "webhook delivery round finished", "component", "webhooks", "count", round.Claimed)
 			}
 			return err == nil && (round.Planned == d.opts.Batch || round.Claimed == d.opts.Batch), err
 		},

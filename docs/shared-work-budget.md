@@ -95,9 +95,15 @@ G41.7 起另有三個 gauge `jelee_resources_cpu_effective`、`io_effective`、`
 
 每次 callback 只讀一次鎖內 Stats 快照，CPU＋I/O＝total；限額讀取不可變配置的副本。收集不取得工作配額、不執行 I/O、不建立 goroutine。每個程序獨立計數，多副本不能當作全域總量。正式端點共34家族（G41.7 前為30）；schema47後包含nfo_write的六組工作維度，共245系列。原有New與NewWithJobs保留15與22家族契約。
 
-本批 Windows telemetry/resources/runtime/architecture 測試及 vet 通過；[Linux race](evidence/resources-metrics-race-linux.txt) 覆蓋 telemetry/resources/jobs/runtime；[真 PostgreSQL HTTP race](evidence/resources-metrics-runtime.txt) 執行 TestMetricsRuntimePostgresIntegration，核對配置限額及匿名／一般帳戶不得洩漏資源指標。真 budget 的滿載、排隊、取消與回收測試核對30家族、無動態labels及64KiB回應上限。這些驗證未涵蓋完整混合壓測或資源等待時間分布。
+本批 Windows telemetry/resources/runtime/architecture 測試及 vet 通過；[Linux race](evidence/resources-metrics-race-linux.txt) 覆蓋 telemetry/resources/jobs/runtime；[真 PostgreSQL HTTP race](evidence/resources-metrics-runtime.txt) 執行 TestMetricsRuntimePostgresIntegration，核對配置限額及匿名／一般帳戶不得洩漏資源指標。真 budget 的滿載、排隊、取消與回收測試核對30家族、無動態labels及64KiB回應上限。這些驗證未涵蓋完整混合壓測或資源等待時間分布（後者第 13 階段補上，見下文〈等待時長分布（G41.8）〉）。
 
 G41.8 原有工作等待／耗時統計只涵蓋 inventory_scan、catalog_import。其他需求中的任務類型尚未全部實作與觀測；本批八個gauge不能補足此缺口，G41.8回復部分完成。G41.3、G41.9與G41.10也仍未完成。
+
+### 等待時長分布（G41.8）
+
+第 13 階段起 Budget 自己記錄每次取得配額的等待時間：在原有的鎖內，立即取得記 0，排隊者在取得或其 context 結束時記下自排入佇列起的時間；佇列滿而立即拒絕的請求沒有等待、不記。依工作類型（`cpu`／`io`，配額本身唯一的維度）與結果（`granted`／`cancelled`）分四組，桶的上界 1 ms 到 60 s 加 +Inf（`resources.WaitBoundsSeconds`）。`NewWithResources` 以 OTel Producer 在收集時讀一次快照，輸出 histogram `jelee_resources_wait_seconds{class,outcome}`，契約見[指標](metrics.md#共用配額等待時長分布g418)。消費者（直投、jobs、圖片、監看、元資料外連、背景工作）不必改動：等待發生在 Budget 內，各自的等待上限與背壓處理照舊。
+
+測試：`TestWaitHistogramByClassAndOutcome`（受控時鐘：立即取得、排隊 2 秒後取得、排隊 90 秒後取消落入 +Inf、佇列滿不記）、`TestWaitHistogramBoundIsInclusive`（`internal/platform/resources/`），`TestResourceWaitHistogramExposition`（真 Budget＋Prometheus 端點：四個系列只有 `class`／`outcome` 兩個 label、15 個桶、計數隨 Budget）。混合負載下的實際分布仍屬 [C52](owner-verification-queue.md) 與 C53 的長測範圍。
 
 ## 元資料外連共用 I/O
 

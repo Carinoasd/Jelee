@@ -145,6 +145,7 @@ const (
 	libraryIDKey = "libraryId"
 	taskIDKey    = "taskId"
 	jobRunIDKey  = "jobRunId"
+	kindKey      = "kind"
 )
 
 func clearField(f *domain.LogFields, key string) {
@@ -163,13 +164,15 @@ func clearField(f *domain.LogFields, key string) {
 		f.TaskID = ""
 	case jobRunIDKey:
 		f.JobRunID = ""
+	case kindKey:
+		f.Kind = ""
 	}
 }
 
 func fieldAttrs(f domain.LogFields) []slog.Attr {
-	attrs := make([]slog.Attr, 0, 7)
+	attrs := make([]slog.Attr, 0, 8)
 	for _, field := range [...]struct{ key, value string }{{userIDKey, f.UserID}, {deviceIDKey, f.DeviceID}, {clientIDKey, f.ClientID},
-		{itemIDKey, f.ItemID}, {libraryIDKey, f.LibraryID}, {taskIDKey, f.TaskID}, {jobRunIDKey, f.JobRunID}} {
+		{itemIDKey, f.ItemID}, {libraryIDKey, f.LibraryID}, {taskIDKey, f.TaskID}, {jobRunIDKey, f.JobRunID}, {kindKey, f.Kind}} {
 		if field.value != "" {
 			attrs = append(attrs, slog.String(field.key, field.value))
 		}

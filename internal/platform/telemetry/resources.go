@@ -27,6 +27,7 @@ func NewWithResources(pool app.PoolStatsSource, jobs app.JobMetricsSource, budge
 }
 
 func (m *Metrics) registerResources(budget *resources.Budget) error {
+	m.resourceWait.budget.Store(budget)
 	limits := budget.Limits()
 	meter := m.provider.Meter("github.com/MoYuanCN/Jelee/internal/platform/telemetry")
 	// *.effective is the ceiling in force: equal to *.limit unless adaptive

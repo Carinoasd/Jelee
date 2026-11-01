@@ -52,12 +52,14 @@ func (w *streamWriter) zeroCopy(reader io.Reader) (written int64, handled bool, 
 		return 0, true, err
 	}
 	watch := newProgressWatch(w.timeout, start)
-	if err := w.controller.SetWriteDeadline(watch.deadline(time.Now())); err != nil {
+	first := watch.deadline(time.Now())
+	if err := w.controller.SetWriteDeadline(first); err != nil {
 		if errors.Is(err, http.ErrNotSupported) {
 			return 0, false, nil
 		}
 		return 0, true, err
 	}
+	w.noteDeadline(first)
 	// Cancellation may have expired the deadline just before the refresh above.
 	if err := ctx.Err(); err != nil {
 		_ = w.controller.SetWriteDeadline(time.Now())
@@ -75,6 +77,8 @@ func (w *streamWriter) zeroCopy(reader io.Reader) (written int64, handled bool, 
 	stop := w.watchProgress(ctx, source.file, watch)
 	written, err = to.ReadFrom(&io.LimitedReader{R: source.file, N: limited.N})
 	stop()
+	w.written.Add(written)
+	w.noteError(err)
 	limited.N -= written
 	return written, true, err
 }
@@ -142,6 +146,7 @@ func (w *streamWriter) watchProgress(ctx context.Context, file *os.File, watch *
 				continue
 			}
 			_ = w.controller.SetWriteDeadline(deadline)
+			w.noteDeadline(deadline)
 			// If the stream ended around the refresh, expire the deadline
 			// again so the refresh cannot undo the cancellation.
 			if ctx.Err() != nil {

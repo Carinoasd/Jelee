@@ -28,7 +28,10 @@ type Metrics struct {
 	provider     *sdkmetric.MeterProvider
 	jobsProducer *jobMetricsProducer
 	// background exposes the background job lane once registered.
-	background   *backgroundProducer
+	background *backgroundProducer
+	// resourceWait exposes the shared budget's wait histogram once
+	// NewWithResources registered it.
+	resourceWait *resourceWaitProducer
 	handler      http.Handler
 	gate         chan struct{}
 	scrapeGate   chan struct{}
@@ -98,7 +101,8 @@ func newMetricsWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource, rea
 		exporterOptions = append(exporterOptions, otelexport.WithProducer(producer))
 	}
 	background := &backgroundProducer{}
-	exporterOptions = append(exporterOptions, otelexport.WithProducer(background))
+	resourceWait := &resourceWaitProducer{}
+	exporterOptions = append(exporterOptions, otelexport.WithProducer(background), otelexport.WithProducer(resourceWait))
 	exporter, err := otelexport.New(exporterOptions...)
 	if err != nil {
 		return nil, err
@@ -115,7 +119,7 @@ func newMetricsWithJobs(pool app.PoolStatsSource, jobs app.JobMetricsSource, rea
 	m := &Metrics{
 		provider: sdkmetric.NewMeterProvider(options...), gate: make(chan struct{}, 1),
 		scrapeGate: make(chan struct{}, 1), stopScrapes: make(chan struct{}),
-		shutdownGate: make(chan struct{}, 1), jobsProducer: producer, background: background,
+		shutdownGate: make(chan struct{}, 1), jobsProducer: producer, background: background, resourceWait: resourceWait,
 	}
 	m.gate <- struct{}{}
 	m.scrapeGate <- struct{}{}

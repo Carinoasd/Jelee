@@ -146,10 +146,15 @@ func (b *Background) Wait(kinds ...string) {
 }
 
 func (b *Background) runner(task app.BackgroundTask, i int) app.BackgroundRunner {
+	// G46.3: every record of a run, the task's own included, names the
+	// kind. Background runs have no job row, so no taskId or jobRunId.
+	fields := domain.LogFields{Kind: task.Kind}
 	return func(stop, work context.Context, due time.Time) bool {
+		stop, work = domain.WithLogFields(stop, fields), domain.WithLogFields(work, fields)
 		release, outcome := b.admit(stop, task)
 		if release == nil {
 			b.count(i, outcome)
+			b.opts.Logger.DebugContext(stop, "background job run not started", "component", "jobs", "outcome", outcome)
 			return false
 		}
 		started := b.opts.Now()
@@ -163,7 +168,9 @@ func (b *Background) runner(task app.BackgroundTask, i int) app.BackgroundRunner
 				outcome = domain.BackgroundRunCancelled
 			}
 		}
-		b.end(i, outcome, b.opts.Now().Sub(started))
+		duration := b.opts.Now().Sub(started)
+		b.end(i, outcome, duration)
+		b.opts.Logger.DebugContext(stop, "background job run finished", "component", "jobs", "outcome", outcome, "durationMs", duration.Milliseconds())
 		return again && err == nil
 	}
 }
@@ -186,7 +193,7 @@ func (b *Background) admit(stop context.Context, task app.BackgroundTask) (func(
 			}
 			return nil, domain.BackgroundRunCancelled
 		case err != nil:
-			b.opts.Logger.Warn("background job lock unavailable", "component", "jobs", "kind", task.Kind, "code", "background_lock_unavailable")
+			b.opts.Logger.WarnContext(stop, "background job lock unavailable", "component", "jobs", "kind", task.Kind, "code", "background_lock_unavailable")
 			return nil, domain.BackgroundRunFailed
 		case !acquired:
 			return nil, domain.BackgroundRunSkipped

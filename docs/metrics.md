@@ -65,6 +65,20 @@ Webhook 投遞、觀看統計彙總與播放進度 flush 是任務執行器的�
 
 這些值在程序記憶體內、隨程序啟動歸零，和 `jelee_jobs_shared_*` 不同：多個副本的數值可以相加。共 4 個家族、105 個系列（3＋12＋45＋45）；正式端點因此由 55 個家族變為 59 個。
 
+## 共用配額等待時長分布（G41.8）
+
+正式服務（`NewWithResources`）另輸出 1 個 histogram 家族，記錄取得共用 CPU／I/O 配額（[共用資源](shared-work-budget.md#共用資源指標)）時等了多久：
+
+| Prometheus 名稱 | 型別 | 意義 |
+| --- | --- | --- |
+| `jelee_resources_wait_seconds` | histogram | 每次取得配額的等待時間；立即取得記為 0，排隊者記到取得或其 context 結束為止 |
+
+固定 labels：`class`（`cpu`／`io`，配額本身的工作類型維度）與 `outcome`（`granted` 取得、`cancelled` 排隊中被取消或逾時），四個系列都會輸出。上界為 0.001、0.005、0.01、0.025、0.05、0.1、0.25、0.5、1、2.5、5、10、30、60 秒與 +Inf：直投、NFO、圖片等操作的正常等待在毫秒級，超過 60 秒的等待由 +Inf 桶與 `_sum` 呈現。佇列已滿而立即被拒（`domain.ErrResourceBusy`）的請求沒有等待、不計入；這類背壓見各消費者自己的計數（例如 `jelee_jobs_background_runs_total{outcome="skipped"}`）。
+
+計數放在 `resources.Budget` 內，在它原有的鎖下累加（每次取得多一次桶位比較，不增加 goroutine 或 I/O）；收集時以 OTel Producer 一次複製四個系列，與背景工作指標同一種做法，同一份資料經 SDK 轉成 Prometheus 累積 `le` 桶，不取得配額。值在程序記憶體內、隨程序啟動歸零，多個副本可以相加。常用查詢：`histogram_quantile(0.95, sum by (le, class) (rate(jelee_resources_wait_seconds_bucket{outcome="granted"}[5m])))`；`rate(jelee_resources_wait_seconds_count{outcome="cancelled"}[5m])` 是等不到配額而放棄的速率。
+
+共 1 個家族、4 個系列（每系列 15 個桶）；`NewWithResources` 的固定家族由 34 變為 35，正式端點由 59 變為 60 個家族（`TestResourceWaitHistogramExposition`、`TestResourceMetricsSaturatedQueueAndCancellation`、`TestImageMetrics*`，真 PG `TestJobMetricsRuntimePostgresLifecycleAndInstances`）。
+
 ## 收集與關閉
 
 Exporter 關閉 target_info、scope_info 及 resource constant labels，也不註冊預設 Go／process collectors。SDK 仍可能讀入 `OTEL_RESOURCE_ATTRIBUTES`；本端點不輸出這些屬性，固定 `service.name=jelee` 不能被解讀為 SDK 內完全沒有環境屬性。OTLP trace 匯出（預設關閉）另有自己的過濾契約：Resource 只有 `service.name` 與 `service.version`、不讀環境屬性，span 屬性只有五個白名單欄位，見[日誌與追蹤串聯](observability.md#otlp-匯出)。
@@ -130,7 +144,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_index_failures_total` | counter | 變體索引寫入失敗；請求本身仍成功 |
 | `jelee_images_index_evictions_total` | counter | 經索引淘汰的變體 |
 
-沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 57 個 families（原 30 個加 27 個）；只開圖片不開存放區時為 43 個。
+沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 57 個 families（原 30 個加 27 個）；只開圖片不開存放區時為 43 個。（以上為圖片指標加入時的數字；之後加上 G41.7 的四個資源家族與 G41.8 的等待分布，測試中 `NewWithResources` 的基數為 35。）
 
 **命中率怎麼算（G40.13）。** `/images` 與相容層的縮放請求共用同一個處理器，每個准入且成功的請求恰好是三者之一：記憶體命中（`cache_hits`）、記憶體未命中但由存放區供應（`store_served`）、兩者皆無而新產生（`variants_generated`）；所以 `cache_misses = store_served + variants_generated + 未命中後失敗的請求`。記憶體命中率 = `cache_hits / (cache_hits + cache_misses)`；整體命中率（不必重新產生）= `(cache_hits + store_served) / (cache_hits + cache_misses)`；沒有存放區時 `store_served` 不輸出，整體即記憶體命中率。PromQL 範例見[圖片資產：快取命中率](image-assets.md#缓存命中率g4013)。`variants_generated` 在解碼與編碼都成功後才加一，所以它不大於 `decodes`（`decodes` 也計入解碼後失敗的請求）。重複請求命中由 `TestImageVariantCountersShowRepeatedRequestsHit` 與真 PG `TestImageResizeRequestsHitCachePostgres`（`/images` 與相容層）驗證。
 

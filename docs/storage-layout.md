@@ -22,6 +22,7 @@
 | 图片暂存 | `JELEE_IMAGE_TEMP_ROOT/image-…partial` | 图片请求 | 请求结束时删除；启动清扫 | 停机时可删 |
 | 图片持久存放区 | `JELEE_IMAGE_STORE_ROOT` | 图片请求（设置后由 runtime 启动时打开） | 变体按 LRU 淘汰；修复动作 `image-variants` 整体作废旧世代 | 见 [图片](#图片)与[图片资产](image-assets.md) |
 | 日志文件 | `JELEE_LOG_FILE` 及同目录的轮转备份（文件 0600、目录 0700） | 日志路由（`JELEE_LOG_OUTPUT=file` 或 `both` 时） | 按大小／时间轮转，保留 `JELEE_LOG_MAX_BACKUPS` 个 | 可删；`jelee-cli diag export` 只读当前文件，见[日志](logging.md) |
+| 崩溃归档 | `JELEE_LOG_CRASH_DIR`，默认日志文件目录下的 `crash/`：`crash-<时间>.log` 报告与本进程的 `pending-<时间>-<pid>.raw`（文件 0600、目录 0700） | `jelee` 服务器（G46.3） | 只保留最新 `JELEE_LOG_CRASH_KEEP`（默认 20）份报告；pending 文件正常停止时删除、崩溃后下次启动转成报告 | 可删；报告已遮罩，pending 文件是 Go 运行时的原始崩溃输出，见[日志](logging.md#崩溃日志与堆栈归档g463) |
 | 外部工具暂存 | `$TMPDIR/jelee-service-*`、`$TMPDIR/jelee-probe-check-*` | probe／ignore／mkv 服务 | 服务关闭时删除；启动清扫 | 停机时可删 |
 | 工具与授权文件 | 容器内 `/usr/lib/jelee/ffprobe`、`/usr/lib/jelee/mediainfo`、`/usr/lib/jelee/mkvtoolnix/`、（OCR 層）`/usr/lib/jelee/tesseract/`、`/lib`、`/lib64`、`/licenses` | 镜像 | — | 不可改，身份与 SHA-256 都会校验 |
 | Matroska 擷取快取 | `JELEE_MATROSKA_CACHE_ROOT/<sourceID>/<修訂>/`（內嵌文字字幕與字型附件的原樣副本） | 擷取請求（E4，預設關閉） | 新修訂取代舊修訂；超過 `JELEE_MATROSKA_CACHE_MAX_BYTES` 依最近使用淘汰；staging 殘留一小時後清除 | 可隨時刪除，下次請求重新擷取；不需備份，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md) |
