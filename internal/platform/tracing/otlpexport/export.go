@@ -10,7 +10,7 @@ package otlpexport
 
 import (
 	"context"
-	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/MoYuanCN/Jelee/internal/platform/tlstrust"
 	"github.com/MoYuanCN/Jelee/internal/platform/tracing"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -105,9 +106,9 @@ const warningInterval = time.Minute
 
 // New validates o, builds the OTLP/HTTP client and starts the batch loop.
 // The client sends to the configured endpoint only: no proxy from the
-// environment, no redirects, TLS 1.2 or later with the system roots, and
-// the OTEL_EXPORTER_OTLP_* variables cannot change the endpoint, headers,
-// certificates or timeout.
+// environment, no redirects, TLS 1.2 or later with the system roots (or only
+// the configured CA file's certificates), and the OTEL_EXPORTER_OTLP_*
+// variables cannot change the endpoint, headers, certificates or timeout.
 func New(o Options) (*Exporter, error) {
 	if err := o.normalize(); err != nil {
 		return nil, err
@@ -117,7 +118,14 @@ func New(o Options) (*Exporter, error) {
 		u.Path = tracing.OTLPDefaultPath
 		endpoint = u.String()
 	}
-	client := newHTTPClient(o.Timeout)
+	var pool *x509.CertPool
+	if o.CAFile != "" {
+		var err error
+		if pool, err = tlstrust.LoadPool(o.CAFile); err != nil {
+			return nil, errors.New("trace exporter CA file could not be loaded")
+		}
+	}
+	client := newHTTPClient(o.Timeout, pool)
 	headers := make(map[string]string, len(o.Headers))
 	for name, value := range o.Headers {
 		headers[name] = value
@@ -146,11 +154,11 @@ func New(o Options) (*Exporter, error) {
 // newHTTPClient sends to the configured endpoint only: no proxy from the
 // environment, no redirects (a collector that redirects would receive the
 // headers' tokens at an address nobody configured), TLS 1.2 or later with
-// the system roots.
-func newHTTPClient(timeout time.Duration) *http.Client {
+// the system roots, or only the CA file's certificates when pool is set.
+func newHTTPClient(timeout time.Duration, pool *x509.CertPool) *http.Client {
 	transport := &http.Transport{
 		Proxy:                 nil,
-		TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
+		TLSClientConfig:       tlstrust.ClientConfig(pool),
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          2,
 		IdleConnTimeout:       90 * time.Second,

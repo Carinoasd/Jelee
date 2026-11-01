@@ -29,6 +29,10 @@ type LogForwarderConfig struct {
 	BatchSize       int    `json:"batchSize"`
 	BatchIntervalMs int    `json:"batchIntervalMs"`
 	TimeoutMs       int    `json:"timeoutMs"`
+	// CAFile is a PEM file of one or more CA certificates trusted instead of
+	// the system roots (syslog network tls, Loki https). Certificates are
+	// always verified.
+	CAFile string `json:"caFile"`
 
 	// Syslog: network is udp (default), tcp, tls, unix or unixgram.
 	Network  string `json:"network"`
@@ -52,12 +56,19 @@ type LogForwarderConfig struct {
 
 // options converts the entry; the error names no configured value.
 func (f LogForwarderConfig) options() logging.ForwarderOptions {
-	return logging.ForwarderOptions{
+	o := logging.ForwarderOptions{
 		Kind: logging.ForwarderKind(f.Kind), Name: f.Name, QueueEntries: f.QueueEntries, BatchSize: f.BatchSize,
 		BatchInterval: time.Duration(f.BatchIntervalMs) * time.Millisecond, Timeout: time.Duration(f.TimeoutMs) * time.Millisecond,
 		Syslog: logging.SyslogOptions{Network: f.Network, Address: f.Address, Facility: f.Facility, AppName: f.AppName, Hostname: f.Hostname, Framing: f.Framing},
 		Loki:   logging.LokiOptions{URL: f.URL, Username: f.Username, Password: f.Password, BearerToken: f.BearerToken, TenantID: f.TenantID, Service: f.Service},
 	}
+	switch f.Kind {
+	case string(logging.ForwardSyslog):
+		o.Syslog.CAFile = f.CAFile
+	case string(logging.ForwardLoki):
+		o.Loki.CAFile = f.CAFile
+	}
+	return o
 }
 
 func (c LoggingConfig) validateForwarders() error {
@@ -114,8 +125,8 @@ func (c LoggingConfig) forwarderOptions() []logging.ForwarderOptions {
 
 // Environment names per kind; the first one switches the forwarder on.
 var (
-	syslogForwardEnv = []string{"ADDRESS", "NAME", "NETWORK", "FACILITY", "APP_NAME", "HOSTNAME", "FRAMING", "QUEUE_ENTRIES", "BATCH_SIZE", "BATCH_INTERVAL_MS", "TIMEOUT_MS"}
-	lokiForwardEnv   = []string{"URL", "NAME", "USERNAME", "PASSWORD", "PASSWORD_FILE", "BEARER_TOKEN", "BEARER_TOKEN_FILE", "TENANT_ID", "SERVICE", "QUEUE_ENTRIES", "BATCH_SIZE", "BATCH_INTERVAL_MS", "TIMEOUT_MS"}
+	syslogForwardEnv = []string{"ADDRESS", "NAME", "NETWORK", "FACILITY", "APP_NAME", "HOSTNAME", "FRAMING", "CA_FILE", "QUEUE_ENTRIES", "BATCH_SIZE", "BATCH_INTERVAL_MS", "TIMEOUT_MS"}
+	lokiForwardEnv   = []string{"URL", "NAME", "USERNAME", "PASSWORD", "PASSWORD_FILE", "BEARER_TOKEN", "BEARER_TOKEN_FILE", "TENANT_ID", "SERVICE", "CA_FILE", "QUEUE_ENTRIES", "BATCH_SIZE", "BATCH_INTERVAL_MS", "TIMEOUT_MS"}
 )
 
 // loadForwarderEnvironment applies JELEE_LOG_FORWARD_SYSLOG_* and
@@ -144,7 +155,7 @@ func (c *LoggingConfig) loadForwarderEnvironment(lookup func(string) (string, bo
 		f := LogForwarderConfig{Kind: spec.kind, Name: values["NAME"], Network: values["NETWORK"], Address: values["ADDRESS"], Facility: values["FACILITY"],
 			AppName: values["APP_NAME"], Hostname: values["HOSTNAME"], Framing: values["FRAMING"], URL: values["URL"], Username: values["USERNAME"],
 			Password: values["PASSWORD"], BearerToken: values["BEARER_TOKEN"], PasswordFile: values["PASSWORD_FILE"], BearerTokenFile: values["BEARER_TOKEN_FILE"],
-			TenantID: values["TENANT_ID"], Service: values["SERVICE"]}
+			TenantID: values["TENANT_ID"], Service: values["SERVICE"], CAFile: values["CA_FILE"]}
 		for name, target := range map[string]*int{"QUEUE_ENTRIES": &f.QueueEntries, "BATCH_SIZE": &f.BatchSize, "BATCH_INTERVAL_MS": &f.BatchIntervalMs, "TIMEOUT_MS": &f.TimeoutMs} {
 			if v, ok := values[name]; ok {
 				n, err := strconv.Atoi(v)

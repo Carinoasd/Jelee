@@ -52,7 +52,7 @@
 make runtime-memory-test
 ```
 
-此入口先執行 contracts，再執行兩組真容器負載。[CI workflow](../.github/workflows/jelee.yml) 分開執行相同的 contracts 與 `make runtime-memory-worker-test`；預算失敗會使步驟失敗。`runtime-memory-acceptance` artifact 保存 contracts JSON、驗收日誌、summary、各組 case，以及固定預算／基線檔，失敗時也嘗試上傳。
+此入口先執行 contracts，再執行兩組真容器負載。[CI workflow](../.github/workflows/jelee.yml) 分開執行相同的 contracts 與 `make runtime-memory-worker-test`；預算失敗會使步驟失敗，但在 push／PR 上這兩步是 `continue-on-error`（不讓 PR 變紅，只留警告註記），嚴格的門禁改由 [`jelee-memory.yml`](../.github/workflows/jelee-memory.yml) 每日與手動執行，見[質量門禁](quality-gates.md#記憶體證據不擋-pr每日嚴格執行)。`runtime-memory-acceptance` artifact 保存 contracts JSON、驗收日誌、summary、各組 case，以及固定預算／基線檔，失敗時也嘗試上傳。
 
 本機產物位於 `.testdata/runtime-memory-*`。Controller 拒絕覆寫既有驗收日誌或 summary；重跑前先另存歷史證據。基線資料與凍結後的獨立門禁結果須分別記錄，不能把用來制定門檻的基線稱為獨立門禁已通過。
 

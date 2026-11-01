@@ -73708,9 +73708,9 @@
       "validation"
     ],
     "rateLimit": {
-      "burst": 100,
+      "burst": 300,
       "enabled": true,
-      "requestsPerSecond": 20
+      "requestsPerSecond": 50
     },
     "timeoutSeconds": 30
   }

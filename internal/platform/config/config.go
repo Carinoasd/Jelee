@@ -101,7 +101,7 @@ func Load() (Config, error) { return LoadWith(os.LookupEnv) }
 
 // LoadWith keeps environment lookup injectable and never includes values in errors.
 func LoadWith(lookup func(string) (string, bool)) (Config, error) {
-	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: 8, MaxStreams: 8, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Audit: DefaultAuditConfig(), Webhooks: DefaultWebhooksConfig()}
+	c := Config{Resources: DefaultResourcesConfig(), Access: DefaultAccessConfig(), Streaming: DefaultStreamingConfig(), Playback: DefaultPlaybackConfig(), Stats: DefaultStatsConfig(), Listen: "127.0.0.1:8097", AllowedHosts: []string{"localhost", "127.0.0.1", "::1"}, MaxConnections: defaultMaxConnections, MaxStreams: defaultMaxStreams, RequestTimeoutSeconds: 15, Accounts: DefaultAccountsConfig(), Jobs: DefaultJobsConfig(), Images: DefaultImagesConfig(), Matroska: DefaultMatroskaConfig(), SubtitleOCR: DefaultSubtitleOCRConfig(), Logging: DefaultLoggingConfig(), Audit: DefaultAuditConfig(), Webhooks: DefaultWebhooksConfig()}
 	if path, ok := lookup("JELEE_CONFIG"); ok && path != "" {
 		f, err := os.Open(path) //nolint:gosec // G304: the operator names the configuration file
 		if err != nil {
@@ -180,7 +180,7 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if value, ok := lookup("JELEE_MAX_CONNECTIONS"); ok {
 		n, err := strconv.ParseInt(value, 10, 32)
-		if err != nil || n < 1 || n > 128 {
+		if err != nil || n < 1 || n > maxConnectionsLimit {
 			return c, errors.New("invalid JELEE_MAX_CONNECTIONS")
 		}
 		c.MaxConnections = int32(n)
@@ -315,7 +315,7 @@ func (c Config) Validate() error {
 	if c.SetupTokenFile != "" && (!filepath.IsAbs(c.SetupTokenFile) || filepath.Clean(c.SetupTokenFile) != c.SetupTokenFile || strings.ContainsRune(c.SetupTokenFile, 0)) {
 		return errors.New("setupTokenFile must be a clean absolute path")
 	}
-	if c.MaxConnections < 1 || c.MaxConnections > 128 || c.MaxStreams < 1 || c.MaxStreams > 128 || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
+	if c.MaxConnections < 1 || c.MaxConnections > maxConnectionsLimit || c.MaxStreams < 1 || c.MaxStreams > maxStreamsLimit || c.RequestTimeoutSeconds < 1 || c.RequestTimeoutSeconds > 120 {
 		return errors.New("concurrency or timeout is outside the supported range")
 	}
 	if c.CompatServerID != "" && !validCompatServerID(c.CompatServerID) {

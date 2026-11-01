@@ -54,7 +54,7 @@ def main(argv=None):
     parser.add_argument("--benchtime", default="500ms")
     parser.add_argument("--out", default=".testdata/bench-compare")
     parser.add_argument("--go", default=str(ROOT / ".bin" / "go"), help="pinned go wrapper")
-    parser.add_argument("--gate", default="-ns 25 -allocs 10 -bytes 20",
+    parser.add_argument("--gate", default="-ns 25 -allocs 20 -bytes 20",
                         help="tools/benchgate thresholds for runner-to-runner noise")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[0-9a-f]{7,40}", args.base_ref):

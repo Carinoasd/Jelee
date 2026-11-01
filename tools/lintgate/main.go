@@ -1,16 +1,20 @@
 // lintgate compares a golangci-lint JSON report with the committed baseline
 // of pre-existing findings (G30.1, G30.5). New code is held to every enabled
 // linter: any finding that is not in the baseline fails the gate. The
-// baseline may only shrink: an entry that no longer occurs also fails the
-// gate until -prune removes it, and -prune never adds entries.
+// baseline never grows: -prune only removes entries that no longer occur and
+// never adds any. A baseline entry that no longer occurs is printed as a
+// warning (the gate still passes) so a fix does not have to carry the prune
+// in the same change; -strict turns those warnings into a failure, which is
+// the check to run before `make lint-baseline-prune`.
 //
 //	go run ./tools/lintgate -report .testdata/golangci-lint.json -baseline tools/lint-baseline/linux.json
 //
 // A finding is identified by linter, file, message and a hash of its trimmed
 // source line, not by line number: unrelated edits that shift a file do not
 // matter, but editing a baselined line re-reports it, so touched code must be
-// fixed. Exit status: 0 pass, 1 new or fixed-but-baselined findings, 2 usage
-// or input error.
+// fixed. Exit status: 0 pass (fixed-but-baselined findings only warn), 1 new
+// findings or, with -strict, fixed-but-baselined ones, 2 usage or input
+// error.
 package main
 
 import (
@@ -233,6 +237,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	goos := flags.String("goos", "", "GOOS recorded in a new baseline (-init)")
 	prune := flags.Bool("prune", false, "remove baseline entries that no longer occur")
 	initial := flags.Bool("init", false, "create a missing baseline from the report")
+	strict := flags.Bool("strict", false, "also fail on baseline entries that no longer occur")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -285,18 +290,27 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	fixed := 0
+	label := "warning: fixed but still baselined"
+	if *strict {
+		label = "fixed but still baselined"
+	}
 	for _, e := range result.Fixed {
 		fixed += e.Count
-		sayf(stdout, "fixed but still baselined: %s: %s: %s\n", e.File, e.Linter, e.Text)
+		sayf(stdout, "%s: %s: %s: %s\n", label, e.File, e.Linter, e.Text)
 	}
 	sayf(stdout, "lintgate: %d findings, %d baselined, %d new, %d fixed\n", len(report.Issues), baseline.Total, len(result.New), fixed)
-	if len(result.New) > 0 || fixed > 0 {
-		if len(result.New) > 0 {
-			say(stdout, "lintgate: FAIL new findings; fix them or add a reviewed //nolint:<linter> // reason")
-		}
-		if fixed > 0 {
-			say(stdout, "lintgate: FAIL the baseline must shrink with the fixes; run `make lint-baseline-prune`")
-		}
+	failed := len(result.New) > 0
+	if failed {
+		say(stdout, "lintgate: FAIL new findings; fix them or add a reviewed //nolint:<linter> // reason")
+	}
+	switch {
+	case fixed > 0 && *strict:
+		say(stdout, "lintgate: FAIL the baseline must shrink with the fixes; run `make lint-baseline-prune`")
+		failed = true
+	case fixed > 0:
+		say(stdout, "lintgate: warning: the baseline can shrink; run `make lint-baseline-prune`")
+	}
+	if failed {
 		return 1
 	}
 	return 0

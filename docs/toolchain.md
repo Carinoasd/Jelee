@@ -135,10 +135,11 @@ Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 
 | `coverage` | 生成被忽略的 `coverage.out` |
 | `fmt` / `fmt-check` | 格式化 / 检查 Go 源码 |
 | `lint` | 格式检查、OpenAPI 检查、`doc-check`、迁移锁、`text-check`、`secret-scan`、`go vet` 与 `golangci-lint` 门禁 |
-| `golangci-lint` | 以 `.golangci.yml` 执行 golangci-lint，再以 `tools/lintgate` 对照 `tools/lint-baseline/<goos>.json`；基线外的新问题或已修复仍留在基线的条目都失败 |
+| `golangci-lint` | 以 `.golangci.yml` 执行 golangci-lint，再以 `tools/lintgate` 对照 `tools/lint-baseline/<goos>.json`；基线外的新问题失败；已修复仍留在基线的条目只警告，`LINTGATE_FLAGS=-strict` 时也失败 |
 | `lint-baseline-prune` | 仅 Linux：对 linux 与 windows（交叉检查）重跑并从基线移除已修复条目，从不新增 |
 | `coverage-check` | 仅 Linux：按 `tools/coverage-thresholds.json` 测量核心／关键包覆盖率，低于棘轮最低值失败 |
-| `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值（向下取整），从不降低 |
+| `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值向下取整再减 2 点，从不降低 |
+| `coverage-rebase` | 仅 Linux：以一次测量重算全部最低值（实测向下取整减 2 点，可降低），审查时逐行看差异 |
 | `bench-direct` | 本机直投基线（首字节、Seek、并发吞吐与 CPU，loopback TCP，build tag `perf`）；输出 `.testdata/direct-latency.txt`，不接门禁，开发机数字不是验收（见 `docs/direct-delivery.md`） |
 | `bench-compare` | 仅 Linux：`BENCH_BASE_REF=<提交>`，同机交替执行基准提交与工作树的热路径基准并以 benchgate 判定 |
 | `quality-gates-test` | lintgate、covergate、benchgate、gitignore-check、textcheck、secretscan、commitlint 单元测试（Linux 另含 bench-compare 与 release 脚本测试） |

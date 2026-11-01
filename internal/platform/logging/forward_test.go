@@ -498,6 +498,10 @@ func TestLokiTLSUsesSystemRootsOnly(t *testing.T) {
 	}
 }
 
+// The forwarders never weaken certificate checks. Their TLS configuration
+// comes only from tlstrust.ClientConfig, which sets RootCAs only for a
+// configured caFile (TestForwarderTLSRootsComeOnlyFromTheCAFile checks the
+// result); InsecureSkipVerify and custom verification stay banned.
 func TestForwardersNeverDisableCertificateChecks(t *testing.T) {
 	files, err := filepath.Glob("forward*.go")
 	if err != nil || len(files) == 0 {
@@ -511,10 +515,16 @@ func TestForwardersNeverDisableCertificateChecks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, banned := range []string{"InsecureSkipVerify", "RootCAs", "VerifyPeerCertificate", "VerifyConnection"} {
-			if strings.Contains(string(data), banned) {
+		src := string(data)
+		for _, banned := range []string{"InsecureSkipVerify", "VerifyPeerCertificate", "VerifyConnection", "tls.Config{"} {
+			if strings.Contains(src, banned) {
 				t.Errorf("%s uses %s", name, banned)
 			}
+		}
+		// RootCAs is only ever assigned by tlstrust.ClientConfig, from the
+		// pool of a configured caFile.
+		if strings.Contains(src, "RootCAs") {
+			t.Errorf("%s sets RootCAs itself instead of through tlstrust.ClientConfig", name)
 		}
 	}
 }
@@ -906,7 +916,7 @@ func TestForwarderOptionsValidation(t *testing.T) {
 }
 
 func TestSyslogMessageHeaderSanitizes(t *testing.T) {
-	s := newSyslogSender(SyslogOptions{Address: "x:1", Hostname: "h", Facility: "auth"}, time.Second)
+	s := newSyslogSender(SyslogOptions{Address: "x:1", Hostname: "h", Facility: "auth"}, time.Second, nil)
 	msg := string(s.message([]byte(`{"time":"bad","level":"ERROR","component":"se curity\n"}`), false))
 	m := syslogHeader.FindStringSubmatch(msg)
 	if m == nil || m[1] != "35" || m[6] != "security" {
@@ -915,7 +925,7 @@ func TestSyslogMessageHeaderSanitizes(t *testing.T) {
 	if got := sanitizeSyslogField("", 10); got != "-" {
 		t.Fatal(got)
 	}
-	if got := string(newSyslogSender(SyslogOptions{Address: "x:1"}, time.Second).message([]byte("not json"), false)); !strings.HasPrefix(got, "<134>1 ") || !strings.HasSuffix(got, "not json") {
+	if got := string(newSyslogSender(SyslogOptions{Address: "x:1"}, time.Second, nil).message([]byte("not json"), false)); !strings.HasPrefix(got, "<134>1 ") || !strings.HasSuffix(got, "not json") {
 		t.Fatalf("%q", got)
 	}
 }

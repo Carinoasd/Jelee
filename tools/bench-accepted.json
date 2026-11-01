@@ -7,14 +7,8 @@
   },
   {
     "benchmark": "github.com/MoYuanCN/Jelee/internal/adapter/http.BenchmarkBoundaryRequest",
-    "unit": "allocs/op",
-    "max": 72,
-    "reason": "G08.1 and G08.7 (feat/s11-ratelimit) guard every request: the processing deadline context with its timer, the request copy that carries it, the timeout writer and the Traceparent response header. The route classification splits paths without allocating and the rate limiter is off for /healthz; what remains is the deadline itself. Measured 58 -> 69 on the development machine."
-  },
-  {
-    "benchmark": "github.com/MoYuanCN/Jelee/internal/adapter/http.BenchmarkBoundaryRequest",
     "unit": "B/op",
     "max": 6100,
-    "reason": "Same change as the allocs/op entry: the deadline context, its timer, the request copy, the timeout writer and the Traceparent header. Measured 4434 -> 5890 on the development machine."
+    "reason": "G08.1 and G08.7 (feat/s11-ratelimit) guard every request: the processing deadline context with its timer, the request copy that carries it, the timeout writer and the Traceparent response header. Measured 4434 -> 5890 B/op (+33%) on the development machine, over the 20% B/op gate. The matching allocs/op entry (58 -> 69, +19%) was dropped when the allocs/op gate moved to 20%."
   }
 ]

@@ -36,8 +36,15 @@ def main(argv):
     parser.add_argument("flags", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     flags = args.flags[1:] if args.flags[:1] == ["--"] else args.flags
-    listing = subprocess.run([args.go, "test", "-list", ".*", args.package], check=True, capture_output=True, text=True).stdout
-    names = [line.strip() for line in listing.splitlines() if NAME.match(line.strip())]
+    listed = subprocess.run([args.go, "test", "-list", ".*", args.package], capture_output=True, text=True)
+    if listed.returncode != 0:
+        # The listing builds the test binary; show why it failed instead of
+        # a bare CalledProcessError.
+        sys.stderr.write(listed.stderr)
+        sys.stderr.write(listed.stdout)
+        print(f"go test -list {args.package} failed with exit status {listed.returncode}", file=sys.stderr)
+        return listed.returncode
+    names = [line.strip() for line in listed.stdout.splitlines() if NAME.match(line.strip())]
     chosen = select([name for name in names if name.startswith("Test")], *args.shard)
     if not chosen:
         print(f"shard {args.shard[0]}/{args.shard[1]} of {args.package} selects no tests", file=sys.stderr)

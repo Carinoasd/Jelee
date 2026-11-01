@@ -21,13 +21,16 @@ BENCH_BASE_REF ?=
 BENCH_COMPARE_FLAGS ?=
 
 # golangci-lint (G30.1). Findings outside tools/lint-baseline/<goos>.json fail;
-# the baseline may only shrink (lint-baseline-prune). CGO is off so every
-# host type-checks the same files.
+# the baseline never grows (lint-baseline-prune only removes). Baseline entries
+# that no longer occur only warn; LINTGATE_FLAGS=-strict fails on them too.
+# CGO is off so every host type-checks the same files.
 GOLANGCI_LINT := $(CURDIR)/.bin/golangci-lint
 LINT_GOOS ?= linux
 LINT_REPORT = .testdata/golangci-lint-$(LINT_GOOS).json
 LINT_BASELINE = tools/lint-baseline/$(LINT_GOOS).json
-# Per-package coverage ratchet (core >=70%, critical >=85%).
+LINTGATE_FLAGS ?=
+# Per-package coverage ratchet (core >=70%, critical >=85%): each minimum is the
+# measured coverage floored to whole points minus a 2-point margin.
 COVER_CONFIG := tools/coverage-thresholds.json
 COVER_PROFILE ?= .testdata/coverage-gate.out
 COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] for p in json.load(open("$(COVER_CONFIG)"))["packages"]))')
@@ -35,7 +38,7 @@ COVER_PKGS = $(shell $(PYTHON) -c 'import json; print(" ".join("./" + p["path"] 
 NPM := $(CURDIR)/.bin/npm
 WEB := --workspace @jelee/web
 
-.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check bench-direct benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
+.PHONY: backup-drill backup-scale image-memory-test image-memory-smoke-test scan-memory-test scan-memory-smoke-test runtime-memory-test runtime-memory-worker-test memory-contract-test i18n-check family-ignore-sustained-worker-test ignore-sustained-test init bootstrap bootstrap-media bootstrap-matroska matroska-tools-verify matroska-toolchain-test bootstrap-ocr ocr-tools-verify ocr-toolchain-test bootstrap-runtime runtime-tools-verify runtime-toolchain-test probe-runtime-test probe-worker-test nfo-worker-test family-ignore-worker-test ignore-oracle-test sandbox-test tools-verify media-tools-verify tools-clean fixtures fixtures-test build test test-race test-integration coverage fmt fmt-check lint toolchain-test media-toolchain-test brand-scan brand-scan-incremental gitignore-check openapi openapi-check migrate doctor bench bench-check bench-direct benchgate-test doc-check dev nfo diag web-install web-build web-budget web-test web-lint web-types bootstrap-playwright playwright-verify web-e2e web-visual web-visual-update test-race-nonpostgres test-race-postgres-shard go-test-shard-test golangci-lint lint-baseline-prune coverage-check coverage-ratchet coverage-rebase bench-compare quality-gates-test migration-lock migration-lock-check hooks text-check secret-scan secret-scan-history secret-scan-range commit-lint release-check release-dry-run
 init: bootstrap
 bootstrap:
 	sh scripts/bootstrap-tools
@@ -136,7 +139,7 @@ bench:
 	mkdir -p "$(dir $(BENCH_CURRENT))"
 	"$(GO)" test -run '^$$' -bench '$(BENCH)' -skip '$(BENCH_SKIP)' -benchmem -count=$(BENCH_COUNT) -benchtime=$(BENCH_TIME) $(BENCH_PKGS) > "$(BENCH_CURRENT)"
 	@echo "benchmark output written to $(BENCH_CURRENT)"
-# Fail when a median regresses past the thresholds (ns/op +15%, allocs/op +10%).
+# Fail when a median regresses past the thresholds (ns/op +15%, allocs/op +20%).
 bench-check: bench
 	"$(GO)" run ./tools/benchgate -base "$(BENCH_BASELINE)" -current "$(BENCH_CURRENT)" $(BENCHGATE_FLAGS)
 # Local direct-delivery first-byte, seek and concurrency baseline over loopback
@@ -150,7 +153,7 @@ bench-direct:
 benchgate-test:
 	"$(GO)" test -count=1 ./tools/benchgate
 # Run on the same runner: base commit and head alternate, medians gated with
-# runner-noise thresholds (-ns 25 -allocs 10 -bytes 20).
+# runner-noise thresholds (-ns 25 -allocs 20 -bytes 20).
 bench-compare:
 	@test -n "$(BENCH_BASE_REF)" || { echo 'BENCH_BASE_REF must name the base commit' >&2; exit 2; }
 	$(PYTHON) -B scripts/bench-compare.py --go "$(GO)" --base-ref "$(BENCH_BASE_REF)" --packages "$(BENCH_PKGS)" --skip '$(BENCH_SKIP)' $(BENCH_COMPARE_FLAGS)
@@ -164,11 +167,18 @@ coverage-check:
 	mkdir -p .testdata
 	"$(GO)" test -count=1 -coverprofile="$(COVER_PROFILE)" $(COVER_PKGS)
 	"$(GO)" run ./tools/covergate -profile "$(COVER_PROFILE)" -config $(COVER_CONFIG)
-# Raise minimums to the measured coverage after adding tests (never lowers).
+# Raise minimums to the measured coverage minus the margin after adding tests
+# (never lowers).
 coverage-ratchet:
 	mkdir -p .testdata
 	"$(GO)" test -count=1 -coverprofile="$(COVER_PROFILE)" $(COVER_PKGS)
 	"$(GO)" run ./tools/covergate -profile "$(COVER_PROFILE)" -config $(COVER_CONFIG) -update
+# Recompute every minimum from one measurement (can lower; run without
+# JELEE_TEST_DATABASE_URL like CI foundation and review the diff).
+coverage-rebase:
+	mkdir -p .testdata
+	"$(GO)" test -count=1 -coverprofile="$(COVER_PROFILE)" $(COVER_PKGS)
+	"$(GO)" run ./tools/covergate -profile "$(COVER_PROFILE)" -config $(COVER_CONFIG) -rebase
 fmt:
 	"$(GO)" fmt ./...
 fmt-check:
@@ -179,7 +189,7 @@ lint: fmt-check openapi-check doc-check migration-lock-check text-check secret-s
 golangci-lint:
 	mkdir -p .testdata
 	GOOS=$(LINT_GOOS) CGO_ENABLED=0 "$(GOLANGCI_LINT)" run --issues-exit-code=0 --show-stats=false --output.json.path="$(LINT_REPORT)" ./...
-	"$(GO)" run ./tools/lintgate -report "$(LINT_REPORT)" -baseline "$(LINT_BASELINE)"
+	"$(GO)" run ./tools/lintgate -report "$(LINT_REPORT)" -baseline "$(LINT_BASELINE)" $(LINTGATE_FLAGS)
 # After fixing baselined findings: drop them from both baselines. Never adds.
 lint-baseline-prune:
 	mkdir -p .testdata

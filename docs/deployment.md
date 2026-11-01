@@ -49,6 +49,15 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 完整盤點、各項保證與限制見 [快取邊界](cache-boundaries.md)；決策見 [ADR 0002](adr/0002-no-redis-cache-boundary.md)。
 
+## 資料庫連線池與串流上限
+
+| 設定 | 環境變數 | 預設 | 範圍 | 說明 |
+| --- | --- | --- | --- | --- |
+| `maxConnections` | `JELEE_MAX_CONNECTIONS` | 64 | 1～1024 | 每個實例的 PostgreSQL 連線池上限；啟用任務時至少 `jobs.workers + 2`，啟用 NFO 寫回時至少 `jobs.workers + 3` |
+| `maxStreams` | `JELEE_MAX_STREAMS` | 8 | 1～1024 | 每個實例同時進行的直投請求數，超過回 429 `stream_limit` |
+
+上限只是防呆，實際可用值由資料庫決定：所有實例的 `maxConnections` 加上維運工具（`jelee-cli`、備份）的連線，總和要低於 PostgreSQL 的 `max_connections`（預設 100）。單實例用預設 64 即可；多實例請依實例數換算。
+
 ## TMDB 請求預算（G14.3）
 
 設定 TMDB 憑據後，所有 TMDB 請求（啟動時的憑據檢查、搜尋、預覽、外部 ID 反查、圖片候選，含重試）都經同一個限流器。預算可用環境變數或設定檔的 `tmdb` 區段調整：
@@ -204,13 +213,13 @@ Jelee 用标准库 gzip 压缩非媒体响应（JSON、NDJSON、HTML、CSS、Jav
 
 ## API 限流、处理时限与请求体上限（G08.7）
 
-Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整体处理时限与请求体上限；直投、轨道、字幕、附件、图片与播放信息一律豁免，播放不会被打断。行为细节见 [API 参考](api-reference.md#通用限流处理时限与请求体上限g087)。
+Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整体处理时限与请求体上限；直投、轨道、字幕、附件、图片与播放信息一律豁免，播放不会被打断。图片（含变体与章节图）不计入主桶，只受 `images.maxConcurrent` 并发准入与 `images.timeoutSeconds` 约束。行为细节见 [API 参考](api-reference.md#通用限流处理时限与请求体上限g087)。
 
 | 配置（`api`） | 环境变量 | 默认 | 说明 |
 | --- | --- | --- | --- |
 | `rateLimit.mode` | `JELEE_API_RATE_LIMIT` | `on` | `on` 或 `off`；关闭后不限流、不发 `RateLimit-*` 标头（登录限速与客户端管控规则不受影响） |
-| `rateLimit.requestsPerSecond` | `JELEE_API_RATE_LIMIT_RPS` | 20 | 每个客户端每秒补充的请求数（1～10000） |
-| `rateLimit.burst` | `JELEE_API_RATE_LIMIT_BURST` | 100 | 桶容量，即可连续突发的请求数（1～100000） |
+| `rateLimit.requestsPerSecond` | `JELEE_API_RATE_LIMIT_RPS` | 50 | 每个客户端每秒补充的请求数（1～10000） |
+| `rateLimit.burst` | `JELEE_API_RATE_LIMIT_BURST` | 300 | 桶容量，即可连续突发的请求数（1～100000） |
 | `rateLimit.maxClients` | `JELEE_API_RATE_LIMIT_MAX_CLIENTS` | 65536 | 内存中最多保留的桶数，超过时淘汰最久未用者（16～1048576） |
 | `timeoutSeconds` | `JELEE_API_TIMEOUT_SECONDS` | `max(30, requestTimeoutSeconds)` | 非串流请求的整体处理时限（秒，不得小于 `requestTimeoutSeconds`，至多 600） |
 | `maxBodyBytes` | `JELEE_API_MAX_BODY_BYTES` | 8388608 | 请求体上限（2 MiB～256 MiB） |

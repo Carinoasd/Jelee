@@ -380,6 +380,12 @@ func TestGuardPolicyClassifiesRoutes(t *testing.T) {
 		{"HEAD", "/api/v1/sources/" + sourceID + "/subtitles/" + itemID, guardPolicy{}},
 		{"GET", "/api/v1/sources/" + sourceID + "/embedded-subtitles/2.sub", guardPolicy{}},
 		{"GET", "/images/primary/" + itemID, guardPolicy{}},
+		// Image variants and chapter images share the image route: never
+		// charged to the client's bucket (images.maxConcurrent admits them).
+		{"GET", "/images/Chapter/" + itemID + "?index=3&maxWidth=320&format=webp", guardPolicy{}},
+		{"HEAD", "/images/Backdrop/" + itemID + "?index=1&quality=70", guardPolicy{}},
+		{"GET", "/compat/Items/" + itemID + "/Images/Chapter/2", guardPolicy{}},
+		{"GET", "/compat/Items/" + itemID + "/Images/Primary?maxWidth=200", guardPolicy{}},
 		{"GET", "/api/v1/items/" + itemID + "/playback", guardPolicy{}},
 		{"POST", "/api/v1/items/" + itemID + "/playback/check", guardPolicy{}},
 		{"GET", "/compat/Videos/" + itemID + "/stream.mkv", guardPolicy{}},

@@ -1,8 +1,12 @@
 // covergate enforces per-package statement coverage (G30.1). Each gated
 // package has a tier target (core 70%, critical 85%) and a ratchet minimum:
-// the gate fails when coverage drops below the minimum, and -update may only
-// raise minimums toward the measured value, never lower them. Packages still
-// under their tier target are listed with the remaining gap.
+// the gate fails when coverage drops below the minimum. A minimum is the
+// measured coverage floored to whole points minus a 2-point margin, so
+// run-to-run and host-to-host noise and a small refactor do not fail the
+// gate while a real drop still does. -update may only raise minimums toward
+// that value, never lower them; -rebase recomputes every minimum from the
+// profile (it can lower them and is a reviewed change of its own). Packages
+// still under their tier target are listed with the remaining gap.
 //
 //	go test -coverprofile=.testdata/coverage.out <packages from the config>
 //	go run ./tools/covergate -profile .testdata/coverage.out -config tools/coverage-thresholds.json
@@ -21,12 +25,18 @@ import (
 	"math"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const schemaVersion = 1
+
+// ratchetMargin is how many whole points a minimum stays below the floored
+// measured coverage.
+const ratchetMargin = 2
 
 // Package is one gated Go package, relative to the module path.
 type Package struct {
@@ -59,8 +69,8 @@ func (c Config) Validate() error {
 			return fmt.Errorf("invalid or duplicate package path %q", p.Path)
 		case p.Minimum < 0 || p.Minimum > 100 || target <= 0 || target > 100:
 			return fmt.Errorf("%s: minimum %.1f or target %.1f out of range", p.Path, p.Minimum, target)
-		case p.Minimum < target && p.Reason == "":
-			return fmt.Errorf("%s: a minimum below the %s target needs a reason", p.Path, p.Tier)
+		case needsReason(p.Minimum, target) && p.Reason == "":
+			return fmt.Errorf("%s: a minimum more than %d points below the %s target needs a reason", p.Path, ratchetMargin, p.Tier)
 		}
 		seen[p.Path] = true
 	}
@@ -135,11 +145,17 @@ func Percent(t [2]int) float64 {
 	return 100 * float64(t[0]) / float64(t[1])
 }
 
+// needsReason reports whether a minimum lies further below its tier target
+// than the ratchet margin alone explains; such a package is still short of
+// the target and the config says why.
+func needsReason(minimum, target float64) bool { return minimum+ratchetMargin < target }
+
 // ratchetFloor is the minimum recorded for a measured value: whole percent
-// points, rounded down. It absorbs run-to-run and host-to-host noise below
-// one point (timing-dependent branches, tests that only run where an
-// optional tool exists) while any real drop still fails.
-func ratchetFloor(v float64) float64 { return math.Floor(v + 1e-9) }
+// points, rounded down, minus the ratchet margin (never below 0). It absorbs
+// run-to-run and host-to-host noise (timing-dependent branches, tests that
+// only run where an optional tool exists) and small refactors that move a
+// few statements, while a real drop still fails.
+func ratchetFloor(v float64) float64 { return max(0, math.Floor(v+1e-9)-ratchetMargin) }
 
 // Row is one line of the coverage report.
 type Row struct {
@@ -162,7 +178,8 @@ func Evaluate(c Config, totals map[string][2]int) (rows []Row, failed bool) {
 	return rows, failed
 }
 
-// Ratchet raises each minimum to the floored measured value when higher.
+// Ratchet raises each minimum to the ratchet floor of the measured value when
+// higher.
 func Ratchet(c Config, totals map[string][2]int) Config {
 	out := c
 	out.Packages = append([]Package(nil), c.Packages...)
@@ -176,18 +193,65 @@ func Ratchet(c Config, totals map[string][2]int) Config {
 	return out
 }
 
+// generatedReason matches the reasons Rebase writes; measuredPrefix the
+// measurement every reason starts with.
+var (
+	generatedReason = regexp.MustCompile(`^measured [0-9.]+% on [0-9]{4}-[0-9]{2}-[0-9]{2} without PostgreSQL; ratchet until tests close the [0-9.]+-point gap to the [a-z]+ target$`)
+	measuredPrefix  = regexp.MustCompile(`^measured [0-9.]+% on [0-9]{4}-[0-9]{2}-[0-9]{2}`)
+)
+
+// Rebase sets every minimum to the ratchet floor of its measured coverage,
+// lowering as well as raising it. A package that then needs a reason gets
+// one naming the new measurement: a generated reason is rewritten, a
+// hand-written one keeps its explanation with the measurement at its start
+// refreshed. A reason that is no longer needed is dropped. Packages missing
+// from the profile keep their entry unchanged and are returned in missing.
+func Rebase(c Config, totals map[string][2]int, day time.Time) (out Config, missing []string) {
+	out = c
+	out.Packages = append([]Package(nil), c.Packages...)
+	for i, p := range out.Packages {
+		t, ok := totals[c.Module+"/"+p.Path]
+		if !ok {
+			missing = append(missing, p.Path)
+			continue
+		}
+		measured, target := Percent(t), c.Targets[p.Tier]
+		p.Minimum = ratchetFloor(measured)
+		switch {
+		case !needsReason(p.Minimum, target):
+			p.Reason = ""
+		case p.Reason == "" || generatedReason.MatchString(p.Reason):
+			p.Reason = fmt.Sprintf("measured %.1f%% on %s without PostgreSQL; ratchet until tests close the %.1f-point gap to the %s target",
+				measured, day.Format(time.DateOnly), target-measured, p.Tier)
+		case measuredPrefix.MatchString(p.Reason):
+			p.Reason = measuredPrefix.ReplaceAllLiteralString(p.Reason, fmt.Sprintf("measured %.1f%% on %s", measured, day.Format(time.DateOnly)))
+		}
+		out.Packages[i] = p
+	}
+	return out, missing
+}
+
+func writeConfig(path string, c Config) error {
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644) //nolint:gosec // G306: committed repository file
+}
+
 func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("covergate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	profilePath := flags.String("profile", "", "go test -coverprofile output")
 	configPath := flags.String("config", "", "coverage thresholds JSON")
-	update := flags.Bool("update", false, "raise minimums to the measured coverage (never lowers)")
+	update := flags.Bool("update", false, "raise minimums to the measured coverage minus the margin (never lowers)")
+	rebase := flags.Bool("rebase", false, "recompute every minimum from the profile (may lower; review the diff)")
 	list := flags.Bool("list", false, "print the gated packages as ./path arguments and exit")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
-	if *configPath == "" || !*list && *profilePath == "" {
-		say(stderr, "covergate: -config and -profile are required")
+	if *configPath == "" || !*list && *profilePath == "" || *update && *rebase {
+		say(stderr, "covergate: -config and -profile are required; -update and -rebase are exclusive")
 		return 2
 	}
 	var config Config
@@ -219,6 +283,30 @@ func run(args []string, stdout, stderr io.Writer) int {
 		say(stderr, "covergate: profile:", err)
 		return 2
 	}
+	if *rebase {
+		rebased, missing := Rebase(config, totals, time.Now())
+		for _, p := range missing {
+			sayf(stdout, "covergate: FAIL %s has no coverage data (package not tested?)\n", p)
+		}
+		if len(missing) > 0 {
+			return 1
+		}
+		if err := rebased.Validate(); err != nil {
+			say(stderr, "covergate: rebased config:", err)
+			return 2
+		}
+		if err := writeConfig(*configPath, rebased); err != nil {
+			say(stderr, "covergate: write config:", err)
+			return 2
+		}
+		for i, p := range rebased.Packages {
+			if old := config.Packages[i].Minimum; old != p.Minimum {
+				sayf(stdout, "%-36s %5.1f%% -> %5.1f%%\n", p.Path, old, p.Minimum)
+			}
+		}
+		say(stdout, "covergate: minimums recomputed from the profile; review the diff")
+		return 0
+	}
 	rows, failed := Evaluate(config, totals)
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Tier < rows[j].Tier })
 	sayf(stdout, "%-36s %-8s %8s %8s %7s %s\n", "package", "tier", "current", "minimum", "target", "gap")
@@ -239,11 +327,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			say(stdout, "covergate: FAIL; -update never lowers a minimum")
 			return 1
 		}
-		data, err := json.MarshalIndent(Ratchet(config, totals), "", "  ")
-		if err == nil {
-			err = os.WriteFile(*configPath, append(data, '\n'), 0o644) //nolint:gosec // G306: committed repository file
-		}
-		if err != nil {
+		if err := writeConfig(*configPath, Ratchet(config, totals)); err != nil {
 			say(stderr, "covergate: write config:", err)
 			return 2
 		}

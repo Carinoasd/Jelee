@@ -2,10 +2,13 @@ package tracing
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/platform/tlstrust"
 )
 
 // The OTLP export settings are checked here, without the exporter's
@@ -36,11 +39,13 @@ const (
 
 // OTLPSettings configure the OTLP/HTTP span exporter. Endpoint is an
 // absolute http or https URL; http requires Insecure and a loopback IP
-// literal. Zero numbers select the defaults.
+// literal. CAFile, only for https, replaces the system roots with the PEM
+// certificates it holds. Zero numbers select the defaults.
 type OTLPSettings struct {
 	Endpoint  string
 	Headers   map[string]string
 	Insecure  bool
+	CAFile    string
 	Timeout   time.Duration
 	BatchSize int
 	Interval  time.Duration
@@ -55,7 +60,28 @@ func (s OTLPSettings) Validate() error {
 	if err := ValidateOTLPHeaders(s.Headers); err != nil {
 		return err
 	}
+	if err := ValidateOTLPCAFile(s.CAFile, s.Insecure); err != nil {
+		return err
+	}
 	return ValidateOTLPBounds(s.Timeout, s.BatchSize, s.Interval, s.QueueSize)
+}
+
+var errCAInsecure = errors.New("trace export caFile applies to an https endpoint only")
+
+// ValidateOTLPCAFile checks that the CA file, when set, is readable and
+// holds only PEM certificates; it is refused together with insecure (plain
+// http has no certificate). Errors name neither path nor contents.
+func ValidateOTLPCAFile(path string, insecure bool) error {
+	if path == "" {
+		return nil
+	}
+	if insecure {
+		return errCAInsecure
+	}
+	if _, err := tlstrust.LoadPool(path); err != nil {
+		return fmt.Errorf("trace export caFile: %w", err)
+	}
+	return nil
 }
 
 var (

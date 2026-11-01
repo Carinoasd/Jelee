@@ -8,7 +8,7 @@ import (
 func TestAPIConfigDefaultsEnvironmentAndBounds(t *testing.T) {
 	var zero APIConfig
 	r := zero.RateLimit
-	if !r.RateLimited() || r.Rate() != 20 || r.BurstSize() != 100 || r.Clients() != 65536 || zero.BodyLimit() != 8<<20 || zero.Validate(15) != nil {
+	if !r.RateLimited() || r.Rate() != 50 || r.BurstSize() != 300 || r.Clients() != 65536 || zero.BodyLimit() != 8<<20 || zero.Validate(15) != nil {
 		t.Fatalf("zero value must select the documented defaults: %+v", zero)
 	}
 	if zero.Timeout(15) != 30*time.Second || zero.Timeout(60) != time.Minute {
