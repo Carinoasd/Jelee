@@ -61,7 +61,7 @@
 | 环境变量（`JELEE_LOG_FORWARD_` 之后） | 配置文件键 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `SYSLOG_ADDRESS` | `address` | 空 | 开关。`host:port`，或 `unix`／`unixgram` 的绝对路径 |
-| `SYSLOG_NETWORK` | `network` | `udp` | `udp`、`tcp`、`tls`（RFC 5425，系统根证书）、`unix`、`unixgram`；Windows 上 `unix*` 拒绝启动 |
+| `SYSLOG_NETWORK` | `network` | `udp` | `udp`、`tcp`、`tls`（RFC 5425，系统根证书或 `caFile`）、`unix`、`unixgram`；Windows 上 `unix*` 拒绝启动 |
 | `SYSLOG_FACILITY` | `facility` | `local0` | `user`、`daemon`、`auth`、`authpriv`、`local0`–`local7` |
 | `SYSLOG_APP_NAME`／`SYSLOG_HOSTNAME` | `appName`／`hostname` | `jelee`／本机主机名 | RFC 5424 的 APP-NAME 与 HOSTNAME |
 | `SYSLOG_FRAMING` | `framing` | `octet-counting` | 流式连接的分帧：`octet-counting`（RFC 6587）或 `newline`；数据报每条一个包 |
@@ -70,6 +70,7 @@
 | `LOKI_BEARER_TOKEN`（或 `_BEARER_TOKEN_FILE`） | `bearerTokenFile` | 空 | Bearer 认证；与基本认证互斥 |
 | `LOKI_TENANT_ID` | `tenantId` | 空 | 多租户 Loki 的 `X-Scope-OrgID` |
 | `LOKI_SERVICE` | `service` | `jelee` | 标签 `service` 的值 |
+| `SYSLOG_`／`LOKI_` 加 `CA_FILE` | `caFile` | 空 | PEM 文件（可含多张 CA 证书），设定后只信任这些证书、不再用系统根证书；只用于 syslog `tls` 与 Loki `https`，其他网络或 `http` 拒绝启动；文件不存在、读不了、不是纯证书 PEM（例如混入私钥）也拒绝启动 |
 | `SYSLOG_`／`LOKI_` 加 `NAME` | `name` | 种类名 | 指标标签 `destination`，1–32 个小写字母、数字、`-`、`_`；重名自动加序号 |
 | `SYSLOG_`／`LOKI_` 加 `QUEUE_ENTRIES` | `queueEntries` | 4096 | 该目的地自己的队列长度，1–1048576 |
 | `SYSLOG_`／`LOKI_` 加 `BATCH_SIZE` | `batchSize` | 100 | 每次推送最多条数，1–10000（也受每批 1 MiB 限制） |
@@ -78,7 +79,7 @@
 
 **syslog 消息**：RFC 5424，`<PRI>1 时间戳 主机名 jelee 进程号 组件 - BOM+JSON`。PRI＝facility×8＋severity（DEBUG→7、INFO→6、WARN→4、ERROR→3），时间戳取记录自己的时间（UTC，微秒），MSGID 是记录的 `component`，没有结构化数据，MSG 是完整的 JSON 记录，因此收集器可以直接解析所有字段。数据报每条一个包（超过 32 KiB 的记录丢弃并计数）；流式连接断开后在下一批自动重连。
 
-**Loki 推送**：`POST /loki/api/v1/push`，`{"streams":[{"stream":{"service","component","level"},"values":[["<unix 纳秒>","<JSON 记录>"]]}]}`；同一批按 `component`＋`level` 分流、流内按时间排序。`component` 只允许 32 字符内的标识符（否则 `unknown`），`level` 是 `debug`／`info`／`warn`／`error`。其他字段留在日志行里，用 LogQL 的 `| json` 取出。TLS 一律用系统根证书校验，没有关闭校验或自带 CA 的选项；不跟随重定向（避免把凭证带到别处）。
+**Loki 推送**：`POST /loki/api/v1/push`，`{"streams":[{"stream":{"service","component","level"},"values":[["<unix 纳秒>","<JSON 记录>"]]}]}`；同一批按 `component`＋`level` 分流、流内按时间排序。`component` 只允许 32 字符内的标识符（否则 `unknown`），`level` 是 `debug`／`info`／`warn`／`error`。其他字段留在日志行里，用 LogQL 的 `| json` 取出。TLS 一律校验证书：默认用系统根证书，设了 `caFile` 就只信任该文件里的证书（自签或内部 CA 的收集器用它），没有关闭校验的选项；不跟随重定向（避免把凭证带到别处）。
 
 **队列、重试与丢弃**：
 
@@ -107,6 +108,23 @@ JELEE_LOG_FORWARD_LOKI_SERVICE=jelee-prod
   {"kind": "loki", "url": "https://loki.example.org", "username": "jelee",
    "passwordFile": "/run/secrets/loki_password", "tenantId": "home", "service": "jelee-prod"},
   {"kind": "syslog", "network": "tcp", "address": "syslog.example.org:514", "facility": "local0"}
+]}}
+```
+
+收集器用自签证书或内部 CA 时，把 CA 证书（PEM）挂进容器，指给 `caFile`：
+
+```
+JELEE_LOG_FORWARD_SYSLOG_ADDRESS=syslog.internal:6514
+JELEE_LOG_FORWARD_SYSLOG_NETWORK=tls
+JELEE_LOG_FORWARD_SYSLOG_CA_FILE=/run/secrets/log-ca.pem
+JELEE_LOG_FORWARD_LOKI_URL=https://loki.internal
+JELEE_LOG_FORWARD_LOKI_CA_FILE=/run/secrets/log-ca.pem
+```
+
+```json
+{"logging": {"forwarders": [
+  {"kind": "loki", "url": "https://loki.internal", "caFile": "/run/secrets/log-ca.pem"},
+  {"kind": "syslog", "network": "tls", "address": "syslog.internal:6514", "caFile": "/run/secrets/log-ca.pem"}
 ]}}
 ```
 

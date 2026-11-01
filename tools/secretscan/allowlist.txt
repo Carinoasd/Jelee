@@ -14,6 +14,7 @@
 # CI-only PostgreSQL service container password; the database exists only
 # inside the job and is reachable on the runner's loopback.
 bb5d633c69b310ef url-credentials .github/workflows/jelee.yml CI service container password, loopback-only throwaway database
+bb5d633c69b310ef url-credentials .github/workflows/jelee-memory.yml same CI service container password in the strict memory evidence workflow
 bb5d633c69b310ef url-credentials scripts/test_heap_profile_acceptance.py redaction test reuses the CI service password string as input
 
 # Redaction and configuration tests: the fake credentials are the input the

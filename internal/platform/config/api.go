@@ -31,9 +31,9 @@ type APIConfig struct {
 type APIRateLimitConfig struct {
 	// Mode is "on" (the default when empty) or "off".
 	Mode string `json:"mode"`
-	// RequestsPerSecond refills the bucket; 0 selects 20.
+	// RequestsPerSecond refills the bucket; 0 selects 50.
 	RequestsPerSecond int `json:"requestsPerSecond"`
-	// Burst is the bucket size; 0 selects 100.
+	// Burst is the bucket size; 0 selects 300.
 	Burst int `json:"burst"`
 	// MaxClients bounds the buckets held in memory, least recently used
 	// first out; 0 selects 65536.
@@ -41,8 +41,11 @@ type APIRateLimitConfig struct {
 }
 
 const (
-	defaultAPIRequestsPerSecond = 20
-	defaultAPIBurst             = 100
+	// A web client opening a library page fans out to listing, user data,
+	// filter and resume requests at once (images are exempt): 50/s with a
+	// burst of 300 leaves room for several such pages in a row.
+	defaultAPIRequestsPerSecond = 50
+	defaultAPIBurst             = 300
 	defaultAPIMaxClients        = 65536
 	defaultAPITimeoutSeconds    = 30
 	defaultAPIMaxBodyBytes      = 8 << 20

@@ -86,12 +86,13 @@ Webhook 分派器原本用的元件名 `webhooks` 不在 G46.2 元件清單內�
 | `JELEE_TRACE_OTLP_ENDPOINT` | `tracing.otlp.endpoint` | — | Collector 的完整網址；沒有路徑時用 `/v1/traces`。不得帶帳密、查詢字串或片段 |
 | `JELEE_TRACE_OTLP_HEADERS` | `tracing.otlp.headers` | — | 每次匯出附帶的標頭（認證、租戶）。環境變數寫成 `名稱=值,名稱=值`，值以百分比編碼（同 `OTEL_EXPORTER_OTLP_HEADERS`）；最多 16 個、合計 8 KiB；不可覆寫 `Content-Type`、`Content-Encoding`、`Host` 等由匯出器設定的標頭 |
 | `JELEE_TRACE_OTLP_INSECURE` | `tracing.otlp.insecure` | `false` | 允許明文 `http://`，**只限環回 IP 字面值**（`127.0.0.0/8`、`[::1]`，不接受 `localhost`）；其餘一律 `https://` |
+| `JELEE_TRACE_OTLP_CA_FILE` | `tracing.otlp.caFile` | — | PEM 檔（可含多張 CA 憑證），設定後 `https` 端點只信任這些憑證、不再用系統根憑證；與 `insecure` 互斥；檔案不存在、讀不了或不是純憑證 PEM 時不啟動 |
 | `JELEE_TRACE_OTLP_TIMEOUT_SECONDS` | `tracing.otlp.timeoutSeconds` | 10 | 1–60，每批匯出（含重試）的期限 |
 | `JELEE_TRACE_OTLP_BATCH_SIZE` | `tracing.otlp.batchSize` | 512 | 1–4096，每批最多 span 數 |
 | `JELEE_TRACE_OTLP_BATCH_INTERVAL_MS` | `tracing.otlp.batchIntervalMs` | 5000 | 100–60000，未滿一批時最長等待 |
 | `JELEE_TRACE_OTLP_QUEUE_SIZE` | `tracing.otlp.queueSize` | 2048 | 1–65536，等待匯出的 span 上限 |
 
-啟動校驗拒絕半套設定：`exporter=otlp` 沒有 `endpoint`、`exporter` 不是 `otlp` 卻設了任何 `tracing.otlp.*`、遠端明文 http、`https` 加 `insecure`、標頭不合法或數值越界，伺服器都不啟動，錯誤訊息不含端點與標頭內容。標頭多半是權杖，設定檔請比照資料庫網址以 0600 保存。
+啟動校驗拒絕半套設定：`exporter=otlp` 沒有 `endpoint`、`exporter` 不是 `otlp` 卻設了任何 `tracing.otlp.*`、遠端明文 http、`https` 加 `insecure`、`caFile` 讀不了或配 `insecure`、標頭不合法或數值越界，伺服器都不啟動，錯誤訊息不含端點與標頭內容。標頭多半是權杖，設定檔請比照資料庫網址以 0600 保存。
 
 ```json
 {
@@ -159,7 +160,11 @@ service:
 
 ### 連線與安全
 
-- 只連到設定的端點：不使用 `HTTP_PROXY` 等環境代理、不跟隨重新導向（避免把標頭裡的權杖帶到沒設定過的位址）、TLS 1.2 以上並使用系統根憑證，不提供略過憑證驗證的選項。自簽憑證的 Collector 請把 CA 加入系統信任庫，或在 Linux 以 `SSL_CERT_FILE`／`SSL_CERT_DIR` 指定。
+- 只連到設定的端點：不使用 `HTTP_PROXY` 等環境代理、不跟隨重新導向（避免把標頭裡的權杖帶到沒設定過的位址）、TLS 1.2 以上並驗證憑證，不提供略過憑證驗證的選項。預設信任系統根憑證；自簽或內部 CA 的 Collector 用 `caFile` 指定 CA 憑證（PEM），只信任該檔的憑證：
+
+  ```json
+  {"tracing": {"exporter": "otlp", "otlp": {"endpoint": "https://otel-collector.internal:4318", "caFile": "/run/secrets/collector-ca.pem"}}}
+  ```
 - `OTEL_EXPORTER_OTLP_*` 環境變數不能改變端點、標頭、憑證或逾時，也不需要設定（格式錯誤的值會被上游函式庫原樣印到 stderr，請不要把權杖放在這些變數裡）；整個行程也不註冊全域 OTel trace provider。
 - 不信任入站 `traceparent` 的規則不變；Webhook 對外請求仍不送 `traceparent`。
 

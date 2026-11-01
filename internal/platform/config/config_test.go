@@ -92,8 +92,9 @@ func TestConfigurationSizeAndCredentialBoundaries(t *testing.T) {
 
 func TestNumericAndRolloutEnvironmentValidation(t *testing.T) {
 	for _, entry := range []struct{ key, value string }{
-		{"JELEE_MAX_CONNECTIONS", "0"}, {"JELEE_MAX_CONNECTIONS", "129"}, {"JELEE_MAX_CONNECTIONS", "invalid"},
-		{"JELEE_MAX_STREAMS", "0"}, {"JELEE_MAX_STREAMS", "129"}, {"JELEE_MAX_STREAMS", "invalid"},
+		{"JELEE_MAX_CONNECTIONS", "0"}, {"JELEE_MAX_CONNECTIONS", "1025"}, {"JELEE_MAX_CONNECTIONS", "invalid"},
+		{"JELEE_MAX_CONNECTIONS", "4294967297"},
+		{"JELEE_MAX_STREAMS", "0"}, {"JELEE_MAX_STREAMS", "1025"}, {"JELEE_MAX_STREAMS", "invalid"},
 		{"JELEE_ENABLE_CATALOG", "invalid"}, {"JELEE_LISTEN", "localhost:8097"},
 		{"JELEE_LISTEN", "127.0.0.1:0"}, {"JELEE_LISTEN", "127.0.0.1:65536"},
 		{"JELEE_ALLOWED_HOSTS", "localhost,evil/host"},

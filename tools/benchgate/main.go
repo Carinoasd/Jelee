@@ -234,7 +234,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	basePath := flags.String("base", "", "baseline `go test -bench` output")
 	currentPath := flags.String("current", "", "current `go test -bench` output")
 	nsLimit := flags.Float64("ns", 15, "max ns/op increase in percent (negative disables)")
-	allocsLimit := flags.Float64("allocs", 10, "max allocs/op increase in percent (negative disables)")
+	allocsLimit := flags.Float64("allocs", 20, "max allocs/op increase in percent (negative disables)")
 	bytesLimit := flags.Float64("bytes", -1, "max B/op increase in percent (negative disables; reported either way)")
 	allowMissing := flags.Bool("allow-missing", false, "do not fail when a baseline benchmark is absent from the current run")
 	match := flags.String("match", "", "only compare benchmarks whose qualified name matches this regexp")

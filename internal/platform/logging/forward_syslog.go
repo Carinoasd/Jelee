@@ -3,11 +3,14 @@ package logging
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"net"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/platform/tlstrust"
 )
 
 // syslogFacilities maps the supported facility names to RFC 5424 codes.
@@ -35,14 +38,17 @@ type syslogSender struct {
 	app, host, procID string
 	octetCounting     bool
 	timeout           time.Duration
-	conn              net.Conn
+	// tlsConfig verifies the collector of the tls network: the system roots,
+	// or only the CA file's certificates.
+	tlsConfig *tls.Config
+	conn      net.Conn
 	// dial is replaced in tests.
 	dial func(ctx context.Context) (net.Conn, error)
 }
 
-func newSyslogSender(o SyslogOptions, timeout time.Duration) *syslogSender {
+func newSyslogSender(o SyslogOptions, timeout time.Duration, pool *x509.CertPool) *syslogSender {
 	s := &syslogSender{network: o.network(), address: o.Address, timeout: timeout, app: o.AppName, host: o.Hostname,
-		octetCounting: o.Framing != "newline", procID: strconv.Itoa(os.Getpid())}
+		octetCounting: o.Framing != "newline", procID: strconv.Itoa(os.Getpid()), tlsConfig: tlstrust.ClientConfig(pool)}
 	s.facility, _ = syslogFacility(o.Facility)
 	if s.app == "" {
 		s.app = "jelee"
@@ -73,7 +79,7 @@ func (s *syslogSender) maxRecord() int {
 func (s *syslogSender) defaultDial(ctx context.Context) (net.Conn, error) {
 	d := net.Dialer{Timeout: s.timeout}
 	if s.network == "tls" {
-		td := tls.Dialer{NetDialer: &d, Config: &tls.Config{MinVersion: tls.VersionTLS12}}
+		td := tls.Dialer{NetDialer: &d, Config: s.tlsConfig}
 		return td.DialContext(ctx, "tcp", s.address)
 	}
 	return d.DialContext(ctx, s.network, s.address)

@@ -30,11 +30,15 @@ type OTLPTraceConfig struct {
 	// are secrets: never logged or echoed in errors.
 	Headers map[string]string `json:"headers"`
 	// Insecure allows plain http, only to a loopback IP literal.
-	Insecure        bool `json:"insecure"`
-	TimeoutSeconds  int  `json:"timeoutSeconds"`
-	BatchSize       int  `json:"batchSize"`
-	BatchIntervalMs int  `json:"batchIntervalMs"`
-	QueueSize       int  `json:"queueSize"`
+	Insecure bool `json:"insecure"`
+	// CAFile is a PEM file of one or more CA certificates trusted instead of
+	// the system roots for an https endpoint. Certificates are always
+	// verified.
+	CAFile          string `json:"caFile"`
+	TimeoutSeconds  int    `json:"timeoutSeconds"`
+	BatchSize       int    `json:"batchSize"`
+	BatchIntervalMs int    `json:"batchIntervalMs"`
+	QueueSize       int    `json:"queueSize"`
 }
 
 // Tracing exporter kinds.
@@ -47,7 +51,7 @@ const (
 func (c TracingConfig) Enabled() bool { return c.Exporter == TraceExporterOTLP }
 
 func (c OTLPTraceConfig) set() bool {
-	return c.Endpoint != "" || len(c.Headers) > 0 || c.Insecure || c.TimeoutSeconds != 0 || c.BatchSize != 0 || c.BatchIntervalMs != 0 || c.QueueSize != 0
+	return c.Endpoint != "" || len(c.Headers) > 0 || c.Insecure || c.CAFile != "" || c.TimeoutSeconds != 0 || c.BatchSize != 0 || c.BatchIntervalMs != 0 || c.QueueSize != 0
 }
 
 // Validate refuses a half configured exporter. It never includes the
@@ -71,7 +75,7 @@ func (c TracingConfig) Validate() error {
 
 // Settings converts the configuration into exporter settings.
 func (c OTLPTraceConfig) Settings() tracing.OTLPSettings {
-	return tracing.OTLPSettings{Endpoint: c.Endpoint, Headers: c.Headers, Insecure: c.Insecure,
+	return tracing.OTLPSettings{Endpoint: c.Endpoint, Headers: c.Headers, Insecure: c.Insecure, CAFile: c.CAFile,
 		Timeout: time.Duration(c.TimeoutSeconds) * time.Second, BatchSize: c.BatchSize,
 		Interval: time.Duration(c.BatchIntervalMs) * time.Millisecond, QueueSize: c.QueueSize}
 }
@@ -85,6 +89,9 @@ func (c *TracingConfig) loadEnvironment(lookup func(string) (string, bool)) erro
 	}
 	if value, ok := lookup("JELEE_TRACE_OTLP_ENDPOINT"); ok {
 		c.OTLP.Endpoint = value
+	}
+	if value, ok := lookup("JELEE_TRACE_OTLP_CA_FILE"); ok {
+		c.OTLP.CAFile = value
 	}
 	if value, ok := lookup("JELEE_TRACE_OTLP_INSECURE"); ok {
 		b, err := strconv.ParseBool(value)

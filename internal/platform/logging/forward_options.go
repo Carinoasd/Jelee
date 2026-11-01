@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -8,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/platform/tlstrust"
 )
 
 // ForwarderOptions configures one log forwarder (G46.1). Its errors never
@@ -46,6 +49,9 @@ type SyslogOptions struct {
 	// Framing is octet-counting (default) or newline; it applies to the
 	// stream networks only.
 	Framing string
+	// CAFile is a PEM file of one or more CA certificates; set, only they
+	// are trusted for the tls network instead of the system roots.
+	CAFile string
 }
 
 // LokiOptions selects the Loki push destination.
@@ -61,6 +67,9 @@ type LokiOptions struct {
 	TenantID string
 	// Service is the value of the service label (default jelee).
 	Service string
+	// CAFile is a PEM file of one or more CA certificates; set, only they
+	// are trusted for an https URL instead of the system roots.
+	CAFile string
 }
 
 const lokiPushPath = "/loki/api/v1/push"
@@ -158,6 +167,14 @@ func (o SyslogOptions) validate(goos string) error {
 	if o.Hostname != "" && !printableASCII(o.Hostname, 255) {
 		return errors.New("syslog hostname must be up to 255 printable ASCII characters")
 	}
+	if o.CAFile != "" {
+		if network != "tls" {
+			return errors.New("syslog caFile requires network tls")
+		}
+		if _, err := tlstrust.LoadPool(o.CAFile); err != nil {
+			return fmt.Errorf("syslog caFile: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -200,6 +217,14 @@ func (o LokiOptions) validate() error {
 	}
 	if o.Service != "" && !safeToken(o.Service, 64, "_.-") {
 		return errors.New("invalid Loki service label")
+	}
+	if o.CAFile != "" {
+		if u.Scheme != "https" {
+			return errors.New("log forwarder Loki caFile requires an https URL")
+		}
+		if _, err := tlstrust.LoadPool(o.CAFile); err != nil {
+			return fmt.Errorf("log forwarder Loki caFile: %w", err)
+		}
 	}
 	return nil
 }
@@ -298,16 +323,36 @@ func NewForwarder(o ForwarderOptions) (Forwarder, error) {
 	co := forwardCoreOptions{name: o.Name, kind: o.Kind, queue: o.QueueEntries, batchSize: o.BatchSize, batchInterval: o.BatchInterval}
 	switch o.Kind {
 	case ForwardSyslog:
-		s := newSyslogSender(o.Syslog, timeout)
+		pool, err := caPool(o.Syslog.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		s := newSyslogSender(o.Syslog, timeout, pool)
 		co.maxRecord = s.maxRecord()
 		return newForwardCore(co, s), nil
 	default:
-		s, err := newLokiSender(o.Loki, timeout)
+		pool, err := caPool(o.Loki.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		s, err := newLokiSender(o.Loki, timeout, pool)
 		if err != nil {
 			return nil, err
 		}
 		return newForwardCore(co, s), nil
 	}
+}
+
+// caPool loads the configured CA file; no file selects the system roots.
+func caPool(path string) (*x509.CertPool, error) {
+	if path == "" {
+		return nil, nil
+	}
+	pool, err := tlstrust.LoadPool(path)
+	if err != nil {
+		return nil, fmt.Errorf("log forwarder caFile: %w", err)
+	}
+	return pool, nil
 }
 
 // loopbackHost reports whether host names the local machine.

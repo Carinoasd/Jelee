@@ -114,16 +114,30 @@ func TestRunExitCodes(t *testing.T) {
 	if code := run([]string{"-report", reportPath, "-baseline", baselinePath}, &out, &errs); code != 0 {
 		t.Fatalf("unchanged report exit %d: %s", code, out.String())
 	}
-	// A fixed finding fails until the baseline is pruned.
+	// A fixed finding only warns, listing the stale entry; -strict fails
+	// until the baseline is pruned.
 	writeJSON(t, reportPath, report(old.Issues[0]))
 	out.Reset()
-	if code := run([]string{"-report", reportPath, "-baseline", baselinePath}, &out, &errs); code != 1 || !strings.Contains(out.String(), "lint-baseline-prune") {
+	if code := run([]string{"-report", reportPath, "-baseline", baselinePath}, &out, &errs); code != 0 || !strings.Contains(out.String(), "warning: fixed but still baselined: a.go: errcheck: unchecked") ||
+		!strings.Contains(out.String(), "lint-baseline-prune") || strings.Contains(out.String(), "FAIL") {
 		t.Fatalf("fixed finding exit %d: %s", code, out.String())
 	}
+	out.Reset()
+	if code := run([]string{"-report", reportPath, "-baseline", baselinePath, "-strict"}, &out, &errs); code != 1 || !strings.Contains(out.String(), "FAIL the baseline must shrink") {
+		t.Fatalf("strict fixed finding exit %d: %s", code, out.String())
+	}
+	// A new finding still fails while a fixed one warns.
+	writeJSON(t, reportPath, report(issue("bodyclose", "b.go", 7, "response body must be closed", "resp, err := c.Do(r)")))
+	out.Reset()
+	if code := run([]string{"-report", reportPath, "-baseline", baselinePath}, &out, &errs); code != 1 || !strings.Contains(out.String(), "FAIL new findings") || !strings.Contains(out.String(), "warning: fixed but still baselined") {
+		t.Fatalf("new and fixed findings exit %d: %s", code, out.String())
+	}
+	writeJSON(t, reportPath, report(old.Issues[0]))
 	if code := run([]string{"-report", reportPath, "-baseline", baselinePath, "-prune"}, &out, &errs); code != 0 {
 		t.Fatalf("prune exit %d: %s", code, out.String())
 	}
-	if code := run([]string{"-report", reportPath, "-baseline", baselinePath}, &out, &errs); code != 0 {
+	out.Reset()
+	if code := run([]string{"-report", reportPath, "-baseline", baselinePath, "-strict"}, &out, &errs); code != 0 || strings.Contains(out.String(), "warning") {
 		t.Fatalf("after prune exit %d: %s", code, out.String())
 	}
 	// A new finding fails and is printed with its position.

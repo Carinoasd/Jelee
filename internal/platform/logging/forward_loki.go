@@ -3,7 +3,7 @@ package logging
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,10 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MoYuanCN/Jelee/internal/platform/tlstrust"
 )
 
 // lokiSender pushes batches to the Loki HTTP API. TLS verification uses the
-// system roots; there is no switch to turn it off.
+// system roots, or only the CA file's certificates when one is configured;
+// there is no switch to turn it off.
 type lokiSender struct {
 	endpoint string
 	service  string
@@ -22,7 +25,7 @@ type lokiSender struct {
 	client   *http.Client
 }
 
-func newLokiSender(o LokiOptions, timeout time.Duration) (*lokiSender, error) {
+func newLokiSender(o LokiOptions, timeout time.Duration, pool *x509.CertPool) (*lokiSender, error) {
 	u, err := o.parseURL()
 	if err != nil {
 		return nil, err
@@ -45,7 +48,7 @@ func newLokiSender(o LokiOptions, timeout time.Duration) (*lokiSender, error) {
 		s.header.Set("X-Scope-OrgID", o.TenantID)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	transport.TLSClientConfig = tlstrust.ClientConfig(pool)
 	transport.ResponseHeaderTimeout = timeout
 	transport.MaxIdleConns, transport.MaxIdleConnsPerHost = 2, 2
 	s.client = &http.Client{

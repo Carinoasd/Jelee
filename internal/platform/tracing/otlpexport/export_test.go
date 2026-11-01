@@ -481,7 +481,7 @@ func TestNewRefusesUnsafeSettings(t *testing.T) {
 
 func TestHTTPClientIgnoresProxiesAndPinsTLS(t *testing.T) {
 	t.Setenv("HTTPS_PROXY", "http://192.0.2.1:3128")
-	client := newHTTPClient(time.Second)
+	client := newHTTPClient(time.Second, nil)
 	transport, ok := client.Transport.(*http.Transport)
 	if !ok || transport.Proxy != nil || transport.TLSClientConfig == nil || transport.TLSClientConfig.InsecureSkipVerify ||
 		transport.TLSClientConfig.MinVersion < tls.VersionTLS12 || transport.TLSClientConfig.RootCAs != nil || client.CheckRedirect == nil || client.Timeout != time.Second {

@@ -178,6 +178,11 @@ func TestRunExitCodes(t *testing.T) {
 	dropped := writeFile(t, dir, "dropped.txt", "pkg: p\nBenchmarkA-16 10 101 ns/op 8 B/op 1 allocs/op\n")
 	empty := writeFile(t, dir, "empty.txt", "PASS\n")
 	other := writeFile(t, dir, "other.txt", "pkg: q\nBenchmarkZ 10 1 ns/op\n")
+	// The default allocs/op gate is +20%: 58 -> 69 (+19%) passes, 58 -> 70
+	// (+20.7%) fails.
+	allocBase := writeFile(t, dir, "alloc-base.txt", "pkg: p\nBenchmarkB-4 10 100 ns/op 8 B/op 58 allocs/op\n")
+	allocWithin := writeFile(t, dir, "alloc-within.txt", "pkg: p\nBenchmarkB-4 10 100 ns/op 8 B/op 69 allocs/op\n")
+	allocOver := writeFile(t, dir, "alloc-over.txt", "pkg: p\nBenchmarkB-4 10 100 ns/op 8 B/op 70 allocs/op\n")
 	for _, tc := range []struct {
 		name string
 		args []string
@@ -188,6 +193,9 @@ func TestRunExitCodes(t *testing.T) {
 		{"ns regression", []string{"-base", base, "-current", slow}, 1, "regression p.BenchmarkA ns/op"},
 		{"ns gate disabled", []string{"-base", base, "-current", slow, "-ns", "-1"}, 0, "PASS"},
 		{"raised threshold", []string{"-base", base, "-current", slow, "-ns", "150"}, 0, "PASS"},
+		{"allocs within default", []string{"-base", allocBase, "-current", allocWithin}, 0, "PASS"},
+		{"allocs over default", []string{"-base", allocBase, "-current", allocOver}, 1, "regression p.BenchmarkB allocs/op"},
+		{"allocs stricter flag", []string{"-base", allocBase, "-current", allocWithin, "-allocs", "10"}, 1, "regression p.BenchmarkB allocs/op"},
 		{"missing fails", []string{"-base", base, "-current", dropped}, 1, "missing p.BenchmarkGone"},
 		{"missing allowed", []string{"-base", base, "-current", dropped, "-allow-missing"}, 0, "PASS"},
 		{"match narrows", []string{"-base", base, "-current", dropped, "-match", `BenchmarkA$`}, 0, "PASS"},
@@ -214,7 +222,7 @@ func TestRunExitCodes(t *testing.T) {
 func TestRunAcceptsReviewedRegressionsUpToCeiling(t *testing.T) {
 	dir := t.TempDir()
 	base := writeFile(t, dir, "base.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 10 allocs/op\n")
-	more := writeFile(t, dir, "more.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 12 allocs/op\n")
+	more := writeFile(t, dir, "more.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 13 allocs/op\n")
 	much := writeFile(t, dir, "much.txt", "pkg: p\nBenchmarkA-4 10 100 ns/op 8 B/op 20 allocs/op\n")
 	ok := writeFile(t, dir, "ok.json", `[{"benchmark":"p.BenchmarkA","unit":"allocs/op","max":13,"reason":"prefilter built at compile time"}]`)
 	otherUnit := writeFile(t, dir, "unit.json", `[{"benchmark":"p.BenchmarkA","unit":"ns/op","max":1000,"reason":"r"}]`)

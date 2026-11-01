@@ -64,7 +64,7 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 
 - 同一基準的多次執行（`-count`）先取中位數，再比較基線與目前的中位數；單次離群值不會單獨造成通過或失敗。
 - 基準名稱會加上 `pkg:` 前綴並去掉 `-N`（GOMAXPROCS）尾碼，不同核心數的機器仍能對上。
-- ns/op 增加超過 15%（`-ns`）或 allocs/op 增加超過 10%（`-allocs`）即退化；B/op 預設只列出不擋（`-bytes 20` 可啟用）。門檻設負值就停用該項。基線為 0 而目前大於 0 視為無限大增幅。B/op 的絕對增加在 64 位元組以內一律不算退化：分配次數很少的基準會把偶發的執行階段分配攤成幾十位元組，對很小的基線是大比例，但不是退化（例：`BenchmarkImageSourceCopy` 在程式未改動時 48 → 59 B/op，allocs/op 都是 2）。
+- ns/op 增加超過 15%（`-ns`）或 allocs/op 增加超過 20%（`-allocs`，2026-11-01 前為 10%）即退化；B/op 預設只列出不擋（`-bytes 20` 可啟用）。門檻設負值就停用該項。基線為 0 而目前大於 0 視為無限大增幅。B/op 的絕對增加在 64 位元組以內一律不算退化：分配次數很少的基準會把偶發的執行階段分配攤成幾十位元組，對很小的基線是大比例，但不是退化（例：`BenchmarkImageSourceCopy` 在程式未改動時 48 → 59 B/op，allocs/op 都是 2）。
 - 基線有、目前沒有的基準算失敗（`-allow-missing` 可放行），新增但沒有基線的基準只列出不擋；`-match` 可限縮比對範圍。
 - 結束碼：0 通過、1 有退化或缺項（列出每一項）、2 用法或輸入錯誤（檔案不存在、沒有任何基準結果、兩邊沒有共同基準）。
 
@@ -72,9 +72,9 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 
 目前提交的基線是在開發機（Ryzen 7 9850X3D、WSL2、go1.27.1、同時有其他負載）上產生，只供參考。同機連跑兩次的 ns/op 中位數差距最多約 11%，已接近 15% 門檻，所以正式基線必須在固定且閒置的 CI 硬體上用 `make bench` 重產並替換，門禁才有判斷力。每個優化提交仍應附 benchstat 前後數據（G26.4）；本工具是回歸門禁，不取代 benchstat 的統計檢定。
 
-CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-compare` 在同一台 runner 上交替執行基準提交（PR base 或前一次 push）與目前提交的同一組基準，再用 benchgate 判定（ns/op +25%、allocs/op +10%、B/op +20%）。做法、門檻取捨與反向驗證見 [質量門禁](quality-gates.md#基準回歸同機比較)。
+CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-compare` 在同一台 runner 上交替執行基準提交（PR base 或前一次 push）與目前提交的同一組基準，再用 benchgate 判定（ns/op +25%、allocs/op +20%、B/op +20%）。做法、門檻取捨與反向驗證見 [質量門禁](quality-gates.md#基準回歸同機比較)。
 
-G08.1、G08.7 的請求守衛（處理期限、請求體上限、限流）是每個請求都付的成本，`BenchmarkBoundaryRequest`（`/healthz` 經完整邊界）由 58 allocs/op、4,434 B/op 變為 69 allocs/op、5,890 B/op（開發機，`-count 3` 中位數）。守衛路徑分類原本用 `strings.Split`，改為不配置的固定陣列切分；`Traceparent` 標頭用標準拼寫省去每請求的名稱正規化；剩下的是處理期限 context 與計時器、帶期限的請求副本、逾時寫入器與標頭本身，記入 `tools/bench-accepted.json`（上限 72 allocs/op、6,100 B/op）。限流器對 `/healthz` 不生效，所以這裡量不到它；限流桶的成本見 `TestAPIRateLimiterBucketsRefillAndEvict` 所覆蓋的單一 map 查找與 LRU 搬移。
+G08.1、G08.7 的請求守衛（處理期限、請求體上限、限流）是每個請求都付的成本，`BenchmarkBoundaryRequest`（`/healthz` 經完整邊界）由 58 allocs/op、4,434 B/op 變為 69 allocs/op、5,890 B/op（開發機，`-count 3` 中位數）。守衛路徑分類原本用 `strings.Split`，改為不配置的固定陣列切分；`Traceparent` 標頭用標準拼寫省去每請求的名稱正規化；剩下的是處理期限 context 與計時器、帶期限的請求副本、逾時寫入器與標頭本身。allocs/op +19% 在 +20% 門檻內；B/op +33% 記入 `tools/bench-accepted.json`（上限 6,100 B/op）。限流器對 `/healthz` 不生效，所以這裡量不到它；限流桶的成本見 `TestAPIRateLimiterBucketsRefillAndEvict` 所覆蓋的單一 map 查找與 LRU 搬移。
 
 ## 直投首字节与 Seek 本机基线（G10.1、G10.7、G29.5）
 
