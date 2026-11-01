@@ -273,6 +273,8 @@ describe("site appearance (G33.2–G33.5)", () => {
     expect((tile("Poster shape", "Portrait").element as HTMLInputElement).checked).toBe(true);
     await tile("Theme", "Dark").setValue(true);
     await tile("Poster shape", "Landscape").setValue(true);
+    expect((tile("Density", "Comfortable").element as HTMLInputElement).checked).toBe(true);
+    await tile("Density", "Compact").setValue(true);
     await tile("Default view", "List").setValue(true);
     const [light, dark] = defaults.findAll("textarea");
     await light!.setValue("color-primary: #0f766e\nz-index: 3\ncolor-bg: url(/x.png)");
@@ -289,7 +291,7 @@ describe("site appearance (G33.2–G33.5)", () => {
     expect(site.writes).toEqual(["appearance:update"]);
     expect(site.appearance.defaultTheme).toBe("dark");
     // Only what the administrator changed is set; the rest keeps following the built-in values.
-    expect(site.appearance.defaultDisplay).toEqual({ palette: null, posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
+    expect(site.appearance.defaultDisplay).toEqual({ palette: null, density: "compact", posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
     expect(site.appearance.tokens).toEqual({ light: { "color-primary": "#0f766e" }, dark: { "font-family": '"Noto Sans", sans-serif' } });
     expect(site.appearance.defaultLayout).toEqual(toUserLayout(builtInPresets.focused, []).current);
     expect(appliedCss()).toContain("--jl-color-primary: #0f766e");
@@ -298,42 +300,56 @@ describe("site appearance (G33.2–G33.5)", () => {
     // built-in value of a member set before keeps it set.
     await tile("Theme", "Sepia").setValue(true);
     await tile("Poster shape", "Portrait").setValue(true);
+    await tile("Density", "Comfortable").setValue(true);
     await defaults.find("form").trigger("submit");
     await flushPromises();
     expect(site.appearance.defaultTheme).toBe("light");
-    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
+    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", density: "comfortable", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
     // Saving the CSS keeps the display defaults.
     await wrapper.find("textarea").setValue("a { color: red }");
     await wrapper.find("form").trigger("submit");
     await flushPromises();
-    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
+    expect(site.appearance.defaultDisplay).toEqual({ palette: "sepia", density: "comfortable", posterRatio: "portrait", posterSize: null, listDensity: null, view: "list" });
   });
 
   it("applies the display choices member by member: the user's, then the site default, then the built-in value", async () => {
-    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, posterRatio: "landscape", posterSize: "large", listDensity: null, view: "list" } };
-    server.preferences = { theme: "system", density: "comfortable", layout: null, display: { palette: null, posterRatio: null, posterSize: "small", listDensity: null, view: null } };
+    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, density: "compact", posterRatio: "landscape", posterSize: "large", listDensity: null, view: "list" } };
+    server.preferences = { theme: "system", density: "comfortable", layout: null, display: { palette: null, density: null, posterRatio: null, posterSize: "small", listDensity: null, view: null } };
     const { run } = host(regular());
     const preferences = run(() => usePreferencesStore());
     await flushPromises();
-    expect(preferences.display).toEqual({ palette: null, posterRatio: "landscape", posterSize: "small", listDensity: "comfortable", view: "list" });
+    // The account stored the default comfortable density without choosing it: the site's compact applies.
+    expect(preferences.display).toEqual({ palette: null, density: "compact", posterRatio: "landscape", posterSize: "small", listDensity: "comfortable", view: "list" });
     const root = document.documentElement.dataset;
-    expect([root.poster, root.posterSize, root.listDensity]).toEqual(["landscape", "small", undefined]);
+    expect([root.poster, root.posterSize, root.listDensity, root.density]).toEqual(["landscape", "small", undefined, "compact"]);
 
     // Choosing one member stores that member only.
     await preferences.setDisplay({ view: "poster" });
-    expect(server.preferences.display).toEqual({ palette: null, posterRatio: null, posterSize: "small", listDensity: null, view: "poster" });
+    expect(server.preferences.display).toEqual({ palette: null, density: null, posterRatio: null, posterSize: "small", listDensity: null, view: "poster" });
+    expect(server.preferences.density).toBe("comfortable");
 
     // A later site change still reaches the members the user never chose.
-    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, posterRatio: "square", posterSize: "large", listDensity: "compact", view: "list" } };
+    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, density: null, posterRatio: "square", posterSize: "large", listDensity: "compact", view: "list" } };
     await run(() => useSiteAppearanceStore()).load();
-    expect(preferences.display).toEqual({ palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "poster" });
-    expect([root.poster, root.listDensity]).toEqual(["square", "compact"]);
+    expect(preferences.display).toEqual({ palette: null, density: "comfortable", posterRatio: "square", posterSize: "small", listDensity: "compact", view: "poster" });
+    expect([root.poster, root.listDensity, root.density]).toEqual(["square", "compact", undefined]);
+
+    // The user's own density wins over the site's, and is kept when it equals the built-in value.
+    site.appearance = { ...site.appearance, defaultDisplay: { palette: null, density: "compact", posterRatio: null, posterSize: null, listDensity: null, view: null } };
+    await run(() => useSiteAppearanceStore()).load();
+    expect(root.density).toBe("compact");
+    await preferences.setDensity("comfortable");
+    expect(root.density).toBeUndefined();
+    expect(server.preferences.density).toBe("comfortable");
+    expect(server.preferences.display?.density).toBe("comfortable");
+    await preferences.setDensity("compact");
+    expect([root.density, server.preferences.density, server.preferences.display?.density]).toEqual(["compact", "compact", "compact"]);
 
     // Without a site default the built-in values apply.
     site.appearance = { ...site.appearance, defaultDisplay: null };
     await run(() => useSiteAppearanceStore()).load();
-    expect(preferences.display).toEqual({ palette: null, posterRatio: "portrait", posterSize: "small", listDensity: "comfortable", view: "poster" });
-    for (const name of ["data-poster", "data-poster-size", "data-list-density"]) {
+    expect(preferences.display).toEqual({ palette: null, density: "compact", posterRatio: "portrait", posterSize: "small", listDensity: "comfortable", view: "poster" });
+    for (const name of ["data-density", "data-poster", "data-poster-size", "data-list-density"]) {
       document.documentElement.removeAttribute(name);
     }
   });
@@ -388,7 +404,7 @@ describe("account layout (G33.5)", () => {
     server.preferences = {
       theme: "dark",
       density: "compact",
-      display: { palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" },
+      display: { palette: null, density: "compact", posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" },
       layout: { current: { home: [{ id: "latest", visible: true }, { id: "welcome", visible: false }], detail: [] }, presets: [{ id: "custom-1", name: "Mine", layout: { home: [], detail: [] } }] },
     };
     const { run } = host(server.user);
@@ -406,7 +422,7 @@ describe("account layout (G33.5)", () => {
     expect(sent[0]!.theme).toBe("dark");
     expect(sent[0]!.density).toBe("compact");
     // A layout change keeps the stored display choices.
-    expect((sent[0] as { display?: unknown }).display).toEqual({ palette: null, posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" });
+    expect((sent[0] as { display?: unknown }).display).toEqual({ palette: null, density: "compact", posterRatio: "square", posterSize: "small", listDensity: "compact", view: "list" });
     expect(sent[0]!.layout.current.home).toContainEqual({ id: "welcome", visible: true });
     expect(server.preferences.layout?.presets).toHaveLength(1);
   });

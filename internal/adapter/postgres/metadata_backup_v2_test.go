@@ -235,24 +235,46 @@ func TestMetadataBackupDisplayPreferencesPostgres(t *testing.T) {
 	_, target, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
 	seedMetadataBackup(t, ctx, source, 0)
 	doc, _ := exportMetadataDoc(t, ctx, source, false)
-	if !strings.Contains(string(doc), `"posterRatio": "square"`) {
+	if !strings.Contains(string(doc), `"posterRatio": "square"`) || !strings.Contains(string(doc), `"view": "list", "density": "compact", "palette": "sepia"`) {
 		t.Fatal("display choices not exported")
 	}
-	bad := resealMetadataDoc(t, doc, func(kind, line string) string {
+	for _, replacement := range []string{`"view": "grid"`, `"view": "list", "density": "dense"`} {
+		bad := resealMetadataDoc(t, doc, func(kind, line string) string {
+			if kind == "user_preference" {
+				return strings.Replace(strings.Replace(line, `"view": "list", "density": "compact"`, `"view": "list", "density": "dense"`, 1), `"view": "list"`, replacement, 1)
+			}
+			return line
+		})
+		if string(bad) == string(doc) {
+			t.Fatal("document edit did not apply")
+		}
+		report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
+		if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["user_preference:settings_invalid"] != 1 {
+			t.Fatalf("invalid display %s: %v %v", replacement, err, report.ConflictTotals)
+		}
+	}
+	// A backup written before density existed restores it unset.
+	legacy := resealMetadataDoc(t, doc, func(kind, line string) string {
 		if kind == "user_preference" {
-			return strings.Replace(line, `"view": "list"`, `"view": "grid"`, 1)
+			return strings.Replace(line, `"view": "list", "density": "compact", `, `"view": "list", `, 1)
 		}
 		return line
 	})
-	if string(bad) == string(doc) {
+	if string(legacy) == string(doc) {
 		t.Fatal("document edit did not apply")
 	}
-	report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
-	if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["user_preference:settings_invalid"] != 1 {
-		t.Fatalf("invalid display: %v %v", err, report.ConflictTotals)
+	_, older, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
+	if _, err := importMetadataDoc(ctx, older, legacy, domain.MetadataImportOptions{}); err != nil {
+		t.Fatalf("import of a backup without density: %v", err)
 	}
-	if _, err = importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{}); err != nil {
+	if n := bkCount(t, ctx, older, `SELECT count(*) FROM user_preferences WHERE user_id='`+bkKid+`' AND display->>'view'='list' AND display->'density' IS NULL`); n != 1 {
+		t.Fatalf("legacy display gained a density: %d", n)
+	}
+	if _, err := importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{}); err != nil {
 		t.Fatalf("import: %v", err)
+	}
+	if n := bkCount(t, ctx, target, `SELECT count(*) FROM user_preferences WHERE user_id='`+bkKid+`' AND display->>'density'='compact'`); n != 1 {
+		t.Fatalf("density not restored: %d", n)
 	}
 	if n := bkCount(t, ctx, target, `SELECT count(*) FROM user_preferences WHERE user_id='`+bkKid+`' AND display->>'palette'='sepia' AND display->>'view'='list'`); n != 1 {
 		t.Fatalf("display not restored: %d", n)
@@ -270,22 +292,25 @@ func TestMetadataBackupSiteDefaultDisplayPostgres(t *testing.T) {
 	_, target, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
 	seedMetadataBackup(t, ctx, source, 0)
 	doc, _ := exportMetadataDoc(t, ctx, source, false)
-	if !strings.Contains(string(doc), `"posterRatio": "landscape"`) {
+	if !strings.Contains(string(doc), `"posterRatio": "landscape"`) || !strings.Contains(string(doc), `"view": "list", "density": "compact", "palette": null`) {
 		t.Fatal("site default display not exported")
 	}
-	bad := resealMetadataDoc(t, doc, func(kind, line string) string {
-		if kind == "site_appearance" {
-			return strings.Replace(line, `"view": "list"`, `"view": "grid"`, 1)
+	for _, replacement := range []string{`"view": "grid", "density": "compact"`, `"view": "list", "density": "dense"`} {
+		bad := resealMetadataDoc(t, doc, func(kind, line string) string {
+			if kind == "site_appearance" {
+				return strings.Replace(line, `"view": "list", "density": "compact"`, replacement, 1)
+			}
+			return line
+		})
+		if string(bad) == string(doc) {
+			t.Fatal("document edit did not apply")
 		}
-		return line
-	})
-	if string(bad) == string(doc) {
-		t.Fatal("document edit did not apply")
+		report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
+		if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["site_appearance:settings_invalid"] != 1 {
+			t.Fatalf("invalid default display %s: %v %v", replacement, err, report.ConflictTotals)
+		}
 	}
-	report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
-	if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["site_appearance:settings_invalid"] != 1 {
-		t.Fatalf("invalid default display: %v %v", err, report.ConflictTotals)
-	}
+	var err error
 	if _, err = importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{}); err != nil {
 		t.Fatalf("import: %v", err)
 	}

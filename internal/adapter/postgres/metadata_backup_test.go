@@ -52,10 +52,10 @@ const (
 )
 
 // bkDisplay is a set of display choices the preferences API accepts.
-const bkDisplay = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
+const bkDisplay = `{"palette":"sepia","density":"compact","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
 
 // bkSiteDisplay is a site default display the appearance API accepts.
-const bkSiteDisplay = `{"palette":null,"posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`
+const bkSiteDisplay = `{"palette":null,"density":"compact","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`
 
 // bkLayout is a user layout the preferences API accepts.
 const bkLayout = `{"current":{"home":[{"id":"resume","visible":true},{"id":"latest","visible":false}],"detail":[{"id":"cast","visible":true}]},"presets":[{"id":"custom-1","name":"Mine 我的","layout":{"home":[{"id":"latest","visible":true}],"detail":[]}}]}`

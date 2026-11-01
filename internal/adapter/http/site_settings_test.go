@@ -352,7 +352,7 @@ func TestSiteDefaultDisplayHTTP(t *testing.T) {
 	for _, value := range []string{
 		`[]`, `"sepia"`, `true`,
 		`{"palette":"light"}`, `{"palette":"Sepia"}`, `{"posterRatio":"wide"}`, `{"posterSize":"huge"}`,
-		`{"listDensity":"tiny"}`, `{"view":"grid"}`, `{"view":""}`, `{"view":1}`, `{"extra":null}`,
+		`{"listDensity":"tiny"}`, `{"density":"dense"}`, `{"density":"Compact"}`, `{"density":""}`, `{"density":1}`, `{"density":"compact","density":"comfortable"}`, `{"view":"grid"}`, `{"view":""}`, `{"view":1}`, `{"extra":null}`,
 		`{"view":"list","view":"poster"}`, `{"view":"list","VIEW":"poster"}`,
 		`{"view":"` + strings.Repeat("x", 2048) + `"}`,
 	} {
@@ -364,14 +364,14 @@ func TestSiteDefaultDisplayHTTP(t *testing.T) {
 		t.Fatalf("refused display reached storage: %v", store.writes)
 	}
 
-	put := f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", withDisplay(`{"palette":"contrast","posterRatio":"landscape","posterSize":null,"view":"list"}`), "a"))
+	put := f.serve(accountRequest(http.MethodPut, "/api/v1/site/appearance", withDisplay(`{"palette":"contrast","density":"compact","posterRatio":"landscape","posterSize":null,"view":"list"}`), "a"))
 	config := decodeData[domain.SiteAppearanceConfig](t, put)
-	if put.Code != 200 || config.DefaultDisplay == nil || *config.DefaultDisplay.Palette != domain.PaletteContrast || config.DefaultDisplay.PosterSize != nil || config.DefaultDisplay.ListDensity != nil {
+	if put.Code != 200 || config.DefaultDisplay == nil || *config.DefaultDisplay.Palette != domain.PaletteContrast || config.DefaultDisplay.Density == nil || *config.DefaultDisplay.Density != domain.DensityCompact || config.DefaultDisplay.PosterSize != nil || config.DefaultDisplay.ListDensity != nil {
 		t.Fatalf("put: %d %s", put.Code, put.Body.String())
 	}
 	// Every signed-in user reads the members, unset ones as null.
 	view := f.serve(accountRequest(http.MethodGet, "/api/v1/site/appearance", "", "u"))
-	if view.Code != 200 || !strings.Contains(view.Body.String(), `"defaultDisplay":{"palette":"contrast","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`) {
+	if view.Code != 200 || !strings.Contains(view.Body.String(), `"defaultDisplay":{"palette":"contrast","density":"compact","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}`) {
 		t.Fatalf("view: %d %s", view.Code, view.Body.String())
 	}
 	// An object without any member is no default.
@@ -383,7 +383,7 @@ func TestSiteDefaultDisplayHTTP(t *testing.T) {
 	// Export carries it; a settings file from before it existed imports as unset.
 	store.appearance.DefaultDisplay = &domain.UserDisplay{View: ptr(domain.ViewList)}
 	export := f.serve(accountRequest(http.MethodGet, "/api/v1/site/export", "", "a"))
-	if export.Code != 200 || !strings.Contains(export.Body.String(), `"defaultDisplay":{"palette":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":"list"}`) {
+	if export.Code != 200 || !strings.Contains(export.Body.String(), `"defaultDisplay":{"palette":null,"density":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":"list"}`) {
 		t.Fatalf("export: %s", export.Body.String())
 	}
 	const plugins = `"plugins":{"plugins":[],"settings":{}}`
@@ -393,16 +393,25 @@ func TestSiteDefaultDisplayHTTP(t *testing.T) {
 	if imported.Code != 200 || decodeData[domain.SiteSettingsImport](t, imported).Appearance.DefaultDisplay != nil || store.appearance.DefaultDisplay != nil {
 		t.Fatalf("old file: %d %s", imported.Code, imported.Body.String())
 	}
-	current := `{"format":"jelee.site-settings","version":1,"appearance":` + strings.Replace(appearance, `"defaultLayout"`, `"defaultDisplay":{"posterSize":"small","palette":null},"defaultLayout"`, 1) + `,` + plugins + `}`
-	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", current, "a")); w.Code != 200 || store.appearance.DefaultDisplay == nil || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall {
+	current := `{"format":"jelee.site-settings","version":1,"appearance":` + strings.Replace(appearance, `"defaultLayout"`, `"defaultDisplay":{"posterSize":"small","palette":null,"density":"compact"},"defaultLayout"`, 1) + `,` + plugins + `}`
+	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", current, "a")); w.Code != 200 || store.appearance.DefaultDisplay == nil || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall || store.appearance.DefaultDisplay.Density == nil || *store.appearance.DefaultDisplay.Density != domain.DensityCompact {
 		t.Fatalf("import: %d %s", w.Code, w.Body.String())
 	}
 	// A value outside the allow-lists refuses the whole file.
 	writes := len(store.writes)
-	bad := strings.Replace(current, `"posterSize":"small"`, `"posterSize":"giant"`, 1)
-	assertProblem(t, f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", bad, "a")), 400, "invalid_request")
+	for _, bad := range []string{
+		strings.Replace(current, `"posterSize":"small"`, `"posterSize":"giant"`, 1),
+		strings.Replace(current, `"density":"compact"`, `"density":"dense"`, 1),
+	} {
+		assertProblem(t, f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", bad, "a")), 400, "invalid_request")
+	}
 	if len(store.writes) != writes || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall {
 		t.Fatalf("a refused import wrote: %v", store.writes)
+	}
+	// A file written before density existed names the other members only; density imports as unset.
+	legacy := strings.Replace(current, `,"density":"compact"`, "", 1)
+	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/import", legacy, "a")); w.Code != 200 || store.appearance.DefaultDisplay == nil || store.appearance.DefaultDisplay.Density != nil || *store.appearance.DefaultDisplay.PosterSize != domain.PosterSizeSmall {
+		t.Fatalf("legacy import: %d %s", w.Code, w.Body.String())
 	}
 	// Reset drops it with everything else.
 	if w := f.serve(accountRequest(http.MethodPost, "/api/v1/site/appearance/reset", "{}", "a")); w.Code != 200 || decodeData[domain.SiteAppearanceConfig](t, w).DefaultDisplay != nil {

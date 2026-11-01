@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
 import { ApiError, networkError } from "@/api/errors";
-import UiChoiceGroup from "@/components/ui/UiChoiceGroup.vue";
 import { errorMessageKey } from "@/features/errors/messages";
 import type { ItemView } from "@/features/items/labels";
 import { useAuthStore } from "@/stores/auth";
-import { densities, usePreferencesStore, type Density, type ListDensity, type PosterRatio, type PosterSize, type Theme } from "@/stores/preferences";
+import { usePreferencesStore, type Density, type ListDensity, type PosterRatio, type PosterSize, type Theme } from "@/stores/preferences";
 import { useToastStore } from "@/stores/toasts";
 import DisplayChoices from "./DisplayChoices.vue";
 
@@ -14,16 +12,9 @@ import DisplayChoices from "./DisplayChoices.vue";
 // stored with the account (stores/preferences.ts); display members the user
 // never chose show the site default. The tiles are DisplayChoices, shared
 // with the administrator's site defaults.
-const { t } = useI18n();
 const auth = useAuthStore();
 const preferences = usePreferencesStore();
 const toasts = useToastStore();
-
-const densityKey: Readonly<Record<Density, string>> = {
-  comfortable: "settings.density.comfortable",
-  compact: "settings.density.compact",
-};
-const densityOptions = computed(() => densities.map((value) => ({ value, label: t(densityKey[value]) })));
 
 function failure(error: unknown): ApiError {
   return error instanceof ApiError ? error : networkError(error);
@@ -84,7 +75,5 @@ const view = computed({
 </script>
 
 <template>
-  <DisplayChoices v-model:theme="theme" v-model:poster-ratio="posterRatio" v-model:poster-size="posterSize" v-model:list-density="listDensity" v-model:view="view">
-    <UiChoiceGroup v-model="density" :legend="t('settings.density.label')" :options="densityOptions" />
-  </DisplayChoices>
+  <DisplayChoices v-model:theme="theme" v-model:density="density" v-model:poster-ratio="posterRatio" v-model:poster-size="posterSize" v-model:list-density="listDensity" v-model:view="view" />
 </template>
