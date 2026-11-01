@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { shallowRef, watch } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useApi } from "@/api";
 import { getPreferences, savePreferences, type UserPreferences } from "@/features/settings/api";
 import { itemViews, type ItemView } from "@/features/items/labels";
@@ -20,6 +20,7 @@ import {
 } from "@/theme/tokens";
 import { useAuthStore } from "./auth";
 import { readPersisted, removePersisted } from "./persist";
+import { useSiteAppearanceStore } from "./siteAppearance";
 
 /** Theme choices: the system scheme or one of the presets (theme/tokens.ts). */
 export const themes = ["system", "light", "dark", ...extraPaletteIds] as const satisfies readonly ("system" | PaletteId)[];
@@ -47,7 +48,7 @@ export function serverTheme(theme: Theme): ServerTheme {
   return themeScheme(theme) ?? "system";
 }
 
-/** Display choices: the server's `display` member (G33.2), or the older per-browser copy. */
+/** Display choices as applied: every member resolved (G33.2). */
 export interface DisplayPreferences {
   /** A preset beyond plain light and dark; null follows the stored theme. */
   readonly palette: PaletteId | null;
@@ -57,28 +58,59 @@ export interface DisplayPreferences {
   readonly view: ItemView;
 }
 
+/** One layer of display choices (the user's or the site default); null members are unset. */
+export type DisplayChoices = { readonly [K in keyof DisplayPreferences]: DisplayPreferences[K] | null };
+
+/** The built-in values, the last layer. */
 export const defaultDisplay: DisplayPreferences = { palette: null, posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" };
+export const noDisplayChoices: DisplayChoices = { palette: null, posterRatio: null, posterSize: null, listDensity: null, view: null };
 
-const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
-  typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+const pick = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
+  typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 
-/** Reads display choices from untrusted storage; unknown values fall back to the defaults. */
-export function normalizeDisplay(raw: unknown): DisplayPreferences {
+/** Reads one layer from untrusted input (server or storage); unknown values are unset. */
+export function normalizeChoices(raw: unknown): DisplayChoices {
   const record = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
-  const palette = pick<PaletteId | "">(record.palette, extraPaletteIds, "");
   return {
-    palette: palette === "" ? null : palette,
-    posterRatio: pick(record.posterRatio, posterRatioIds, defaultDisplay.posterRatio),
-    posterSize: pick(record.posterSize, posterSizeIds, defaultDisplay.posterSize),
-    listDensity: pick(record.listDensity, listDensityIds, defaultDisplay.listDensity),
-    view: pick(record.view, itemViews, defaultDisplay.view),
+    palette: pick<PaletteId>(record.palette, extraPaletteIds),
+    posterRatio: pick(record.posterRatio, posterRatioIds),
+    posterSize: pick(record.posterSize, posterSizeIds),
+    listDensity: pick(record.listDensity, listDensityIds),
+    view: pick(record.view, itemViews),
   };
 }
 
-/** The server's display member: palette and the four choices, nothing else. */
-function toServerDisplay(display: DisplayPreferences): NonNullable<UserPreferences["display"]> {
-  // normalizeDisplay only ever yields the presets beyond light and dark.
-  return { palette: display.palette as NonNullable<UserPreferences["display"]>["palette"], posterRatio: display.posterRatio, posterSize: display.posterSize, listDensity: display.listDensity, view: display.view };
+/**
+ * The applied display choices, member by member: the user's choice, then the
+ * site default, then the built-in value. The palette is the user's only: it
+ * goes with the theme, and the server already answers a user who never saved
+ * preferences with the site default theme and its preset.
+ */
+export function resolveDisplay(user: DisplayChoices, site: DisplayChoices | null): DisplayPreferences {
+  const fallback = site ?? noDisplayChoices;
+  return {
+    palette: user.palette,
+    posterRatio: user.posterRatio ?? fallback.posterRatio ?? defaultDisplay.posterRatio,
+    posterSize: user.posterSize ?? fallback.posterSize ?? defaultDisplay.posterSize,
+    listDensity: user.listDensity ?? fallback.listDensity ?? defaultDisplay.listDensity,
+    view: user.view ?? fallback.view ?? defaultDisplay.view,
+  };
+}
+
+/** Reads display choices from untrusted storage; unknown values fall back to the defaults. */
+export function normalizeDisplay(raw: unknown): DisplayPreferences {
+  return resolveDisplay(normalizeChoices(raw), null);
+}
+
+type ServerDisplay = NonNullable<UserPreferences["display"]>;
+
+/** The server's display member: null when no member is set. */
+export function toServerDisplay(choices: DisplayChoices): ServerDisplay | null {
+  if (Object.values(choices).every((value) => value === null)) {
+    return null;
+  }
+  // normalizeChoices only ever yields the presets beyond light and dark.
+  return { ...choices, palette: choices.palette as ServerDisplay["palette"] };
 }
 
 function setAttribute(root: HTMLElement, name: string, value: string | null): void {
@@ -121,20 +153,23 @@ const displayKey = "display-preferences";
  * size, list density, default view); every replacement carries all members,
  * so a theme change keeps the layout and a layout change keeps the theme.
  * `theme` keeps the preset's scheme so older clients still follow it; the
- * display member's palette wins when both are present. Display choices an
- * earlier version kept per account in this browser are sent to the server the
- * first time the account loads without any, and the local copy is removed
- * once that succeeds.
+ * display member's palette wins when both are present. Each display member
+ * the user did not choose follows the site default display (GET
+ * /api/v1/site/appearance), then the built-in value, so a later site change
+ * still reaches it (resolveDisplay). Display choices an earlier version kept
+ * per account in this browser are sent to the server the first time the
+ * account loads without any, and the local copy is removed once that succeeds.
  */
 export const usePreferencesStore = defineStore("preferences", () => {
   const { client } = useApi();
   const auth = useAuthStore();
   const theme = shallowRef<Theme>("system");
   const density = shallowRef<Density>("comfortable");
-  const display = shallowRef<DisplayPreferences>(defaultDisplay);
-  // Whether the display member is (to be) stored; false sends null, so an
-  // account that never chose anything keeps following later defaults.
-  let displaySet = false;
+  const site = useSiteAppearanceStore();
+  /** The account's own display choices; unset members follow the site default. */
+  const choices = shallowRef<DisplayChoices>(noDisplayChoices);
+  const siteDisplay = computed(() => (site.view?.defaultDisplay == null ? null : normalizeChoices(site.view.defaultDisplay)));
+  const display = computed(() => resolveDisplay(choices.value, siteDisplay.value));
   /** The account's stored layout; null until customized or while unknown. */
   const layout = shallowRef<UserLayout | null>(null);
   /** ID of the user whose stored preferences were read; null until then. */
@@ -149,17 +184,16 @@ export const usePreferencesStore = defineStore("preferences", () => {
   }
 
   function apply(next: UserPreferences): void {
-    // An older server answers without the members: nothing stored.
-    displaySet = next.display != null;
-    display.value = displaySet ? normalizeDisplay(next.display) : defaultDisplay;
-    theme.value = display.value.palette ?? next.theme;
+    // An older server answers without the member: nothing chosen.
+    choices.value = normalizeChoices(next.display);
+    theme.value = choices.value.palette ?? next.theme;
     density.value = next.density;
     layout.value = next.layout ?? null;
     applyAll();
   }
 
   function documentOf(storedTheme: ServerTheme, storedDensity: Density, storedLayout: UserLayout | null): UserPreferences {
-    return { theme: storedTheme, density: storedDensity, layout: storedLayout, display: displaySet ? toServerDisplay(display.value) : null };
+    return { theme: storedTheme, density: storedDensity, layout: storedLayout, display: toServerDisplay(choices.value) };
   }
 
   /** Loads the signed-in user's stored preferences; a failure keeps the current ones. */
@@ -196,10 +230,9 @@ export const usePreferencesStore = defineStore("preferences", () => {
     if (typeof legacy !== "object" || legacy === null) {
       return;
     }
-    const local = normalizeDisplay(legacy);
+    const local = normalizeChoices(legacy);
     const palette = local.palette !== null && palettes[local.palette].scheme === serverTheme(theme.value) ? local.palette : null;
-    display.value = { ...local, palette };
-    displaySet = true;
+    choices.value = { ...local, palette };
     theme.value = palette ?? theme.value;
     applyAll();
     try {
@@ -231,10 +264,7 @@ export const usePreferencesStore = defineStore("preferences", () => {
   async function setTheme(next: Theme): Promise<void> {
     theme.value = next;
     const palette = next === "system" || next === "light" || next === "dark" ? null : next;
-    if (palette !== null || displaySet) {
-      display.value = { ...display.value, palette };
-      displaySet = true;
-    }
+    choices.value = { ...choices.value, palette };
     applyAll();
     await store({ theme: serverTheme(next), density: density.value });
   }
@@ -246,10 +276,9 @@ export const usePreferencesStore = defineStore("preferences", () => {
     await store({ theme: serverTheme(theme.value), density: next });
   }
 
-  /** Applies display choices at once and stores them like setTheme. */
+  /** Applies display choices at once and stores them like setTheme; the other members keep following the site default. */
   async function setDisplay(next: Partial<Omit<DisplayPreferences, "palette">>): Promise<void> {
-    display.value = { ...display.value, ...next };
-    displaySet = true;
+    choices.value = { ...choices.value, ...next };
     applyAll();
     await store({ theme: serverTheme(theme.value), density: density.value });
   }
@@ -279,10 +308,9 @@ export const usePreferencesStore = defineStore("preferences", () => {
       if (id !== previous) {
         layout.value = null;
         loadedFor.value = null;
-        displaySet = false;
         if (id !== undefined) {
           // Signing in as another account starts from the defaults until its own are read.
-          display.value = defaultDisplay;
+          choices.value = noDisplayChoices;
           applyAll();
         }
       }
@@ -293,5 +321,8 @@ export const usePreferencesStore = defineStore("preferences", () => {
     { immediate: true },
   );
 
-  return { theme, density, display, layout, loadedFor, load, setTheme, setDensity, setDisplay, saveLayout };
+  // The site default arrives on its own schedule (stores/siteAppearance.ts).
+  watch(siteDisplay, applyAll);
+
+  return { theme, density, display, choices, layout, loadedFor, load, setTheme, setDensity, setDisplay, saveLayout };
 });

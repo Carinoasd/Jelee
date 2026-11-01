@@ -522,11 +522,13 @@ up AS (INSERT INTO user_version_preferences AS p(user_id,max_height,dynamic_rang
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM x)-(SELECT count(*) FROM ok)`},
 	// The single-row documents take the exported values, normalized and
-	// checked by validateMetadataSettings, with a new revision.
+	// checked by validateMetadataSettings, with a new revision. A backup
+	// from before schema 114 has no default display (NULL).
 	{kind: "site_appearance", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_appearance' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_appearance')),
-v AS (SELECT doc->>'default_theme' theme,doc->'tokens' tokens,doc->>'custom_css' css,(doc->>'allow_external_fonts')::boolean fonts,COALESCE(pg_temp.bk_texts(doc->'font_hosts'),'{}') hosts,NULLIF(doc->'default_layout','null'::jsonb) layout FROM x),
-upd AS (UPDATE site_appearance a SET default_theme=v.theme,tokens=v.tokens,custom_css=v.css,allow_external_fonts=v.fonts,font_hosts=v.hosts,default_layout=v.layout,revision=a.revision+1,updated_at=now()
- FROM v WHERE a.id AND (a.default_theme,a.tokens,a.custom_css,a.allow_external_fonts,a.font_hosts,a.default_layout) IS DISTINCT FROM (v.theme,v.tokens,v.css,v.fonts,v.hosts,v.layout) RETURNING 1)
+v AS (SELECT doc->>'default_theme' theme,doc->'tokens' tokens,doc->>'custom_css' css,(doc->>'allow_external_fonts')::boolean fonts,COALESCE(pg_temp.bk_texts(doc->'font_hosts'),'{}') hosts,NULLIF(doc->'default_layout','null'::jsonb) layout,
+ NULLIF(doc->'default_display','null'::jsonb) display FROM x),
+upd AS (UPDATE site_appearance a SET default_theme=v.theme,tokens=v.tokens,custom_css=v.css,allow_external_fonts=v.fonts,font_hosts=v.hosts,default_layout=v.layout,default_display=v.display,revision=a.revision+1,updated_at=now()
+ FROM v WHERE a.id AND (a.default_theme,a.tokens,a.custom_css,a.allow_external_fonts,a.font_hosts,a.default_layout,a.default_display) IS DISTINCT FROM (v.theme,v.tokens,v.css,v.fonts,v.hosts,v.layout,v.display) RETURNING 1)
 SELECT (SELECT count(*) FROM x),0,(SELECT count(*) FROM upd),0`},
 	{kind: "site_plugins", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_plugins' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_plugins')),
 upd AS (UPDATE site_plugins p SET plugins=x.doc->'plugins',settings=x.doc->'settings',revision=p.revision+1,updated_at=now()

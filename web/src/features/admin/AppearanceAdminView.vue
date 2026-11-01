@@ -11,10 +11,23 @@ import UiCheckbox from "@/components/ui/UiCheckbox.vue";
 import UiConfirmButton from "@/components/ui/UiConfirmButton.vue";
 import UiSelectField from "@/components/ui/UiSelectField.vue";
 import { errorMessageKey } from "@/features/errors/messages";
+import type { ItemView } from "@/features/items/labels";
+import DisplayChoices from "@/features/settings/DisplayChoices.vue";
 import { exportSiteSettings, importSiteSettings, type PageLayout, type SiteSettingsDocument } from "@/features/site/api";
 import { useAppearanceStore } from "@/stores/appearance";
 import { builtInPresets, normalizeLayout, toUserLayout, useLayoutStore } from "@/stores/layout";
-import { serverThemes, type ServerTheme } from "@/stores/preferences";
+import {
+  defaultDisplay,
+  normalizeChoices,
+  resolveDisplay,
+  serverTheme,
+  toServerDisplay,
+  type DisplayChoices as DisplayLayer,
+  type ListDensity,
+  type PosterRatio,
+  type PosterSize,
+  type Theme,
+} from "@/stores/preferences";
 import { useSiteAppearanceStore } from "@/stores/siteAppearance";
 import { useToastStore } from "@/stores/toasts";
 import {
@@ -135,10 +148,14 @@ async function clear() {
   }
 }
 
-// Site defaults (server only): default theme, token overrides, default layout.
-const themeKey: Readonly<Record<ServerTheme, string>> = { system: "settings.theme.system", light: "settings.theme.light", dark: "settings.theme.dark" };
-const themeOptions = computed(() => serverThemes.map((value) => ({ value, label: t(themeKey[value]) })));
-const defaultTheme = shallowRef<ServerTheme>("system");
+// Site defaults (server only): default theme with its preset, display
+// choices, token overrides, default layout. The theme and display tiles are
+// the ones users see in their own settings.
+const defaultTheme = shallowRef<Theme>("system");
+const posterRatio = shallowRef<PosterRatio>(defaultDisplay.posterRatio);
+const posterSize = shallowRef<PosterSize>(defaultDisplay.posterSize);
+const listDensity = shallowRef<ListDensity>(defaultDisplay.listDensity);
+const view = shallowRef<ItemView>(defaultDisplay.view);
 const lightTokens = shallowRef("");
 const darkTokens = shallowRef("");
 const tokenNames: ReadonlySet<string> = new Set<string>(themeTokenNames);
@@ -173,16 +190,22 @@ watch(
     if (config === null) {
       return;
     }
-    defaultTheme.value = config.defaultTheme;
+    const stored = normalizeChoices(config.defaultDisplay);
+    const shown = resolveDisplay(stored, null);
+    defaultTheme.value = stored.palette ?? config.defaultTheme;
+    posterRatio.value = shown.posterRatio;
+    posterSize.value = shown.posterSize;
+    listDensity.value = shown.listDensity;
+    view.value = shown.view;
     lightTokens.value = tokenText(config.tokens.light);
     darkTokens.value = tokenText(config.tokens.dark);
-    const stored = config.defaultLayout;
+    const layout = config.defaultLayout;
     layoutChoice.value =
-      stored === null
+      layout === null
         ? "standard"
-        : sameLayout(stored, builtInPresets.focused)
+        : sameLayout(layout, builtInPresets.focused)
           ? "focused"
-          : sameLayout(stored, builtInPresets.metadata)
+          : sameLayout(layout, builtInPresets.metadata)
             ? "metadata"
             : "keep";
   },
@@ -235,6 +258,24 @@ function chosenLayout(): PageLayout | null {
   }
 }
 
+/**
+ * The display defaults to store. A member the site never set stays unset while
+ * it shows the built-in value, so it keeps following the built-in value.
+ */
+function chosenDisplay() {
+  const stored = normalizeChoices(store.config?.defaultDisplay);
+  const keep = <K extends Exclude<keyof DisplayLayer, "palette">>(member: K, value: NonNullable<DisplayLayer[K]>) =>
+    stored[member] === null && value === defaultDisplay[member] ? null : value;
+  const theme = defaultTheme.value;
+  return toServerDisplay({
+    palette: theme === "system" || theme === "light" || theme === "dark" ? null : theme,
+    posterRatio: keep("posterRatio", posterRatio.value),
+    posterSize: keep("posterSize", posterSize.value),
+    listDensity: keep("listDensity", listDensity.value),
+    view: keep("view", view.value),
+  });
+}
+
 async function saveDefaults() {
   if (tokenError.value !== null || busy.value) {
     return;
@@ -242,7 +283,8 @@ async function saveDefaults() {
   busy.value = true;
   try {
     await store.saveDocument({
-      defaultTheme: defaultTheme.value,
+      defaultTheme: serverTheme(defaultTheme.value),
+      defaultDisplay: chosenDisplay(),
       tokens: { light: parsedLight.value.tokens, dark: parsedDark.value.tokens },
       defaultLayout: chosenLayout(),
     });
@@ -360,7 +402,7 @@ async function resetAll() {
       <h2 id="appearance-defaults">{{ t("appearance.defaults.title") }}</h2>
       <p class="jl-appearance__muted">{{ t("appearance.defaults.intro") }}</p>
       <form class="jl-appearance__form" novalidate @submit.prevent="saveDefaults">
-        <UiSelectField v-model="defaultTheme" :label="t('appearance.defaults.theme')" :options="themeOptions" :hint="t('appearance.defaults.themeHint')" />
+        <DisplayChoices v-model:theme="defaultTheme" v-model:poster-ratio="posterRatio" v-model:poster-size="posterSize" v-model:list-density="listDensity" v-model:view="view" />
         <div class="jl-appearance__field">
           <label :for="lightId">{{ t("appearance.defaults.tokensLight") }}</label>
           <textarea

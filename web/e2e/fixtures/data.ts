@@ -278,6 +278,7 @@ export const appearance: Schemas["SiteAppearanceConfig"] = {
   allowExternalFonts: false,
   fontHosts: [],
   defaultLayout: null,
+  defaultDisplay: null,
   revision: 1,
   updatedAt: day(-10),
   cssIssues: [],

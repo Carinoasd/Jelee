@@ -261,3 +261,57 @@ func TestMetadataBackupDisplayPreferencesPostgres(t *testing.T) {
 		t.Fatalf("unset display not kept unset: %d", n)
 	}
 }
+
+// The site default display travels with the site appearance: it restores as
+// saved, a backup from before schema 114 restores it unset, and a value
+// outside the allow-lists is a settings_invalid conflict.
+func TestMetadataBackupSiteDefaultDisplayPostgres(t *testing.T) {
+	ctx, source, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
+	_, target, _ := accountTestStoreWithTimeout(t, 2*time.Minute)
+	seedMetadataBackup(t, ctx, source, 0)
+	doc, _ := exportMetadataDoc(t, ctx, source, false)
+	if !strings.Contains(string(doc), `"posterRatio": "landscape"`) {
+		t.Fatal("site default display not exported")
+	}
+	bad := resealMetadataDoc(t, doc, func(kind, line string) string {
+		if kind == "site_appearance" {
+			return strings.Replace(line, `"view": "list"`, `"view": "grid"`, 1)
+		}
+		return line
+	})
+	if string(bad) == string(doc) {
+		t.Fatal("document edit did not apply")
+	}
+	report, err := importMetadataDoc(ctx, target, bad, domain.MetadataImportOptions{})
+	if !errors.Is(err, domain.ErrMetadataBackupConflict) || report.ConflictTotals["site_appearance:settings_invalid"] != 1 {
+		t.Fatalf("invalid default display: %v %v", err, report.ConflictTotals)
+	}
+	if _, err = importMetadataDoc(ctx, target, doc, domain.MetadataImportOptions{}); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if n := bkCount(t, ctx, target, `SELECT count(*) FROM site_appearance WHERE default_display='`+bkSiteDisplay+`'::jsonb AND revision=1`); n != 1 {
+		t.Fatalf("site default display not restored: %d", n)
+	}
+	// A backup written before the member existed clears it.
+	old := resealMetadataDoc(t, doc, func(kind, line string) string {
+		if kind == "site_appearance" {
+			start := strings.Index(line, `, "default_display": `)
+			// jsonb orders keys by length: the next one is allow_external_fonts.
+			end := strings.Index(line, `, "allow_external_fonts": `)
+			if start < 0 || end < start {
+				t.Fatalf("unexpected record: %s", line)
+			}
+			return line[:start] + line[end:]
+		}
+		return line
+	})
+	if strings.Contains(string(old), "default_display") {
+		t.Fatal("document edit did not apply")
+	}
+	if _, err = importMetadataDoc(ctx, target, old, domain.MetadataImportOptions{}); err != nil {
+		t.Fatalf("import of an older backup: %v", err)
+	}
+	if n := bkCount(t, ctx, target, `SELECT count(*) FROM site_appearance WHERE default_display IS NULL AND revision=2`); n != 1 {
+		t.Fatalf("older backup did not leave the default display unset: %d", n)
+	}
+}

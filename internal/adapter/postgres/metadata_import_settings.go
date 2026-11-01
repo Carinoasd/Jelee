@@ -66,6 +66,8 @@ type metadataSiteAppearance struct {
 	AllowExternalFonts bool               `json:"allow_external_fonts"`
 	FontHosts          []string           `json:"font_hosts"`
 	DefaultLayout      *domain.PageLayout `json:"default_layout"`
+	// DefaultDisplay is absent from backups before schema 114: unset.
+	DefaultDisplay *domain.UserDisplay `json:"default_display"`
 }
 
 type metadataSitePlugins struct {
@@ -97,14 +99,14 @@ func validateMetadataSettings(ctx context.Context, tx pgx.Tx) error {
 		var out domain.SiteAppearance
 		if ok {
 			out, err = domain.NormalizeSiteAppearance(domain.SiteAppearance{DefaultTheme: in.DefaultTheme, Tokens: in.Tokens, CustomCSS: in.CustomCSS,
-				AllowExternalFonts: in.AllowExternalFonts, FontHosts: in.FontHosts, DefaultLayout: in.DefaultLayout})
+				AllowExternalFonts: in.AllowExternalFonts, FontHosts: in.FontHosts, DefaultLayout: in.DefaultLayout, DefaultDisplay: in.DefaultDisplay})
 			ok = err == nil
 		}
 		if !ok {
 			err = metadataSettingsConflict(ctx, tx, "site_appearance", metadataSingletonKey)
 		} else {
 			err = replace("site_appearance", metadataSiteAppearance{DefaultTheme: out.DefaultTheme, Tokens: out.Tokens, CustomCSS: out.CustomCSS,
-				AllowExternalFonts: out.AllowExternalFonts, FontHosts: out.FontHosts, DefaultLayout: out.DefaultLayout})
+				AllowExternalFonts: out.AllowExternalFonts, FontHosts: out.FontHosts, DefaultLayout: out.DefaultLayout, DefaultDisplay: out.DefaultDisplay})
 		}
 		if err != nil {
 			return err

@@ -57,17 +57,16 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 		// layout is required like every field; null means not customized.
 		`{"theme":"dark","density":"compact"}`,
 		`{"theme":"dark","density":"compact","layout":{}}`,
-		// display is required too; an object names all five members from their allow-lists.
+		// display is required too; each member it names is null or from its allow-list.
 		`{"theme":"dark","density":"compact","layout":null}`,
-		`{"theme":"dark","density":"compact","layout":null,"display":{}}`,
-		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":"neon","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":"light","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"wide","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"huge","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"tiny","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"grid"}}`,
-		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":null,"posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"view":"Poster"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"posterSize":""}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster","extra":1}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"palette":"sepia","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":[]}`,
@@ -98,8 +97,7 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	const displayJSON = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
 	withDisplay := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"light","density":"comfortable","layout":null,"display":`+displayJSON+`}`, "u"))
 	sepia := domain.PaletteSepia
-	wantDisplay := domain.UserDisplay{Palette: &sepia, PosterRatio: "square", PosterSize: "large", ListDensity: "compact", View: "list"}
-	if withDisplay.Code != 200 || stored.Display == nil || stored.Display.Palette == nil || *stored.Display.Palette != sepia || stored.Display.PosterRatio != wantDisplay.PosterRatio || stored.Display.PosterSize != wantDisplay.PosterSize || stored.Display.ListDensity != wantDisplay.ListDensity || stored.Display.View != wantDisplay.View {
+	if withDisplay.Code != 200 || stored.Display == nil || !sameDisplay(*stored.Display, domain.UserDisplay{Palette: &sepia, PosterRatio: ptr("square"), PosterSize: ptr("large"), ListDensity: ptr("compact"), View: ptr("list")}) {
 		t.Fatalf("display not stored: %d %s", withDisplay.Code, withDisplay.Body.String())
 	}
 	var shown struct {
@@ -113,6 +111,19 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	plain := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`, "u"))
 	if plain.Code != 200 || stored.Display == nil || stored.Display.Palette != nil || !strings.Contains(plain.Body.String(), `"palette":null`) {
 		t.Fatalf("null palette: %d %s", plain.Code, plain.Body.String())
+	}
+	// Members may be left out or null: they follow the site default one by
+	// one. Nothing set at all is the same as no display choices.
+	partial := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"posterSize":"large","view":null}}`, "u"))
+	if partial.Code != 200 || stored.Display == nil || !sameDisplay(*stored.Display, domain.UserDisplay{PosterSize: ptr("large")}) ||
+		!strings.Contains(partial.Body.String(), `"display":{"palette":null,"posterRatio":null,"posterSize":"large","listDensity":null,"view":null}`) {
+		t.Fatalf("partial display: %d %s", partial.Code, partial.Body.String())
+	}
+	for _, empty := range []string{`{}`, `{"palette":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":null}`} {
+		got := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":`+empty+`}`, "u"))
+		if got.Code != 200 || stored.Display != nil || !strings.Contains(got.Body.String(), `"display":null`) {
+			t.Fatalf("empty display %s: %d %s", empty, got.Code, got.Body.String())
+		}
 	}
 	cleared := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":null}`, "u"))
 	if cleared.Code != 200 || stored.Display != nil || !strings.Contains(cleared.Body.String(), `"display":null`) {
@@ -136,4 +147,12 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	if err := json.Unmarshal(saved.Body.Bytes(), &echoed); err != nil || string(echoed.Data.Layout) != layout {
 		t.Fatalf("layout echo: %s", saved.Body.String())
 	}
+}
+
+func ptr(value string) *string { return &value }
+
+// sameDisplay compares display members by value.
+func sameDisplay(a, b domain.UserDisplay) bool {
+	same := func(x, y *string) bool { return x == nil && y == nil || x != nil && y != nil && *x == *y }
+	return same(a.Palette, b.Palette) && same(a.PosterRatio, b.PosterRatio) && same(a.PosterSize, b.PosterSize) && same(a.ListDensity, b.ListDensity) && same(a.View, b.View)
 }

@@ -8,7 +8,10 @@ import (
 )
 
 // GetPreferences reads the caller's interface preferences. A user who never
-// saved any reads the defaults with the site's default theme (G33.2).
+// saved any reads the defaults with the site's default theme and, as part of
+// that theme, the site's default palette preset (G33.2). The other display
+// members are left unset: the web client falls back to the site defaults
+// member by member, so a later site change still reaches the user.
 func (s *Store) GetPreferences(ctx context.Context, actor domain.Actor) (domain.UserPreferences, error) {
 	tx, _, err := s.authorizedTransaction(ctx, actor, false)
 	if err != nil {
@@ -17,7 +20,9 @@ func (s *Store) GetPreferences(ctx context.Context, actor domain.Actor) (domain.
 	defer tx.Rollback(ctx)
 	p := domain.DefaultUserPreferences()
 	var layout, display []byte
-	err = tx.QueryRow(ctx, `SELECT COALESCE(p.theme,a.default_theme),COALESCE(p.density,'comfortable'),p.layout,p.display FROM site_appearance a LEFT JOIN user_preferences p ON p.user_id=$1::uuid WHERE a.id`, actor.UserID).Scan(&p.Theme, &p.Density, &layout, &display)
+	err = tx.QueryRow(ctx, `SELECT COALESCE(p.theme,a.default_theme),COALESCE(p.density,'comfortable'),p.layout,
+ CASE WHEN p.user_id IS NOT NULL THEN p.display WHEN jsonb_typeof(a.default_display->'palette')='string' THEN jsonb_build_object('palette',a.default_display->'palette') END
+ FROM site_appearance a LEFT JOIN user_preferences p ON p.user_id=$1::uuid WHERE a.id`, actor.UserID).Scan(&p.Theme, &p.Density, &layout, &display)
 	if err != nil {
 		return domain.UserPreferences{}, storageError(err)
 	}
