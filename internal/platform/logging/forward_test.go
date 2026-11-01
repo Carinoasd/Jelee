@@ -414,13 +414,15 @@ func TestLokiRetriesWithBackoffThenSucceeds(t *testing.T) {
 	f := mustForwarder(t, ForwarderOptions{Kind: ForwardLoki, BatchInterval: 10 * time.Millisecond, Loki: LokiOptions{URL: c.URL}})
 	start := time.Now()
 	_, _ = f.Write([]byte(sampleRecord))
-	eventually(t, "delivery", func() bool { return len(c.lines()) == 1 })
+	// The collector records the line before the forwarder counts the send;
+	// wait on the forwarder's own statistic so the assertion does not race it.
+	eventually(t, "delivery", func() bool { return f.ForwardStat().Sent == 1 })
 	// Waits are at least half of 10, 20, 40 ms.
 	if elapsed := time.Since(start); elapsed < 35*time.Millisecond {
 		t.Fatalf("retries were not spaced: %v", elapsed)
 	}
 	st := f.ForwardStat()
-	if c.attempts.Load() != 4 || st.Failures != 3 || st.Sent != 1 || st.Dropped != 0 {
+	if len(c.lines()) != 1 || c.attempts.Load() != 4 || st.Failures != 3 || st.Sent != 1 || st.Dropped != 0 {
 		t.Fatalf("attempts %d stat %+v", c.attempts.Load(), st)
 	}
 }
