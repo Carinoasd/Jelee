@@ -65,6 +65,11 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"huge","listDensity":"comfortable","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"tiny","view":"poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"grid"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"density":"dense"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"density":"Compact"}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"density":""}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"density":1}}`,
+		`{"theme":"dark","density":"compact","layout":null,"display":{"density":"compact","density":"comfortable"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"view":"Poster"}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"posterSize":""}}`,
 		`{"theme":"dark","density":"compact","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster","extra":1}}`,
@@ -94,10 +99,10 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 
 	// Display choices are stored and read back as sent; a preset travels with
 	// its color scheme in theme, and null clears them.
-	const displayJSON = `{"palette":"sepia","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
+	const displayJSON = `{"palette":"sepia","density":"compact","posterRatio":"square","posterSize":"large","listDensity":"compact","view":"list"}`
 	withDisplay := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"light","density":"comfortable","layout":null,"display":`+displayJSON+`}`, "u"))
 	sepia := domain.PaletteSepia
-	if withDisplay.Code != 200 || stored.Display == nil || !sameDisplay(*stored.Display, domain.UserDisplay{Palette: &sepia, PosterRatio: ptr("square"), PosterSize: ptr("large"), ListDensity: ptr("compact"), View: ptr("list")}) {
+	if withDisplay.Code != 200 || stored.Display == nil || !sameDisplay(*stored.Display, domain.UserDisplay{Palette: &sepia, Density: ptr("compact"), PosterRatio: ptr("square"), PosterSize: ptr("large"), ListDensity: ptr("compact"), View: ptr("list")}) {
 		t.Fatalf("display not stored: %d %s", withDisplay.Code, withDisplay.Body.String())
 	}
 	var shown struct {
@@ -108,7 +113,7 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	if err := json.Unmarshal(withDisplay.Body.Bytes(), &shown); err != nil || string(shown.Data.Display) != displayJSON {
 		t.Fatalf("display echo: %s", withDisplay.Body.String())
 	}
-	plain := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"palette":null,"posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`, "u"))
+	plain := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"palette":null,"density":"comfortable","posterRatio":"portrait","posterSize":"medium","listDensity":"comfortable","view":"poster"}}`, "u"))
 	if plain.Code != 200 || stored.Display == nil || stored.Display.Palette != nil || !strings.Contains(plain.Body.String(), `"palette":null`) {
 		t.Fatalf("null palette: %d %s", plain.Code, plain.Body.String())
 	}
@@ -116,10 +121,10 @@ func TestUserPreferencesHTTPReadAndReplaceOwnPreferences(t *testing.T) {
 	// one. Nothing set at all is the same as no display choices.
 	partial := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":{"posterSize":"large","view":null}}`, "u"))
 	if partial.Code != 200 || stored.Display == nil || !sameDisplay(*stored.Display, domain.UserDisplay{PosterSize: ptr("large")}) ||
-		!strings.Contains(partial.Body.String(), `"display":{"palette":null,"posterRatio":null,"posterSize":"large","listDensity":null,"view":null}`) {
+		!strings.Contains(partial.Body.String(), `"display":{"palette":null,"density":null,"posterRatio":null,"posterSize":"large","listDensity":null,"view":null}`) {
 		t.Fatalf("partial display: %d %s", partial.Code, partial.Body.String())
 	}
-	for _, empty := range []string{`{}`, `{"palette":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":null}`} {
+	for _, empty := range []string{`{}`, `{"palette":null,"density":null,"posterRatio":null,"posterSize":null,"listDensity":null,"view":null}`} {
 		got := f.serve(accountRequest(http.MethodPut, "/api/v1/users/me/preferences", `{"theme":"dark","density":"comfortable","layout":null,"display":`+empty+`}`, "u"))
 		if got.Code != 200 || stored.Display != nil || !strings.Contains(got.Body.String(), `"display":null`) {
 			t.Fatalf("empty display %s: %d %s", empty, got.Code, got.Body.String())
@@ -154,5 +159,5 @@ func ptr(value string) *string { return &value }
 // sameDisplay compares display members by value.
 func sameDisplay(a, b domain.UserDisplay) bool {
 	same := func(x, y *string) bool { return x == nil && y == nil || x != nil && y != nil && *x == *y }
-	return same(a.Palette, b.Palette) && same(a.PosterRatio, b.PosterRatio) && same(a.PosterSize, b.PosterSize) && same(a.ListDensity, b.ListDensity) && same(a.View, b.View)
+	return same(a.Palette, b.Palette) && same(a.Density, b.Density) && same(a.PosterRatio, b.PosterRatio) && same(a.PosterSize, b.PosterSize) && same(a.ListDensity, b.ListDensity) && same(a.View, b.View)
 }

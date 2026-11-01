@@ -14,7 +14,9 @@ const (
 	DensityCompact     = "compact"
 )
 
-// Display choices of the web client (G33.2). Palette names a preset beyond
+// Display choices of the web client (G33.2). Density is the page-wide
+// spacing and ListDensity only the row spacing of lists, so they are two
+// members; both use the same word list. Palette names a preset beyond
 // plain light and dark; the web client keeps the theme member in step with
 // the preset's color scheme, so clients that only know theme still follow it.
 const (
@@ -42,9 +44,13 @@ const (
 // choice, then the site default, then the web client's built-in value.
 // Palette belongs with the theme: a user's nil palette is plain light or dark
 // as the theme member says, and the site default palette reaches only users
-// who never saved preferences, like the site default theme.
+// who never saved preferences, like the site default theme. Density is the
+// page-wide spacing: a user's own choice also lives in UserPreferences.Density
+// (kept for clients that only know that field), and a non-nil member here
+// wins when both are present.
 type UserDisplay struct {
 	Palette     *string `json:"palette"`
+	Density     *string `json:"density"`
 	PosterRatio *string `json:"posterRatio"`
 	PosterSize  *string `json:"posterSize"`
 	ListDensity *string `json:"listDensity"`
@@ -69,6 +75,7 @@ func displayMember(value *string, allowed ...string) bool {
 // Valid reports whether every member is unset or holds a known value.
 func (d UserDisplay) Valid() bool {
 	return displayMember(d.Palette, PaletteSepia, PaletteContrast) &&
+		displayMember(d.Density, DensityComfortable, DensityCompact) &&
 		displayMember(d.PosterRatio, PosterPortrait, PosterSquare, PosterLandscape) &&
 		displayMember(d.PosterSize, PosterSizeSmall, PosterSizeMedium, PosterSizeLarge) &&
 		displayMember(d.ListDensity, ListDensityComfortable, ListDensityCompact) &&
@@ -77,7 +84,7 @@ func (d UserDisplay) Valid() bool {
 
 // Empty reports whether no member is set.
 func (d UserDisplay) Empty() bool {
-	return d.Palette == nil && d.PosterRatio == nil && d.PosterSize == nil && d.ListDensity == nil && d.View == nil
+	return d.Palette == nil && d.Density == nil && d.PosterRatio == nil && d.PosterSize == nil && d.ListDensity == nil && d.View == nil
 }
 
 // NormalizeDisplay validates optional display choices; a document without
@@ -98,7 +105,7 @@ func NormalizeDisplay(d *UserDisplay) (*UserDisplay, bool) {
 type UserPreferences struct {
 	// Theme is system (follow the browser's color scheme), light or dark.
 	Theme string `json:"theme"`
-	// Density is reserved for the web client's layout density.
+	// Density is the web client's page-wide spacing, comfortable or compact.
 	Density string `json:"density"`
 	// Layout is the user's page layout and saved presets; nil until the
 	// user customizes it, when the site default layout applies.

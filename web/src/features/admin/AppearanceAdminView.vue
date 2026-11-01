@@ -23,6 +23,7 @@ import {
   serverTheme,
   toServerDisplay,
   type DisplayChoices as DisplayLayer,
+  type Density,
   type ListDensity,
   type PosterRatio,
   type PosterSize,
@@ -152,6 +153,7 @@ async function clear() {
 // choices, token overrides, default layout. The theme and display tiles are
 // the ones users see in their own settings.
 const defaultTheme = shallowRef<Theme>("system");
+const density = shallowRef<Density>(defaultDisplay.density);
 const posterRatio = shallowRef<PosterRatio>(defaultDisplay.posterRatio);
 const posterSize = shallowRef<PosterSize>(defaultDisplay.posterSize);
 const listDensity = shallowRef<ListDensity>(defaultDisplay.listDensity);
@@ -193,6 +195,7 @@ watch(
     const stored = normalizeChoices(config.defaultDisplay);
     const shown = resolveDisplay(stored, null);
     defaultTheme.value = stored.palette ?? config.defaultTheme;
+    density.value = shown.density;
     posterRatio.value = shown.posterRatio;
     posterSize.value = shown.posterSize;
     listDensity.value = shown.listDensity;
@@ -269,6 +272,7 @@ function chosenDisplay() {
   const theme = defaultTheme.value;
   return toServerDisplay({
     palette: theme === "system" || theme === "light" || theme === "dark" ? null : theme,
+    density: keep("density", density.value),
     posterRatio: keep("posterRatio", posterRatio.value),
     posterSize: keep("posterSize", posterSize.value),
     listDensity: keep("listDensity", listDensity.value),
@@ -402,7 +406,7 @@ async function resetAll() {
       <h2 id="appearance-defaults">{{ t("appearance.defaults.title") }}</h2>
       <p class="jl-appearance__muted">{{ t("appearance.defaults.intro") }}</p>
       <form class="jl-appearance__form" novalidate @submit.prevent="saveDefaults">
-        <DisplayChoices v-model:theme="defaultTheme" v-model:poster-ratio="posterRatio" v-model:poster-size="posterSize" v-model:list-density="listDensity" v-model:view="view" />
+        <DisplayChoices v-model:theme="defaultTheme" v-model:density="density" v-model:poster-ratio="posterRatio" v-model:poster-size="posterSize" v-model:list-density="listDensity" v-model:view="view" />
         <div class="jl-appearance__field">
           <label :for="lightId">{{ t("appearance.defaults.tokensLight") }}</label>
           <textarea

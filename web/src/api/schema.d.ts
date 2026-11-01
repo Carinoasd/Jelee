@@ -39182,6 +39182,8 @@ export type components = {
             type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserDisplay: {
+            /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. Page-wide spacing; the account's own choice is also kept in UserPreferences.density for clients that only know that member, and this member wins when both are present. */
+            density: ("comfortable" | "compact") | null;
             /** @description null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. */
             listDensity: ("comfortable" | "compact") | null;
             /** @description Preset beyond plain light and dark; null is plain light or dark as theme says. The theme member holds the preset's color scheme. Until a user first saves preferences, reads return the site default preset with the site default theme. */
@@ -39221,7 +39223,7 @@ export type components = {
         };
         UserPreferences: {
             /**
-             * @description Reserved layout density of the web client.
+             * @description Page-wide spacing of the web client. Display.density, when set, wins.
              * @enum {string}
              */
             density: "comfortable" | "compact";

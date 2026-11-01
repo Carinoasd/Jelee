@@ -198,7 +198,7 @@ func displayNullable(path, prefix string) bool {
 		return path == prefix
 	}
 	switch member {
-	case "PALETTE", "POSTERRATIO", "POSTERSIZE", "LISTDENSITY", "VIEW":
+	case "PALETTE", "DENSITY", "POSTERRATIO", "POSTERSIZE", "LISTDENSITY", "VIEW":
 		return true
 	}
 	return false

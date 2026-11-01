@@ -3,14 +3,15 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import UiChoiceGroup from "@/components/ui/UiChoiceGroup.vue";
 import { itemViews, type ItemView } from "@/features/items/labels";
-import { listDensityIds, posterRatioIds, posterSizeIds, themes, type ListDensity, type PosterRatio, type PosterSize, type Theme } from "@/stores/preferences";
+import { densities, listDensityIds, posterRatioIds, posterSizeIds, themes, type Density, type ListDensity, type PosterRatio, type PosterSize, type Theme } from "@/stores/preferences";
 import { palettes, posterRatios } from "@/theme/tokens";
 
 // The theme and display tiles (G33.2), shared by a user's own settings and
 // the administrator's site defaults. The theme tiles draw the preset's own
 // colors and the ratio tiles the poster shape, so the options need no
-// description. The default slot sits between the theme and the poster rows.
+// description.
 const theme = defineModel<Theme>("theme", { required: true });
+const density = defineModel<Density>("density", { required: true });
 const posterRatio = defineModel<PosterRatio>("posterRatio", { required: true });
 const posterSize = defineModel<PosterSize>("posterSize", { required: true });
 const listDensity = defineModel<ListDensity>("listDensity", { required: true });
@@ -35,10 +36,11 @@ const sizeKey: Readonly<Record<PosterSize, string>> = {
   medium: "settings.poster.medium",
   large: "settings.poster.large",
 };
-const listKey: Readonly<Record<ListDensity, string>> = {
+const densityKey: Readonly<Record<Density, string>> = {
   comfortable: "settings.density.comfortable",
   compact: "settings.density.compact",
 };
+const listKey: Readonly<Record<ListDensity, string>> = densityKey;
 const viewKey: Readonly<Record<ItemView, string>> = {
   poster: "items.view.poster",
   list: "items.view.list",
@@ -47,6 +49,7 @@ const viewKey: Readonly<Record<ItemView, string>> = {
 const options = <V extends string>(values: readonly V[], keys: Readonly<Record<V, string>>) =>
   computed(() => values.map((value) => ({ value, label: t(keys[value]) })));
 const themeOptions = options(themes, themeKey);
+const densityOptions = options(densities, densityKey);
 const ratioOptions = options(posterRatioIds, ratioKey);
 const sizeOptions = options(posterSizeIds, sizeKey);
 const listOptions = options(listDensityIds, listKey);
@@ -81,7 +84,7 @@ function swatchPart(value: Theme, token: "color-surface" | "color-primary" | "co
         </span>
       </template>
     </UiChoiceGroup>
-    <slot />
+    <UiChoiceGroup v-model="density" :legend="t('settings.density.label')" :options="densityOptions" />
     <div class="jl-display-choices__row">
       <UiChoiceGroup v-model="posterRatio" :legend="t('settings.poster.ratio')" :options="ratioOptions">
         <template #preview="{ value }">

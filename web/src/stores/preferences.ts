@@ -52,6 +52,8 @@ export function serverTheme(theme: Theme): ServerTheme {
 export interface DisplayPreferences {
   /** A preset beyond plain light and dark; null follows the stored theme. */
   readonly palette: PaletteId | null;
+  /** Page-wide spacing; the list rows have their own listDensity. */
+  readonly density: Density;
   readonly posterRatio: PosterRatio;
   readonly posterSize: PosterSize;
   readonly listDensity: ListDensity;
@@ -62,8 +64,8 @@ export interface DisplayPreferences {
 export type DisplayChoices = { readonly [K in keyof DisplayPreferences]: DisplayPreferences[K] | null };
 
 /** The built-in values, the last layer. */
-export const defaultDisplay: DisplayPreferences = { palette: null, posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" };
-export const noDisplayChoices: DisplayChoices = { palette: null, posterRatio: null, posterSize: null, listDensity: null, view: null };
+export const defaultDisplay: DisplayPreferences = { palette: null, density: "comfortable", posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" };
+export const noDisplayChoices: DisplayChoices = { palette: null, density: null, posterRatio: null, posterSize: null, listDensity: null, view: null };
 
 const pick = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
   typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
@@ -73,6 +75,7 @@ export function normalizeChoices(raw: unknown): DisplayChoices {
   const record = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
   return {
     palette: pick<PaletteId>(record.palette, extraPaletteIds),
+    density: pick(record.density, densities),
     posterRatio: pick(record.posterRatio, posterRatioIds),
     posterSize: pick(record.posterSize, posterSizeIds),
     listDensity: pick(record.listDensity, listDensityIds),
@@ -90,6 +93,7 @@ export function resolveDisplay(user: DisplayChoices, site: DisplayChoices | null
   const fallback = site ?? noDisplayChoices;
   return {
     palette: user.palette,
+    density: user.density ?? fallback.density ?? defaultDisplay.density,
     posterRatio: user.posterRatio ?? fallback.posterRatio ?? defaultDisplay.posterRatio,
     posterSize: user.posterSize ?? fallback.posterSize ?? defaultDisplay.posterSize,
     listDensity: user.listDensity ?? fallback.listDensity ?? defaultDisplay.listDensity,
@@ -131,8 +135,8 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
 }
 
 /** Sets the density, poster and list attributes the token stylesheet reads; defaults remove them. */
-export function applyDisplay(density: Density, display: DisplayPreferences, root: HTMLElement = document.documentElement): void {
-  setAttribute(root, "data-density", density === "comfortable" ? null : density);
+export function applyDisplay(display: DisplayPreferences, root: HTMLElement = document.documentElement): void {
+  setAttribute(root, "data-density", display.density === defaultDisplay.density ? null : display.density);
   setAttribute(root, "data-poster", display.posterRatio === defaultDisplay.posterRatio ? null : display.posterRatio);
   setAttribute(root, "data-poster-size", display.posterSize === defaultDisplay.posterSize ? null : display.posterSize);
   setAttribute(root, "data-list-density", display.listDensity === defaultDisplay.listDensity ? null : display.listDensity);
@@ -149,27 +153,32 @@ const displayKey = "display-preferences";
  * Signing out keeps the current theme.
  *
  * The server document holds the theme scheme (system, light or dark), the
- * density, the page layout and the display choices (preset, poster ratio and
- * size, list density, default view); every replacement carries all members,
- * so a theme change keeps the layout and a layout change keeps the theme.
- * `theme` keeps the preset's scheme so older clients still follow it; the
- * display member's palette wins when both are present. Each display member
- * the user did not choose follows the site default display (GET
- * /api/v1/site/appearance), then the built-in value, so a later site change
- * still reaches it (resolveDisplay). Display choices an earlier version kept
- * per account in this browser are sent to the server the first time the
- * account loads without any, and the local copy is removed once that succeeds.
+ * density, the page layout and the display choices (preset, density, poster
+ * ratio and size, list density, default view); every replacement carries all
+ * members, so a theme change keeps the layout and a layout change keeps the
+ * theme. `theme` keeps the preset's scheme and `density` the chosen density
+ * so older clients still follow them; the display member's palette and
+ * density win when both are present. Each display member the user did not
+ * choose follows the site default display (GET /api/v1/site/appearance),
+ * then the built-in value, so a later site change still reaches it
+ * (resolveDisplay). The top-level density cannot say "not chosen" (it always
+ * holds a value), so an account stored before the display member had a
+ * density counts a stored compact as its choice and comfortable as unset.
+ * Display choices an earlier version kept per account in this browser are
+ * sent to the server the first time the account loads without any, and the
+ * local copy is removed once that succeeds.
  */
 export const usePreferencesStore = defineStore("preferences", () => {
   const { client } = useApi();
   const auth = useAuthStore();
   const theme = shallowRef<Theme>("system");
-  const density = shallowRef<Density>("comfortable");
   const site = useSiteAppearanceStore();
   /** The account's own display choices; unset members follow the site default. */
   const choices = shallowRef<DisplayChoices>(noDisplayChoices);
   const siteDisplay = computed(() => (site.view?.defaultDisplay == null ? null : normalizeChoices(site.view.defaultDisplay)));
   const display = computed(() => resolveDisplay(choices.value, siteDisplay.value));
+  /** The applied page density: the account's choice, else the site default, else comfortable. */
+  const density = computed(() => display.value.density);
   /** The account's stored layout; null until customized or while unknown. */
   const layout = shallowRef<UserLayout | null>(null);
   /** ID of the user whose stored preferences were read; null until then. */
@@ -180,20 +189,20 @@ export const usePreferencesStore = defineStore("preferences", () => {
 
   function applyAll(): void {
     applyTheme(theme.value);
-    applyDisplay(density.value, display.value);
+    applyDisplay(display.value);
   }
 
   function apply(next: UserPreferences): void {
     // An older server answers without the member: nothing chosen.
-    choices.value = normalizeChoices(next.display);
+    const own = normalizeChoices(next.display);
+    choices.value = own.density === null && next.density === "compact" ? { ...own, density: "compact" } : own;
     theme.value = choices.value.palette ?? next.theme;
-    density.value = next.density;
     layout.value = next.layout ?? null;
     applyAll();
   }
 
-  function documentOf(storedTheme: ServerTheme, storedDensity: Density, storedLayout: UserLayout | null): UserPreferences {
-    return { theme: storedTheme, density: storedDensity, layout: storedLayout, display: toServerDisplay(choices.value) };
+  function documentOf(storedTheme: ServerTheme, storedLayout: UserLayout | null): UserPreferences {
+    return { theme: storedTheme, density: choices.value.density ?? defaultDisplay.density, layout: storedLayout, display: toServerDisplay(choices.value) };
   }
 
   /** Loads the signed-in user's stored preferences; a failure keeps the current ones. */
@@ -232,11 +241,11 @@ export const usePreferencesStore = defineStore("preferences", () => {
     }
     const local = normalizeChoices(legacy);
     const palette = local.palette !== null && palettes[local.palette].scheme === serverTheme(theme.value) ? local.palette : null;
-    choices.value = { ...local, palette };
+    choices.value = { ...local, palette, density: choices.value.density };
     theme.value = palette ?? theme.value;
     applyAll();
     try {
-      const saved = await savePreferences(client, documentOf(serverTheme(theme.value), density.value, layout.value));
+      const saved = await savePreferences(client, documentOf(serverTheme(theme.value), layout.value));
       removePersisted(displayKey, userId);
       if (from === generation) {
         apply(saved);
@@ -246,12 +255,12 @@ export const usePreferencesStore = defineStore("preferences", () => {
     }
   }
 
-  async function store(next: Pick<UserPreferences, "theme" | "density">): Promise<void> {
+  async function store(storedTheme: ServerTheme): Promise<void> {
     const current = ++generation;
     if (auth.user === null) {
       return;
     }
-    const saved = await savePreferences(client, documentOf(next.theme, next.density, layout.value));
+    const saved = await savePreferences(client, documentOf(storedTheme, layout.value));
     if (current === generation) {
       apply(saved);
     }
@@ -266,21 +275,19 @@ export const usePreferencesStore = defineStore("preferences", () => {
     const palette = next === "system" || next === "light" || next === "dark" ? null : next;
     choices.value = { ...choices.value, palette };
     applyAll();
-    await store({ theme: serverTheme(next), density: density.value });
+    await store(serverTheme(next));
   }
 
   /** Applies and stores the density like setTheme. */
   async function setDensity(next: Density): Promise<void> {
-    density.value = next;
-    applyAll();
-    await store({ theme: serverTheme(theme.value), density: next });
+    return setDisplay({ density: next });
   }
 
   /** Applies display choices at once and stores them like setTheme; the other members keep following the site default. */
   async function setDisplay(next: Partial<Omit<DisplayPreferences, "palette">>): Promise<void> {
     choices.value = { ...choices.value, ...next };
     applyAll();
-    await store({ theme: serverTheme(theme.value), density: density.value });
+    await store(serverTheme(theme.value));
   }
 
   /**
@@ -295,7 +302,7 @@ export const usePreferencesStore = defineStore("preferences", () => {
     }
     const current = ++generation;
     layout.value = next;
-    const saved = await savePreferences(client, documentOf(serverTheme(theme.value), density.value, next));
+    const saved = await savePreferences(client, documentOf(serverTheme(theme.value), next));
     if (current === generation) {
       apply(saved);
     }

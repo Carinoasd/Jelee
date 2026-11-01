@@ -81,12 +81,12 @@ func TestUserDisplayPreferencesStorage(t *testing.T) {
 	f := newJobFixture(t)
 	viewer := contentAccessPrincipal(t, f, "prefs-display", false)
 	sepia := domain.PaletteSepia
-	display := &domain.UserDisplay{Palette: &sepia, PosterRatio: ptr(domain.PosterSquare), PosterSize: ptr(domain.PosterSizeLarge), ListDensity: ptr(domain.ListDensityCompact), View: ptr(domain.ViewList)}
+	display := &domain.UserDisplay{Palette: &sepia, Density: ptr(domain.DensityCompact), PosterRatio: ptr(domain.PosterSquare), PosterSize: ptr(domain.PosterSizeLarge), ListDensity: ptr(domain.ListDensityCompact), View: ptr(domain.ViewList)}
 	saved, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeLight, Density: domain.DensityComfortable, Display: display})
 	if err != nil || saved.Display == nil || saved.Display.Palette == nil || *saved.Display.Palette != sepia || *saved.Display.PosterRatio != domain.PosterSquare || *saved.Display.View != domain.ViewList {
 		t.Fatalf("display: %+v %v", saved, err)
 	}
-	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || *p.Display.PosterSize != domain.PosterSizeLarge || *p.Display.ListDensity != domain.ListDensityCompact {
+	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || *p.Display.PosterSize != domain.PosterSizeLarge || *p.Display.ListDensity != domain.ListDensityCompact || p.Display.Density == nil || *p.Display.Density != domain.DensityCompact {
 		t.Fatalf("read back: %+v %v", p, err)
 	}
 	// A null palette is kept as null, not dropped.
@@ -99,13 +99,23 @@ func TestUserDisplayPreferencesStorage(t *testing.T) {
 		p.Display == nil || p.Display.PosterRatio != nil || p.Display.View != nil || *p.Display.PosterSize != domain.PosterSizeSmall {
 		t.Fatalf("partial display: %+v %v", p, err)
 	}
-	if syncCount(t, f, `SELECT count(*) FROM user_preferences WHERE display='{"palette":null,"posterRatio":null,"posterSize":"small","listDensity":null,"view":null}'::jsonb`) != 1 {
+	if syncCount(t, f, `SELECT count(*) FROM user_preferences WHERE display='{"palette":null,"density":null,"posterRatio":null,"posterSize":"small","listDensity":null,"view":null}'::jsonb`) != 1 {
 		t.Fatal("partial display stored differently")
 	}
 	bad := *display
 	bad.View = ptr("grid")
 	if _, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: &bad}); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("invalid display: %v", err)
+	}
+	bad.View = display.View
+	bad.Density = ptr("dense")
+	if _, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable, Display: &bad}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("invalid density: %v", err)
+	}
+	// A row stored before density existed reads back with the member unset.
+	imageRepositoryExec(t, f, `UPDATE user_preferences SET display='{"palette":null,"posterRatio":"square","posterSize":"medium","listDensity":"comfortable","view":"poster"}'::jsonb`)
+	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Display == nil || p.Display.Density != nil || *p.Display.PosterRatio != domain.PosterSquare {
+		t.Fatalf("row without density: %+v %v", p, err)
 	}
 	// Clearing the display keeps theme and layout rules intact.
 	if p, err := f.s.SetPreferences(f.ctx, viewer.actor, domain.UserPreferences{Theme: domain.ThemeDark, Density: domain.DensityComfortable}); err != nil || p.Display != nil {
@@ -115,9 +125,16 @@ func TestUserDisplayPreferencesStorage(t *testing.T) {
 	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE user_preferences SET display='[]'::jsonb`); err == nil {
 		t.Fatal("storage accepted a non-object display")
 	}
+	if _, err := f.s.Pool.Exec(f.ctx, `UPDATE user_preferences SET display=jsonb_build_object('density',repeat('x',1100))`); err == nil {
+		t.Fatal("storage accepted a display over 1 KiB")
+	}
 	// A row that bypassed the API with an unknown value is refused on read.
 	imageRepositoryExec(t, f, `UPDATE user_preferences SET display='{"palette":null,"posterRatio":"wide","posterSize":"medium","listDensity":"comfortable","view":"poster"}'::jsonb`)
 	if _, err := f.s.GetPreferences(f.ctx, viewer.actor); !errors.Is(err, domain.ErrDatabase) {
 		t.Fatalf("unknown stored value: %v", err)
+	}
+	imageRepositoryExec(t, f, `UPDATE user_preferences SET display='{"density":"dense"}'::jsonb`)
+	if _, err := f.s.GetPreferences(f.ctx, viewer.actor); !errors.Is(err, domain.ErrDatabase) {
+		t.Fatalf("unknown stored density: %v", err)
 	}
 }

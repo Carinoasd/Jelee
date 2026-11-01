@@ -66,6 +66,7 @@ func TestNormalizeSiteAppearance(t *testing.T) {
 		"display ratio":    func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{PosterRatio: ptr("wide")} },
 		"display size":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{PosterSize: ptr("Small")} },
 		"display list":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{ListDensity: ptr("")} },
+		"display density":  func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{Density: ptr("dense")} },
 		"display view":     func(a *SiteAppearance) { a.DefaultDisplay = &UserDisplay{View: ptr("grid")} },
 		"invalid utf8":     func(a *SiteAppearance) { a.CustomCSS = "a{color:red}\xff" },
 	} {
@@ -121,7 +122,7 @@ func TestSiteDefaultDisplay(t *testing.T) {
 		t.Fatalf("empty default display kept: %+v %v", out.DefaultDisplay, err)
 	}
 	// The stored form stays within the database check.
-	full := UserDisplay{Palette: ptr(PaletteContrast), PosterRatio: ptr(PosterLandscape), PosterSize: ptr(PosterSizeMedium), ListDensity: ptr(ListDensityComfortable), View: ptr(ViewPoster)}
+	full := UserDisplay{Palette: ptr(PaletteContrast), Density: ptr(DensityCompact), PosterRatio: ptr(PosterLandscape), PosterSize: ptr(PosterSizeMedium), ListDensity: ptr(ListDensityComfortable), View: ptr(ViewPoster)}
 	if data, err := json.Marshal(full); err != nil || len(data) > UserDisplayMaxBytes {
 		t.Fatalf("encoded display: %d %v", len(data), err)
 	}

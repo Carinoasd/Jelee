@@ -17,8 +17,8 @@ afterEach(() => {
   document.documentElement.lang = "";
 });
 
-const plainDisplay = { palette: null, posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" } as const;
-const unset = { palette: null, posterRatio: null, posterSize: null, listDensity: null, view: null } as const;
+const plainDisplay = { palette: null, density: "comfortable", posterRatio: "portrait", posterSize: "medium", listDensity: "comfortable", view: "poster" } as const;
+const unset = { palette: null, density: null, posterRatio: null, posterSize: null, listDensity: null, view: null } as const;
 
 function profileServer() {
   return createRouteFetch()
@@ -57,14 +57,15 @@ describe("settings", () => {
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     expect(document.documentElement.hasAttribute("data-palette")).toBe(false);
     await flushPromises();
-    // The whole record is sent; the stored density and layout are kept, and
-    // a preset is stored as its scheme.
+    // The whole record is sent; the stored density and layout are kept (the
+    // account's compact density counts as its own choice, so the display member
+    // carries it), and a preset is stored as its scheme.
+    const compact = { ...unset, density: "compact" };
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
-      { theme: "dark", density: "compact", layout: null, display: null },
-      { theme: "light", density: "compact", layout: null, display: null },
-      { theme: "light", density: "compact", layout: null, display: { ...unset, palette: "sepia" } },
-      // Back to no choice at all: nothing set, so the display member is null again.
-      { theme: "system", density: "compact", layout: null, display: null },
+      { theme: "dark", density: "compact", layout: null, display: compact },
+      { theme: "light", density: "compact", layout: null, display: compact },
+      { theme: "light", density: "compact", layout: null, display: { ...compact, palette: "sepia" } },
+      { theme: "system", density: "compact", layout: null, display: compact },
     ]);
     expect(useToastStore().toasts).toContainEqual(expect.objectContaining({ key: "settings.theme.saved" }));
     expectNoPlaybackMarkup(wrapper.html());
@@ -79,7 +80,7 @@ describe("settings", () => {
     await group("Density").findAll("input")[0]!.setValue(true);
     await flushPromises();
     expect(document.documentElement.hasAttribute("data-density")).toBe(false);
-    expect(server.calls("PUT", "/api/v1/users/me/preferences").at(-1)!.body).toEqual({ theme: "system", density: "comfortable", layout: null, display: null });
+    expect(server.calls("PUT", "/api/v1/users/me/preferences").at(-1)!.body).toEqual({ theme: "system", density: "comfortable", layout: null, display: { ...unset, density: "comfortable" } });
 
     await group("Poster shape").findAll("input")[2]!.setValue(true);
     await group("Poster size").findAll("input")[0]!.setValue(true);
@@ -94,7 +95,7 @@ describe("settings", () => {
       theme: "system",
       density: "comfortable",
       layout: null,
-      display: { palette: null, posterRatio: "landscape", posterSize: "small", listDensity: "compact", view: "list" },
+      display: { palette: null, density: "comfortable", posterRatio: "landscape", posterSize: "small", listDensity: "compact", view: "list" },
     });
     // Nothing is kept in this browser any more.
     expect(localStorage.getItem(`jelee.ui.v1.display-preferences.${regularUser.id}`)).toBeNull();
@@ -134,14 +135,15 @@ describe("settings", () => {
     const { pinia } = await mountView("/settings", { fetch: server.fetch, user: regularUser });
     await flushPromises();
     // Only the members the copy holds with a known value are moved; the rest stay unset.
-    const expected = { palette: "contrast", posterRatio: "square", posterSize: null, listDensity: null, view: "list" };
+    // The account's stored compact density goes along as its choice.
+    const expected = { palette: "contrast", density: "compact", posterRatio: "square", posterSize: null, listDensity: null, view: "list" };
     expect(server.calls("PUT", "/api/v1/users/me/preferences").map((request) => request.body)).toEqual([
       { theme: "dark", density: "compact", layout: null, display: expected },
     ]);
     expect(localStorage.getItem(legacyKey)).toBeNull();
     const preferences = usePreferencesStore(pinia);
     expect(preferences.theme).toBe("contrast");
-    expect(preferences.display).toEqual({ ...plainDisplay, palette: "contrast", posterRatio: "square", view: "list" });
+    expect(preferences.display).toEqual({ ...plainDisplay, palette: "contrast", density: "compact", posterRatio: "square", view: "list" });
     // A second load finds nothing to move.
     await preferences.load();
     expect(server.calls("PUT", "/api/v1/users/me/preferences")).toHaveLength(1);
@@ -287,17 +289,23 @@ describe("credential checks and session expiry", () => {
 
 describe("preferences store", () => {
   it("resolves each display member on its own: the user's, the site default, the built-in value", () => {
-    const site = normalizeChoices({ palette: "contrast", posterRatio: "square", posterSize: "huge", listDensity: "compact", view: null });
+    const site = normalizeChoices({ palette: "contrast", density: "compact", posterRatio: "square", posterSize: "huge", listDensity: "compact", view: null });
     // Unknown values are unset in their layer and fall through to the next one.
-    expect(site).toEqual({ palette: "contrast", posterRatio: "square", posterSize: null, listDensity: "compact", view: null });
+    expect(site).toEqual({ palette: "contrast", density: "compact", posterRatio: "square", posterSize: null, listDensity: "compact", view: null });
+    expect(normalizeChoices({ density: "dense" }).density).toBeNull();
+    expect(normalizeChoices({ density: "Compact" }).density).toBeNull();
     const user = normalizeChoices({ palette: "light", posterRatio: "landscape", view: "list", extra: "x" });
-    expect(resolveDisplay(user, site)).toEqual({ palette: null, posterRatio: "landscape", posterSize: "medium", listDensity: "compact", view: "list" });
-    expect(resolveDisplay(normalizeChoices(null), site)).toEqual({ ...defaultDisplay, posterRatio: "square", listDensity: "compact" });
+    expect(resolveDisplay(user, site)).toEqual({ palette: null, density: "compact", posterRatio: "landscape", posterSize: "medium", listDensity: "compact", view: "list" });
+    expect(resolveDisplay(normalizeChoices(null), site)).toEqual({ ...defaultDisplay, density: "compact", posterRatio: "square", listDensity: "compact" });
+    // Member by member: the user's density beats the site's, even back to the built-in value.
+    expect(resolveDisplay(normalizeChoices({ density: "comfortable" }), site).density).toBe("comfortable");
+    expect(resolveDisplay(normalizeChoices({ density: "compact" }), normalizeChoices({ density: "comfortable" })).density).toBe("compact");
+    expect(resolveDisplay(normalizeChoices({}), normalizeChoices({ listDensity: "compact" })).density).toBe("comfortable");
     expect(resolveDisplay(normalizeChoices(undefined), null)).toEqual(defaultDisplay);
     // The site palette never reaches the resolved value: the server sends it with the theme.
     expect(resolveDisplay(normalizeChoices({}), site).palette).toBeNull();
     expect(toServerDisplay(normalizeChoices({ view: "grid" }))).toBeNull();
-    expect(toServerDisplay(user)).toEqual({ palette: null, posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
+    expect(toServerDisplay(user)).toEqual({ palette: null, density: null, posterRatio: "landscape", posterSize: null, listDensity: null, view: "list" });
   });
 
   it("keeps a signed-out choice in memory without calling the server", async () => {
@@ -308,6 +316,12 @@ describe("preferences store", () => {
     expect(preferences.theme).toBe("dark");
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(server.requests).toHaveLength(0);
+    // The density behaves the same: applied at once, kept in memory, nothing sent.
+    await preferences.setDensity("compact");
+    expect(preferences.density).toBe("compact");
+    expect(document.documentElement.dataset.density).toBe("compact");
+    expect(server.requests).toHaveLength(0);
+    document.documentElement.removeAttribute("data-density");
   });
 
   it("drops a load that a newer choice overtook", async () => {

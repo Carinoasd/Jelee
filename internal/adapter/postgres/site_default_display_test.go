@@ -25,12 +25,12 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 	// The site default round-trips member by member; unset members stay null.
 	in := siteAppearanceFixture()
 	in.DefaultTheme = domain.ThemeLight
-	in.DefaultDisplay = &domain.UserDisplay{Palette: ptr(domain.PaletteSepia), PosterRatio: ptr(domain.PosterLandscape), View: ptr(domain.ViewList)}
+	in.DefaultDisplay = &domain.UserDisplay{Palette: ptr(domain.PaletteSepia), Density: ptr(domain.DensityCompact), PosterRatio: ptr(domain.PosterLandscape), View: ptr(domain.ViewList)}
 	stored, err := f.s.SetSiteAppearance(f.ctx, admin.actor, in, 0, "update")
 	if err != nil || stored.Revision != 1 || stored.DefaultDisplay == nil || *stored.DefaultDisplay.PosterRatio != domain.PosterLandscape || stored.DefaultDisplay.PosterSize != nil {
 		t.Fatalf("set: %+v %v", stored.DefaultDisplay, err)
 	}
-	if syncCount(t, f, `SELECT count(*) FROM site_appearance WHERE default_display='{"palette":"sepia","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}'::jsonb`) != 1 {
+	if syncCount(t, f, `SELECT count(*) FROM site_appearance WHERE default_display='{"palette":"sepia","density":"compact","posterRatio":"landscape","posterSize":null,"listDensity":null,"view":"list"}'::jsonb`) != 1 {
 		t.Fatal("stored form")
 	}
 	if r, err := f.s.GetSiteAppearance(f.ctx, viewer.actor, false); err != nil || r.View().DefaultDisplay == nil || *r.View().DefaultDisplay.View != domain.ViewList {
@@ -41,7 +41,7 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 	if err := f.s.Pool.QueryRow(f.ctx, `SELECT after_state::text FROM audit_logs WHERE event='site.appearance_changed' ORDER BY id DESC LIMIT 1`).Scan(&after); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(after, `"defaultDisplay": {"view": "list", "palette": "sepia", "posterSize": null, "listDensity": null, "posterRatio": "landscape"}`) {
+	if !strings.Contains(after, `"defaultDisplay": {"view": "list", "density": "compact", "palette": "sepia", "posterSize": null, "listDensity": null, "posterRatio": "landscape"}`) {
 		t.Fatalf("audit: %s", after)
 	}
 	if again, err := f.s.SetSiteAppearance(f.ctx, admin.actor, in, 1, "update"); err != nil || again.Revision != 1 || audits() != 1 {
@@ -49,7 +49,7 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 	}
 	// Changing only one display member is a change.
 	changed := in
-	changed.DefaultDisplay = &domain.UserDisplay{Palette: ptr(domain.PaletteSepia), PosterRatio: ptr(domain.PosterSquare), View: ptr(domain.ViewList)}
+	changed.DefaultDisplay = &domain.UserDisplay{Palette: ptr(domain.PaletteSepia), Density: ptr(domain.DensityCompact), PosterRatio: ptr(domain.PosterSquare), View: ptr(domain.ViewList)}
 	if next, err := f.s.SetSiteAppearance(f.ctx, admin.actor, changed, 1, "update"); err != nil || next.Revision != 2 || audits() != 2 {
 		t.Fatalf("member change: %+v %v", next.Revision, err)
 	}
@@ -58,11 +58,15 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 	if _, err := f.s.SetSiteAppearance(f.ctx, admin.actor, bad, 2, "update"); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("invalid member: %v", err)
 	}
+	bad.DefaultDisplay = &domain.UserDisplay{Density: ptr("dense")}
+	if _, err := f.s.SetSiteAppearance(f.ctx, admin.actor, bad, 2, "update"); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("invalid density: %v", err)
+	}
 
 	// A user who never saved preferences reads the site theme with its
 	// preset; the other members are left to the client's member fallback.
 	if p, err := f.s.GetPreferences(f.ctx, viewer.actor); err != nil || p.Theme != domain.ThemeLight || p.Display == nil || p.Display.Palette == nil ||
-		*p.Display.Palette != domain.PaletteSepia || p.Display.PosterRatio != nil || p.Display.View != nil {
+		*p.Display.Palette != domain.PaletteSepia || p.Display.PosterRatio != nil || p.Display.Density != nil || p.Display.View != nil {
 		t.Fatalf("unsaved user: %+v %v", p.Display, err)
 	}
 	// A user who saved preferences keeps them, palette included.
@@ -98,6 +102,7 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 		`UPDATE site_appearance SET default_display='[]'`,
 		`UPDATE site_appearance SET default_display='"sepia"'`,
 		`UPDATE site_appearance SET default_display=jsonb_build_object('view',repeat('x',1100))`,
+		`UPDATE site_appearance SET default_display=jsonb_build_object('density',repeat('x',1100))`,
 	} {
 		if _, err := f.s.Pool.Exec(f.ctx, statement); err == nil {
 			t.Fatalf("storage accepted %s", statement)
@@ -107,6 +112,10 @@ func TestSiteDefaultDisplayStorage(t *testing.T) {
 	imageRepositoryExec(t, f, `UPDATE site_appearance SET default_display='{"view":"grid"}'`)
 	if _, err := f.s.GetSiteAppearance(f.ctx, viewer.actor, false); !errors.Is(err, domain.ErrDatabase) {
 		t.Fatalf("unknown stored value: %v", err)
+	}
+	imageRepositoryExec(t, f, `UPDATE site_appearance SET default_display='{"density":"dense"}'`)
+	if _, err := f.s.GetSiteAppearance(f.ctx, viewer.actor, false); !errors.Is(err, domain.ErrDatabase) {
+		t.Fatalf("unknown stored density: %v", err)
 	}
 	imageRepositoryExec(t, f, `UPDATE site_appearance SET default_display=NULL`)
 }

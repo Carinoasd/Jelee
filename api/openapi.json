@@ -14599,6 +14599,21 @@
       "UserDisplay": {
         "additionalProperties": false,
         "properties": {
+          "density": {
+            "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value. Page-wide spacing; the account's own choice is also kept in UserPreferences.density for clients that only know that member, and this member wins when both are present.",
+            "oneOf": [
+              {
+                "enum": [
+                  "comfortable",
+                  "compact"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "listDensity": {
             "description": "null (or left out on writes) follows the next layer: the user's choice, then the site default (SiteAppearance.defaultDisplay), then the web client's built-in value.",
             "oneOf": [
@@ -14679,6 +14694,7 @@
         },
         "required": [
           "palette",
+          "density",
           "posterRatio",
           "posterSize",
           "listDensity",
@@ -14785,7 +14801,7 @@
         "additionalProperties": false,
         "properties": {
           "density": {
-            "description": "Reserved layout density of the web client.",
+            "description": "Page-wide spacing of the web client. Display.density, when set, wins.",
             "enum": [
               "comfortable",
               "compact"
