@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/access"
@@ -107,6 +109,9 @@ type Options struct {
 	// advice. It never changes the bytes sent; on platforms without
 	// posix_fadvise it does nothing.
 	PrefetchBytes int64
+	// Logger receives the media log (G46.3, medialog.go): one record per
+	// authenticated delivery in the media scope. Nil writes none.
+	Logger *slog.Logger
 }
 
 // Copy buffer bounds. The 32 KiB default matches the development baseline
@@ -218,21 +223,29 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 		h.options.WriteError(w, r, ErrPlaybackDenied)
 		return
 	}
-	if err := GuardProduction(r); err != nil {
+	// G46.3: the media record of this delivery; every refusal below goes
+	// through fail so the record carries its code.
+	rec := &streamRecord{started: time.Now()}
+	defer h.logStream(r, sourceID, rec)
+	fail := func(w http.ResponseWriter, r *http.Request, err error) {
+		rec.code = mediaCode(err)
 		h.options.WriteError(w, r, err)
+	}
+	if err := GuardProduction(r); err != nil {
+		fail(w, r, err)
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
-		h.options.WriteError(w, r, ErrMethodNotAllowed)
+		fail(w, r, ErrMethodNotAllowed)
 		return
 	}
 	if sourceID == "" {
-		h.options.WriteError(w, r, ErrNotFound)
+		fail(w, r, ErrNotFound)
 		return
 	}
 	if value := r.Header.Get("Range"); len(value) > 4096 || strings.Count(value, ",") >= 16 {
-		h.options.WriteError(w, r, ErrInvalidRange)
+		fail(w, r, ErrInvalidRange)
 		return
 	}
 	if r.Context().Err() != nil {
@@ -243,7 +256,7 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 		defer func() { <-h.slots }()
 	default:
 		w.Header().Set("Retry-After", "1")
-		h.options.WriteError(w, r, ErrBusy)
+		fail(w, r, ErrBusy)
 		return
 	}
 	lookupCtx, cancelLookup := context.WithTimeout(r.Context(), lookup)
@@ -251,12 +264,12 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 	lookupErr := lookupCtx.Err()
 	cancelLookup()
 	if errors.Is(lookupErr, context.DeadlineExceeded) && r.Context().Err() == nil {
-		h.options.WriteError(w, r, ErrLookupTimeout)
+		fail(w, r, ErrLookupTimeout)
 		return
 	}
 	if err != nil {
 		if r.Context().Err() == nil {
-			h.options.WriteError(w, r, fmt.Errorf("resolve media: %w", err))
+			fail(w, r, fmt.Errorf("resolve media: %w", err))
 		}
 		return
 	}
@@ -267,7 +280,7 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 	var admitted *admission
 	if r.Method == http.MethodGet {
 		if admitted, err = h.limiter.admit(principal, sourceID, source); err != nil {
-			h.options.WriteError(w, r, err)
+			fail(w, r, err)
 			return
 		}
 		defer admitted.release()
@@ -282,9 +295,9 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 			}
 			if errors.Is(budgetErr, domain.ErrResourceBusy) || errors.Is(budgetErr, context.DeadlineExceeded) {
 				w.Header().Set("Retry-After", "1")
-				h.options.WriteError(w, r, ErrBusy)
+				fail(w, r, ErrBusy)
 			} else {
-				h.options.WriteError(w, r, ErrIO)
+				fail(w, r, ErrIO)
 			}
 			return
 		}
@@ -292,13 +305,13 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 	}
 	file, err := openSource(source)
 	if err != nil {
-		h.options.WriteError(w, r, err)
+		fail(w, r, err)
 		return
 	}
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() {
-		h.options.WriteError(w, r, ErrNotFound)
+		fail(w, r, ErrNotFound)
 		return
 	}
 	if r.Method == http.MethodGet {
@@ -312,11 +325,11 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 		contentType = "application/octet-stream"
 	}
 	if _, _, err := mime.ParseMediaType(contentType); err != nil || strings.ContainsAny(contentType, "\r\n") {
-		h.options.WriteError(w, r, ErrIO)
+		fail(w, r, ErrIO)
 		return
 	}
 	if source.ETag != "" && !validETag(source.ETag) {
-		h.options.WriteError(w, r, ErrIO)
+		fail(w, r, ErrIO)
 		return
 	}
 	w.Header().Del("Content-Disposition")
@@ -365,9 +378,11 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 	// which the zero-copy path (sendfile.go) may bypass the copy loop:
 	// revocation does not depend on the write path, since ending streamCtx
 	// closes the file and expires the write deadline.
-	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, ctx: streamCtx, controller: controller, timeout: h.options.WriteTimeout, writeError: h.options.WriteError, throttle: admitted.throttle(), errorPolicy: errorPolicy}
+	writer := &streamWriter{buffers: &h.buffers, ResponseWriter: w, request: r, ctx: streamCtx, controller: controller, timeout: h.options.WriteTimeout, writeError: fail, throttle: admitted.throttle(), errorPolicy: errorPolicy}
 	reader := &contextFile{ctx: streamCtx, file: file}
+	rec.ranged, rec.ifRange = r.Header.Get("Range") != "", r.Header.Get("If-Range")
 	http.ServeContent(writer, r, "", info.ModTime(), reader)
+	rec.finish(streamCtx, r.Context(), writer, reader, info.Size())
 }
 
 // mediaContentSecurityPolicy sandboxes original media responses so content
@@ -409,20 +424,26 @@ func validETag(value string) bool {
 type contextFile struct {
 	ctx  context.Context
 	file *os.File
+	// err is the first read or seek failure (medialog.go).
+	err atomic.Pointer[error]
 }
 
 func (f *contextFile) Read(data []byte) (int, error) {
 	if err := f.ctx.Err(); err != nil {
 		return 0, err
 	}
-	return f.file.Read(data)
+	n, err := f.file.Read(data)
+	f.note(err)
+	return n, err
 }
 
 func (f *contextFile) Seek(offset int64, whence int) (int64, error) {
 	if err := f.ctx.Err(); err != nil {
 		return 0, err
 	}
-	return f.file.Seek(offset, whence)
+	n, err := f.file.Seek(offset, whence)
+	f.note(err)
+	return n, err
 }
 
 type streamWriter struct {
@@ -439,6 +460,13 @@ type streamWriter struct {
 	errorPolicy []string
 	rejected    bool
 	buffers     *sync.Pool
+	// status, written, err and deadline feed the media record
+	// (medialog.go): the response status, the body bytes sent, the first
+	// write error and the last write deadline the stream set.
+	status   int
+	written  atomic.Int64
+	err      atomic.Pointer[error]
+	deadline atomic.Int64
 }
 
 func (w *streamWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
@@ -452,6 +480,7 @@ func (w *streamWriter) context() context.Context {
 
 func (w *streamWriter) WriteHeader(status int) {
 	w.Header().Del("Content-Disposition")
+	w.status = status
 	if status < 400 {
 		w.ResponseWriter.WriteHeader(status)
 		return
@@ -503,15 +532,20 @@ func (w *streamWriter) write(data []byte) (int, error) {
 		return 0, err
 	}
 	w.Header().Del("Content-Disposition")
-	if err := w.controller.SetWriteDeadline(time.Now().Add(w.timeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+	deadline := time.Now().Add(w.timeout)
+	if err := w.controller.SetWriteDeadline(deadline); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		return 0, err
 	}
+	w.noteDeadline(deadline)
 	// Cancellation may have expired the deadline just before the refresh above.
 	// Recheck before writing so the refresh cannot undo an earlier cancellation.
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	return w.ResponseWriter.Write(data)
+	n, err := w.ResponseWriter.Write(data)
+	w.written.Add(int64(n))
+	w.noteError(err)
+	return n, err
 }
 
 func (w *streamWriter) ReadFrom(reader io.Reader) (int64, error) {

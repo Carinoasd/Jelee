@@ -633,10 +633,11 @@ func (p *Progress) Flush(ctx context.Context) (domain.PlaybackFlushResult, error
 		for i := range entries {
 			p.restore(keys[i], sessions[i], entries[i])
 		}
-		p.opts.Logger.Warn("playback progress flush failed; retrying next interval", "component", "playback", "sessions", len(entries))
+		p.opts.Logger.WarnContext(ctx, "playback progress flush failed; retrying next interval", "component", "playback", "sessions", len(entries))
 		return result, err
 	}
 	p.stats.flushes.Add(1)
+	p.opts.Logger.DebugContext(ctx, "playback progress flushed", "component", "playback", "count", len(entries))
 	for _, e := range entries {
 		if e.End != nil {
 			p.ended()
@@ -721,7 +722,7 @@ func (p *Progress) Task() BackgroundTask {
 			}
 			err := p.Maintain(stop)
 			if err != nil && stop.Err() == nil {
-				p.opts.Logger.Warn("playback maintenance failed", "component", "playback")
+				p.opts.Logger.WarnContext(stop, "playback maintenance failed", "component", "playback")
 			}
 			return false, err
 		},

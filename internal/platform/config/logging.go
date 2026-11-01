@@ -42,6 +42,32 @@ type LoggingConfig struct {
 	// Forwarders are the external destinations of the JSON records (G46.1):
 	// syslog, Loki and OTLP/HTTP. Empty keeps logging local.
 	Forwarders []LogForwarderConfig `json:"forwarders"`
+	// CrashDir is the crash archive directory (G46.3). Empty selects crash/
+	// next to the log file; without a log file there is no archive.
+	CrashDir string `json:"crashDir"`
+	// CrashKeep is the number of crash reports kept; nil means 20 and 0
+	// switches the archive off (the crash record is still logged).
+	CrashKeep *int `json:"crashKeep"`
+}
+
+// CrashOptions is the crash archive of the server (G46.3); an empty Dir
+// means no archive.
+func (c LoggingConfig) CrashOptions() logging.CrashOptions {
+	keep := logging.DefaultCrashKeep
+	if c.CrashKeep != nil {
+		keep = *c.CrashKeep
+	}
+	if keep == 0 {
+		return logging.CrashOptions{}
+	}
+	dir := c.CrashDir
+	if dir == "" && (c.Output == "file" || c.Output == "both") && c.File.Path != "" {
+		dir = filepath.Join(filepath.Dir(c.File.Path), "crash")
+	}
+	if dir == "" {
+		return logging.CrashOptions{}
+	}
+	return logging.CrashOptions{Dir: dir, Keep: keep}
 }
 
 // Slow query log bounds; the default keeps the log quiet on a healthy
@@ -128,6 +154,12 @@ func (c LoggingConfig) Validate() error {
 	if c.SlowQueryMs != nil && (*c.SlowQueryMs < 0 || *c.SlowQueryMs > MaxSlowQueryMs) {
 		return errors.New("slow query threshold is outside supported range")
 	}
+	if c.CrashDir != "" && (!filepath.IsAbs(c.CrashDir) || strings.ContainsAny(c.CrashDir, "\x00\r\n")) {
+		return errors.New("logging crash directory must be absolute")
+	}
+	if c.CrashKeep != nil && (*c.CrashKeep < 0 || *c.CrashKeep > logging.MaxCrashKeep) {
+		return errors.New("logging crash keep count is outside supported range")
+	}
 	if !tracing.ValidSampleRate(c.TraceSampleRate) {
 		return errors.New("trace sample rate must be between 0 and 1")
 	}
@@ -179,7 +211,7 @@ func (c LoggingConfig) Options() logging.Options {
 }
 
 func (c *LoggingConfig) loadEnvironment(lookup func(string) (string, bool)) error {
-	for name, target := range map[string]*string{"JELEE_LOG_LEVEL": &c.Level, "JELEE_LOG_FORMAT": &c.Format, "JELEE_LOG_OUTPUT": &c.Output, "JELEE_LOG_FILE": &c.File.Path, "JELEE_LOG_IP_MODE": &c.IPMode, "JELEE_LOG_PATH_MODE": &c.PathMode} {
+	for name, target := range map[string]*string{"JELEE_LOG_LEVEL": &c.Level, "JELEE_LOG_FORMAT": &c.Format, "JELEE_LOG_OUTPUT": &c.Output, "JELEE_LOG_FILE": &c.File.Path, "JELEE_LOG_IP_MODE": &c.IPMode, "JELEE_LOG_PATH_MODE": &c.PathMode, "JELEE_LOG_CRASH_DIR": &c.CrashDir} {
 		if value, ok := lookup(name); ok {
 			*target = value
 		}
@@ -199,6 +231,13 @@ func (c *LoggingConfig) loadEnvironment(lookup func(string) (string, bool)) erro
 			return errors.New("invalid JELEE_DB_SLOW_QUERY_MS")
 		}
 		c.SlowQueryMs = &n
+	}
+	if value, ok := lookup("JELEE_LOG_CRASH_KEEP"); ok {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return errors.New("invalid JELEE_LOG_CRASH_KEEP")
+		}
+		c.CrashKeep = &n
 	}
 	if value, ok := lookup("JELEE_TRACE_SAMPLE_RATE"); ok {
 		rate, err := strconv.ParseFloat(value, 64)

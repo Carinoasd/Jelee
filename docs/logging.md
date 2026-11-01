@@ -1,8 +1,8 @@
 # 日志（G46）
 
-本文说明 Jelee 的运行日志、访问日志、安全日志、慢查询日志、审计日志的输出位置、配置、脱敏规则、保留与查询方式，以及尚未完成的部分。内容按 2026-10-06 的代码核对：`internal/platform/logging/`、`internal/platform/config/logging.go`、`internal/adapter/http/server.go`（`boundary`）、`internal/adapter/http/access_log.go`、`internal/adapter/http/logging_admin.go`、`internal/adapter/postgres/log_settings.go`、`cmd/jelee-cli/logs.go`、`internal/adapter/postgres/audit.go`、`internal/diag/`。日志与追踪的串联（traceId、spanId、采样、Loki 查询示例）见[可观测性](observability.md)；诊断命令与运维错误码见[故障排查](troubleshooting.md)。
+本文说明 Jelee 的运行日志、访问日志、安全日志、慢查询日志、媒体日志、任务日志、崩溃日志、审计日志的输出位置、配置、脱敏规则、保留与查询方式，以及尚未完成的部分。内容按 2026-10-06 的代码核对：`internal/platform/logging/`、`internal/platform/config/logging.go`、`internal/adapter/http/server.go`（`boundary`）、`internal/adapter/http/access_log.go`、`internal/adapter/http/logging_admin.go`、`internal/adapter/postgres/log_settings.go`、`cmd/jelee-cli/logs.go`、`internal/adapter/postgres/audit.go`、`internal/diag/`。日志与追踪的串联（traceId、spanId、采样、Loki 查询示例）见[可观测性](observability.md)；诊断命令与运维错误码见[故障排查](troubleshooting.md)。
 
-## 三类记录
+## 日志分类
 
 | 类别 | 去向 | 内容 | 能否被日志级别关闭 |
 | --- | --- | --- | --- |
@@ -10,6 +10,9 @@
 | HTTP 访问日志 | 同上，组件 `http` | 每个请求一条 `request completed`：方法、路由样式、状态码、耗时、响应字节、`requestId`／`traceId`／`spanId`、`userId`／`clientId`／`deviceId`、媒体请求标记；panic 另写一条 ERROR（含遮罩后的堆栈） | 可以（INFO） |
 | 安全日志 | 同上，组件 `security`（强制范围） | 登录失败、账号锁定、登录限速、被屏蔽客户端、越权 403、CSRF 失败、SSRF 拦截、开发者模式变更、试图关闭审计日志 | **不能**调低或关闭 |
 | 慢查询日志 | 同上，组件 `db` | 超过阈值的 SQL 语句样板（不含参数与字面值）、耗时、行数、结果 | 可以（WARN） |
+| 媒体日志 | 同上，范围 `media` | 每次通过认证的直投一条：结束方式（完成、客户端断开、写入超时、读档失败、会话撤销、拒绝）、Seek（Range 命中 206）、首个请求偏移、If-Range 命中与否、拒绝的错误码；只写来源 ID | 可以（完成与断开为 DEBUG，写入超时与撤销 INFO，读档失败与服务端拒绝 WARN） |
+| 任务日志 | 同上，组件 `jobs`（及任务自己的范围） | 任务开始、每分钟一条进度（`count`／`total`／`progress`）、完成；背景工作每次执行一条；全部带 `taskId`／`jobRunId`／`kind` | 可以（进度与完成 INFO，背景执行 DEBUG） |
+| 崩溃日志 | 同上，组件 `system`，另存崩溃归档目录 | 进程级 panic、HTTP 请求 panic、上次进程未恢复的崩溃：类型与遮罩后的堆栈，归档文件名 | 可以（ERROR） |
 | 审计日志 | PostgreSQL 表 `audit_logs`（只追加） | 管理操作、权限变更、安全事件（登录失败、锁定、开发者模式变更等），含操作者、来源地址、前后状态（已脱敏）、`request_id` | **不能**，与业务变更在同一事务写入 |
 
 ## 输出与配置（G46.1、G46.2）
@@ -34,6 +37,8 @@
 | `JELEE_TRACE_SAMPLE_RATE` | `traceSampleRate` | 0.1 | 0–1，只影响 span 记录，普通日志从不采样 |
 | `JELEE_TRACE_EXPORTER`、`JELEE_TRACE_OTLP_*` | 顶层 `tracing.*` | `none` | 可选的 OTLP 追踪导出，导出的 span 与 span 记录同一采样；见[可观测性](observability.md#otlp-匯出) |
 | `JELEE_DB_SLOW_QUERY_MS` | `slowQueryMs` | 500 | 0–600000，慢查询日志阈值（毫秒），0 关闭 |
+| `JELEE_LOG_CRASH_DIR` | `crashDir` | 日志文件所在目录下的 `crash/` | 崩溃归档目录（绝对路径，不存在时以 0700 建立）；只输出 stdout 且未设定时不归档 |
+| `JELEE_LOG_CRASH_KEEP` | `crashKeep` | 20 | 0–1000，保留的崩溃报告数，超出时删最旧的；0 关闭归档（崩溃记录照写日志） |
 
 配置校验失败时，错误信息不包含配置值。
 
@@ -236,7 +241,7 @@ echo "$ADMIN_TOKEN" | jelee-cli logs levels --token-stdin
 - 客户端 IP 只认 `clientIp` 键，按 `ipMode` 删除或掩码；路径只认 `path` 键，按 `pathMode` 删除或改为相对路径。
 - 消息必须是固定文案；含 URL、`=`、路径或长令牌的消息会被替换。不安全的键名本身也会被改名。
 
-- 其他白名单字段各有校验：`userId`、`clientId`、`itemId`、`libraryId`、`taskId`、`rule` 只接受 UUID；`jobRunId` 为 `<任务 UUID>:<租约代数>`；`deviceId` 由客户端上报，**只写摘要** `d_` + SHA-256 前 16 位十六进制；`route` 只接受服务端注册过的路由样式（`chi.Walk` 登记）与 `unmatched`；`code` 接受 snake_case 代码（开发者模式代码仍只在开关生效时放行）；`reason`、`toggles`、`expiresAt`、`ttl`、`logLevel`、`scope`、`check`、`status`（自检的 `ok`／`warn`／`fail`）等按固定格式校验。
+- 其他白名单字段各有校验：`userId`、`clientId`、`itemId`、`libraryId`、`taskId`、`rule`、`sourceId` 只接受 UUID；`kind` 只接受小写标识符（任务种类）；`seek` 只接受布尔；`offset`、`progress`、`total` 只接受数值；`ifRange` 只接受 `hit`／`miss`；`crashFile` 只接受崩溃报告的文件名（`crash-<时间>.log`，不含目录）；`jobRunId` 为 `<任务 UUID>:<租约代数>`；`deviceId` 由客户端上报，**只写摘要** `d_` + SHA-256 前 16 位十六进制；`route` 只接受服务端注册过的路由样式（`chi.Walk` 登记）与 `unmatched`；`code` 接受 snake_case 代码（开发者模式代码仍只在开关生效时放行）；`reason`、`toggles`、`expiresAt`、`ttl`、`logLevel`、`scope`、`check`、`status`（自检的 `ok`／`warn`／`fail`）等按固定格式校验。
 - 慢查询的 `sql` 与 panic 的 `stack` 只接受 `logging.SQLTemplate`、`logging.PanicStack` 包装的值，同名键下的普通字符串写成 `[redacted]`。
 
 因此运行日志中不会出现令牌、密码、Cookie、`Authorization` 头、数据库连接串、查询字符串、请求体或完整路径。HTTP 访问日志只记录路由样式（如 `/api/v1/items/{id}`），不记录实际路径、查询字符串与客户端 IP。
@@ -259,7 +264,8 @@ echo "$ADMIN_TOKEN" | jelee-cli logs levels --token-stdin
 | --- | --- |
 | `userId`、`clientId`（会话 ID）、`deviceId`（摘要） | 认证中间件（原生 API）；兼容层认证后写入访问日志 |
 | `itemId`、`libraryId`、`taskId` | 认证中间件按匹配的路由参数（`/api/v1/items/{id}`、`{itemId}`、`/api/v1/libraries/{id}`、`{libraryId}`、`/api/v1/jobs/{id}`） |
-| `taskId`、`libraryId`、`jobRunId` | 任务执行器领取任务时（`internal/platform/jobs/runner.go`），该任务的所有日志与它启动的 goroutine |
+| `taskId`、`libraryId`、`jobRunId`、`kind` | 任务执行器领取任务时（`internal/platform/jobs/runner.go`），该任务的所有日志与它启动的 goroutine |
+| `kind` | 背景工作线（Webhook 投递、观看统计汇总、播放进度 flush）每次执行时（`internal/platform/jobs/background.go`），该次执行与任务自己写的日志；背景执行没有任务行，所以没有 `taskId`／`jobRunId` |
 
 守门测试：`TestContextFieldsAreInjectedAcrossGoroutines`、`TestRouteFieldsAndRecordedIdentity`。
 
@@ -268,9 +274,53 @@ echo "$ADMIN_TOKEN" | jelee-cli logs levels --token-stdin
 - **访问日志**：每个请求一条 `request completed`（组件 `http`，INFO）：`method`、`route`（路由样式；没有匹配为 `unmatched`）、`status`、`durationMs`、`bytes`（实际送出的字节，压缩后）、`media`（直投流、音轨、字幕、附件与兼容层视频／音频路由为 `true`）、`requestId`、`traceId`／`spanId`，已认证时加 `userId`、`clientId`、`deviceId`。
 - **安全日志**：组件 `security`，WARN `security event`，`event` 为：`login_failed`、`second_factor_failed`（存储层在计数时记下）、`account_locked`、`login_while_locked`、`login_throttled`（错误码 `auth_rate_limited`）、`client_blocked`／`client_pending`／`client_rate_limited`、`access_denied`（错误码 `forbidden`、`share_forbidden`）、`csrf_failed`、`ssrf_blocked`（Webhook 目标被拒：创建时的错误码 `webhook_target_denied` 与投递时的出站拦截都记）、`setup_token_rejected`，以及 `log_disable_refused`。开发者模式控制器的日志（组件 `devmode`）同属安全范围。每种事件每秒最多 20 条，超出的计数在下一条以 `suppressed` 给出；安全事件强制保留追踪。
 - **慢查询日志**：组件 `db`，WARN `slow database query`，`code=db_slow_query`：`sql`（语句样板：字面值替换为 `?`，参数占位符保留，压成一行，最多 512 字节）、`durationMs`、`thresholdMs`、`count`（行数）、`outcome`。阈值 `JELEE_DB_SLOW_QUERY_MS`／`logging.slowQueryMs`，默认 500，0 关闭，最大 600000；从不记录参数。
-- **panic**：请求中的 panic 写一条 ERROR `request panic`：`route`、`panicType`（Go 类型名）与 `stack`（只保留函数名与模块内相对路径和行号，去掉参数值、goroutine 头与绝对目录，最多 64 帧／8 KiB）。panic 的值本身不写入（可能含请求数据）。堆栈随日志文件轮转、压缩与保留，即为归档。进程级未恢复崩溃仍由 Go 运行时写到 stderr，由容器运行时收集。
+- **panic**：请求中的 panic 写一条 ERROR `request panic`：`route`、`panicType`（Go 类型名）与 `stack`（只保留函数名与模块内相对路径和行号，去掉参数值、goroutine 头与绝对目录，最多 64 帧／8 KiB）。panic 的值本身不写入（可能含请求数据）。堆栈随日志文件轮转、压缩与保留；有崩溃归档时另存一份报告，记录带 `crashFile`（见下文“崩溃日志与堆栈归档”）。
 
 守门测试：`TestAccessSecurityAndPanicLogs`、`TestSecurityEventsClassification`、`TestBoundaryArchivesPanicStack`、`TestLoggingMandatoryScopesRefused`（HTTP，使用正式日志路由）、`TestSlowQueryLogThroughRouter`、`TestSQLTemplate`、`TestPanicStackIsMasked`，真 PG `TestLoginFailureNotesSecurityEvents`。
+
+### 媒体日志（G46.3）
+
+直投（`/api/v1/sources/{id}/stream`、外挂与内嵌轨、UTF-8 字幕副本、OCR 字幕与兼容层的同一条路径，`internal/adapter/media/medialog.go`）每次通过认证与会话检查后写一条范围 `media` 的记录，与访问日志共用 `traceId`／`userId`：
+
+| 字段 | 内容 |
+| --- | --- |
+| `outcome` | `completed`、`client_aborted`（客户端断开或请求结束）、`write_timeout`（客户端停止读取超过写入超时）、`read_error`（读源文件失败）、`session_revoked`（播放中会话被撤销）、`rejected`（开始传输前被拒绝或 Range 无法满足） |
+| `code` | 被拒绝时的固定代码：`media_not_found`、`stream_limit_reached`、`user_stream_limit`、`device_stream_limit`、`media_lookup_timeout`、`invalid_range`、`precondition_failed`、`media_unavailable`、`media_failed` 等；不写错误文字 |
+| `seek`、`offset` | 带 Range 的请求：是否以 206 返回（即 Seek 命中）与第一个范围的起始字节 |
+| `ifRange` | 同时带 Range 与 If-Range 时，验证值相符（`hit`，206）或不符（`miss`，整档 200） |
+| `method`、`status`、`bytes`、`durationMs`、`sourceId` | 方法、状态码、实际送出的正文字节、耗时、来源 UUID |
+
+级别：完成、Seek、客户端断开与一般拒绝为 DEBUG（播放器每次拖动都会中断上一个请求，默认不写），写入超时与会话撤销为 INFO，读档失败与服务端原因的拒绝（`media_unavailable`、`media_lookup_timeout`、`media_failed`）为 WARN。排查播放问题时用 `jelee-cli logs level --component media debug --ttl 30m` 临时打开。路径、根目录、文件名、请求头与错误文字从不写入。探测（`probe` 范围）原有的失败原因代码不变。
+
+区分断开原因的方式：会话撤销看取消原因；读档失败只计入流仍在进行时文件返回的错误（流结束时关闭文件造成的错误不算）；写入超时要求写入错误是超时、而且当时已过了本流自己设定的写入期限（零拷贝路径由进度看门狗延长的期限也算），请求结束时把期限提前造成的超时算作断开。
+
+守门测试：`TestMediaLogSeekIfRangeAndRefusals`（正式日志路由，Range／If-Range／416／404／失败，扫描根目录、目录名、文件名与错误文字零命中）、`TestMediaLogDisconnectReasons`（真 TCP 回环：客户端关闭、停止读取超过写入超时、会话撤销）、`TestStreamRecordClassification`。
+
+### 任务日志（G46.3）
+
+任务执行器领取任务后，该次领取的所有记录经 `domain.WithLogFields` 带 `taskId`、`jobRunId`（任务 UUID＋租约代数）、`libraryId` 与 `kind`（任务种类，旧的无种类任务为 `inventory_scan`）：
+
+- `job started`（INFO）；
+- `job progress`（INFO，组件 `jobs`）：心跳成功后读一次任务进度（`app.JobProgressReader`，PostgreSQL 以同一个租约围栏的单行查询读已提交状态，不写不续租），最多每分钟一条：`count`（已完成单位数，盘点为目录、其他种类为已处理项目）、`total` 与 `progress`（百分比，已知时）；读取失败时跳过，不影响租约；
+- `inventory job completed`（INFO）：`state`、`code`，以及最后一次读到的 `count`／`total`／`progress`。
+
+背景工作线（Webhook 投递、观看统计汇总、播放进度 flush）每次执行带 `kind`：执行结束写 DEBUG `background job run finished`（`outcome`、`durationMs`），没开始的执行写 DEBUG `background job run not started`（`outcome` 为 `skipped` 或 `cancelled`）；任务自己的记录也带 `kind`，并以 `count` 给出本次处理量（`watch statistics aggregated`、`webhook delivery round finished`、`playback progress flushed`，DEBUG）。
+
+守门测试：`TestRunnerLogsJobProgressWithTaskFields`、`TestRunnerProgressReadFailureIsSkipped`、`TestJobLogFieldsNameTheKind`、`TestBackgroundRunRecordsNameTheKind`（`internal/platform/jobs/`，正式日志路由），`TestMediaAndTaskFieldsPassTheWhitelist`（`internal/platform/logging/`），真 PG `TestJobProgressReadFencesWithoutWrites`。
+
+### 崩溃日志与堆栈归档（G46.3）
+
+`jelee` 服务器启动时打开崩溃归档（`internal/platform/logging/crash.go`）：默认是日志文件所在目录下的 `crash/`，可用 `JELEE_LOG_CRASH_DIR`／`logging.crashDir` 指定；只输出 stdout 而未指定时不归档（崩溃记录仍写 stdout）。
+
+| 来源 | 处理 |
+| --- | --- |
+| 主 goroutine 的 panic | `cmd/jelee` 以 `logging.CapturePanic` 捕获：写 ERROR `process panic`（组件 `system`，`code=process_panic`、`panicType`、遮罩后的 `stack`、`crashFile`），写归档报告，冲刷并关闭日志，然后以同一个值再次 panic，进程照原样结束（退出码 2，stderr 照常有 Go 的输出） |
+| HTTP 请求的 panic | 边界中间件原有的 `request panic` 记录之外，另写一份归档报告，记录带 `crashFile`；每秒最多归档一份，避免反复触发的 panic 变成磁盘写入 |
+| 其他 goroutine 未恢复的 panic、Go 运行时的 fatal error | 启动时以 `debug.SetCrashOutput` 让 Go 运行时把崩溃输出另写到归档目录里本进程的 `pending-<时间>-<pid>.raw`（stderr 照常）；**下一次启动**时把上次进程留下的非空 pending 文件遮罩成报告、删除原文件，并写一条 ERROR `previous process crashed`（`code=process_crashed`，`panicType` 为 `panic`／`fatal_error`／`crash`）。正常停止时删除本进程的空 pending 文件；其他进程留下、超过一天的空 pending 文件也删除 |
+
+报告文件名 `crash-<UTC 时间，纳秒>.log`，内容为固定的几行（时间、来源 `process_panic`／`request_panic`／`crash_output`、类型）加上遮罩后的堆栈，规则与日志中的 `stack` 相同：只留函数名与模块内相对路径和行号，不写 panic 的值、参数、goroutine 头与绝对目录。文件以 0600 独占建立、目录 0700，所有文件操作限制在归档目录内（`os.Root`）；只保留最新的 `crashKeep`（默认 20）份报告，目录中的其他文件不动。
+
+守门测试：`TestCrashArchiveRecordMasksAndRotates`（0600、遮罩、保留数量轮替）、`TestCapturePanicLogsArchivesAndRepanics`、`TestArchivePanicIsInstalledAndRateLimited`、`TestCollectPendingCrashOutput`、`TestUnrecoveredGoroutinePanicIsArchived`（子进程在 goroutine 中 panic，退出码 2，下次 `Collect` 归档并记录，扫描样本零命中）、`TestArmAndDisarm`、`TestOpenCrashArchiveOptions`（`internal/platform/logging/`），`TestCrashArchiveOptions`（配置），`TestBoundaryArchivesPanicStack`（HTTP）。
 
 详见[可观测性](observability.md)。
 
@@ -423,4 +473,6 @@ code : "db_slow_query" and durationMs > 2000
 - `jelee-cli logs` 只读本机日志文件；多实例部署请在日志系统中集中查询。
 - 级别覆写在其他实例上最多延迟 15 秒生效。
 - 高 QPS 压测（P95）只有开发机基准，尚未在固定硬件上做端到端压测（需要长时间验证）。
-- 进程级未恢复的崩溃（非请求 goroutine 的 panic、fatal error）由 Go 运行时写 stderr，未经遮罩，也不进入日志文件。
+- 其他 goroutine 未恢复的崩溃要到下一次启动才进入日志与归档（崩溃当下只有 Go 运行时的 stderr 与 pending 文件，内容未遮罩，权限 0600）；`kill -9`、OOM killer 等外部终止没有 Go 崩溃输出，不会留下报告。
+- Windows 上崩溃归档目录与文件的 0700／0600 只是 Go 的模式位，实际权限由 NTFS ACL 决定，见验证清单 B30；崩溃归档在长时间运行与多次崩溃下的行为见 C53，真实部署（容器、systemd）下的实测见 D56。
+- 媒体日志的完成与 Seek 记录默认是 DEBUG，需要时临时调高 `media` 范围；任务进度每分钟一条，执行不到一个心跳间隔（默认 10 秒）的任务没有进度记录。

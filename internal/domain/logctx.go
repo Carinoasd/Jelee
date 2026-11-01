@@ -29,6 +29,9 @@ type LogFields struct {
 	// (job ID and lease generation).
 	TaskID   string
 	JobRunID string
+	// Kind is the job kind a worker runs (inventory_scan, webhook_delivery,
+	// ...), so a task's records can be filtered by kind (G46.3).
+	Kind string
 }
 
 type logFieldsKey struct{}
@@ -41,7 +44,7 @@ func WithLogFields(ctx context.Context, f LogFields) context.Context {
 		dst *string
 		src string
 	}{{&merged.UserID, f.UserID}, {&merged.DeviceID, f.DeviceID}, {&merged.ClientID, f.ClientID}, {&merged.ItemID, f.ItemID},
-		{&merged.LibraryID, f.LibraryID}, {&merged.TaskID, f.TaskID}, {&merged.JobRunID, f.JobRunID}} {
+		{&merged.LibraryID, f.LibraryID}, {&merged.TaskID, f.TaskID}, {&merged.JobRunID, f.JobRunID}, {&merged.Kind, f.Kind}} {
 		if pair.src != "" {
 			*pair.dst = pair.src
 		}

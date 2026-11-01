@@ -210,15 +210,19 @@ func scrapeSharedMetricsSnapshot(t *testing.T, ctx context.Context, store *postg
 	if err != nil {
 		t.Fatal("parse production metrics exposition")
 	}
-	// 34 runtime, pool, job, and resource families (4 of them the G41.7
-	// effective limits and adaptive pressure), 7 cache families for the
+	// 35 runtime, pool, job, and resource families (4 of them the G41.7
+	// effective limits and adaptive pressure, 1 the G41.8 shared budget
+	// wait histogram), 7 cache families for the
 	// HTTP server's OpenAPI cache in the process-wide cache registry, and the
 	// 12 operational families of the default alert rules (G50.6): 8 shared,
 	// memory limit, client control and two storage gauges, plus the 2 HTTP
 	// guard counters (rate limited, timeouts), and the 4 background job
 	// families (G41.8), present even when no background job runs.
-	if len(families) != 59 {
-		t.Fatalf("production metrics exposed %d families, want 59", len(families))
+	if len(families) != 60 {
+		t.Fatalf("production metrics exposed %d families, want 60", len(families))
+	}
+	if family := families["jelee_resources_wait_seconds"]; family == nil || family.GetType() != dto.MetricType_HISTOGRAM || len(family.Metric) != 4 {
+		t.Fatal("production metrics lack the shared budget wait histogram")
 	}
 	for _, name := range []string{"jelee_jobs_background_running", "jelee_jobs_background_runs_total", "jelee_jobs_background_wait_seconds", "jelee_jobs_background_duration_seconds"} {
 		if family := families[name]; family == nil || len(family.Metric) == 0 {

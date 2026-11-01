@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -455,6 +457,14 @@ func TestBoundaryArchivesPanicStack(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = router.Close() }()
+	// G46.3: with a crash archive installed the masked stack is also kept
+	// as a report named in the record.
+	crash, err := logging.OpenCrashArchive(logging.CrashOptions{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	logging.SetCrashArchive(crash)
+	defer logging.SetCrashArchive(nil)
 	s := &Server{logger: router.Logger()}
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
@@ -481,6 +491,12 @@ func TestBoundaryArchivesPanicStack(t *testing.T) {
 	stack, _ := rec["stack"].(string)
 	if rec["msg"] != "request panic" || rec["panicType"] != "*errors.errorString" || rec["route"] != "/api/v1/panic/{id}" || !strings.Contains(stack, "http.TestBoundaryArchivesPanicStack(...)") || strings.Contains(text, "secret-panic-text") || strings.Contains(stack, "0x") {
 		t.Fatalf("panic record %v", rec)
+	}
+	name, _ := rec["crashFile"].(string)
+	report, err := os.ReadFile(filepath.Join(crash.Dir(), filepath.Base(name)))
+	if err != nil || !strings.Contains(string(report), "source: request_panic") || !strings.Contains(string(report), "http.TestBoundaryArchivesPanicStack(...)") ||
+		strings.Contains(string(report), "secret-panic-text") || strings.Contains(string(report), "0x") {
+		t.Fatalf("crash report %q: %v\n%s", name, err, report)
 	}
 }
 

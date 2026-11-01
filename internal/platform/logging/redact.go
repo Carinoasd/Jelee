@@ -143,8 +143,33 @@ func (r *redactor) replace(groups []string, a slog.Attr) slog.Attr {
 		if a.Value.Kind() == slog.KindString && SafeMethod(a.Value.String()) == a.Value.String() {
 			return a
 		}
-	case "taskId", "userId", "clientId", "itemId", "libraryId", "rule":
+	case "taskId", "userId", "clientId", "itemId", "libraryId", "rule", "sourceId":
 		if a.Value.Kind() == slog.KindString && domain.ValidID(a.Value.String()) {
+			return a
+		}
+	case "kind":
+		// A job kind (G46.3 task records): a lower case identifier.
+		if a.Value.Kind() == slog.KindString && safeLowerIdent(a.Value.String()) {
+			return a
+		}
+	case "seek":
+		if a.Value.Kind() == slog.KindBool {
+			return a
+		}
+	case "offset", "progress", "total":
+		// Media Range offsets and task progress (percent, done and total
+		// counts) are numbers only.
+		switch a.Value.Kind() {
+		case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
+			return a
+		}
+	case "ifRange":
+		if a.Value.Kind() == slog.KindString && (a.Value.String() == "hit" || a.Value.String() == "miss") {
+			return a
+		}
+	case "crashFile":
+		// The base name of a crash archive (crash.go), never a directory.
+		if a.Value.Kind() == slog.KindString && validCrashName(a.Value.String()) {
 			return a
 		}
 	case "deviceId":

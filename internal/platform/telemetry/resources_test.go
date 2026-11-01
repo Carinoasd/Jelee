@@ -67,8 +67,8 @@ func TestResourceMetricsSaturatedQueueAndCancellation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(families) != 34 {
-			t.Fatalf("metric families: %d, want 34", len(families))
+		if len(families) != 35 {
+			t.Fatalf("metric families: %d, want 35", len(families))
 		}
 		want := map[string]float64{"cpu_active": activeCPU, "io_active": activeIO, "total_active": total, "waiting": waiting, "cpu_limit": 1, "io_limit": 2, "total_limit": 2, "queue_limit": 1,
 			"cpu_effective": 1, "io_effective": 2, "total_effective": 2}

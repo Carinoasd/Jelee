@@ -9,7 +9,10 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
-var _ app.JobCancellationReader = (*Store)(nil)
+var (
+	_ app.JobCancellationReader = (*Store)(nil)
+	_ app.JobProgressReader     = (*Store)(nil)
+)
 
 // A single primary-key lookup reads only committed state. It does not acquire
 // the scheduler lock, update a row, or extend job/probe leases. Publication
@@ -30,4 +33,26 @@ func (s *Store) ReadJobCancellation(ctx context.Context, lease domain.JobLease) 
 		err = domain.ErrJobLeaseLost
 	}
 	return requested, err
+}
+
+// ReadJobProgress reads the public progress of a claimed job (G46.3) with
+// the same single fenced primary-key lookup as ReadJobCancellation.
+func (s *Store) ReadJobProgress(ctx context.Context, lease domain.JobLease) (domain.JobProgress, error) {
+	if ctx == nil {
+		return domain.JobProgress{}, domain.ErrInvalid
+	}
+	if !validLease(lease) {
+		return domain.JobProgress{}, domain.ErrJobLeaseLost
+	}
+	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	j, err := scanJob(s.Pool.QueryRow(bounded, `SELECT `+jobColumns+` FROM jobs WHERE id=$1::uuid AND state='running' AND owner=$2 AND generation=$3 AND lease_until>clock_timestamp()`, lease.Job.ID, lease.Owner, lease.Generation))
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.JobProgress{}, domain.ErrJobLeaseLost
+	}
+	if err != nil {
+		return domain.JobProgress{}, err
+	}
+	// scanJob always projects the progress.
+	return *j.Progress, nil
 }

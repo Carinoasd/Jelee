@@ -310,6 +310,13 @@ func (s *Server) logPanic(ctx context.Context, w http.ResponseWriter, recovered 
 	if rctx := chi.RouteContext(ctx); rctx != nil && rctx.RoutePattern() != "" {
 		route = rctx.RoutePattern()
 	}
-	s.logger.ErrorContext(ctx, "request panic", "component", "http", "requestId", w.Header().Get("X-Request-ID"), "route", route,
-		"panicType", fmt.Sprintf("%T", recovered), "stack", logging.PanicStack(debug.Stack()))
+	stack := debug.Stack()
+	attrs := []any{"component", "http", "requestId", w.Header().Get("X-Request-ID"), "route", route,
+		"panicType", fmt.Sprintf("%T", recovered), "stack", logging.PanicStack(stack)}
+	// G46.3: the masked stack is also kept in the crash archive when the
+	// server has one (at most one report per second).
+	if name := logging.ArchivePanic(recovered, stack); name != "" {
+		attrs = append(attrs, "crashFile", name)
+	}
+	s.logger.ErrorContext(ctx, "request panic", attrs...)
 }

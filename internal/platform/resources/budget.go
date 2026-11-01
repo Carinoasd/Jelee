@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"context"
 	"sync"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -30,6 +31,79 @@ type Budget struct {
 	pending      list.List
 	payloadLimit int64
 	payloadUsed  int64
+	// waits is the admission wait histogram (G41.8) per class and outcome;
+	// now is its clock and started the start of the counts.
+	waits   [2][2]WaitHistogram
+	now     func() time.Time
+	started time.Time
+}
+
+// Wait histogram (G41.8). Every admission is observed: an immediate grant
+// as zero, a queued one with the time it waited until granted or until its
+// context ended. Requests refused because the queue was full never wait
+// and are not observed.
+
+// WaitBoundsSeconds are the histogram's upper bounds, 1 ms to 60 s; the
+// last bucket is +Inf. Returning an array keeps the contract immutable.
+func WaitBoundsSeconds() [14]float64 {
+	return [14]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
+}
+
+// WaitHistogram holds exclusive bucket counts: BucketCounts[i] counts
+// samples above bound i-1 and at most bound i; the last one is +Inf.
+type WaitHistogram struct {
+	Count        uint64
+	SumSeconds   float64
+	BucketCounts [15]uint64
+}
+
+// Wait outcomes.
+const (
+	WaitGranted   = "granted"
+	WaitCancelled = "cancelled"
+)
+
+// WaitSeries is one class and outcome of the histogram.
+type WaitSeries struct {
+	Class, Outcome string
+	Histogram      WaitHistogram
+}
+
+// WaitStats returns the histogram in a fixed order (cpu, io; granted,
+// cancelled) and the time the counts started.
+func (b *Budget) WaitStats() ([]WaitSeries, time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]WaitSeries, 0, 4)
+	for c, class := range [2]string{"cpu", "io"} {
+		for o, outcome := range [2]string{WaitGranted, WaitCancelled} {
+			out = append(out, WaitSeries{Class: class, Outcome: outcome, Histogram: b.waits[c][o]})
+		}
+	}
+	return out, b.started
+}
+
+// observe adds one wait sample; the caller holds b.mu.
+func (b *Budget) observe(c app.WorkClass, granted bool, d time.Duration) {
+	class, outcome := 0, 0
+	if c == app.WorkIO {
+		class = 1
+	}
+	if !granted {
+		outcome = 1
+	}
+	h := &b.waits[class][outcome]
+	seconds := max(d, 0).Seconds()
+	bucket := len(h.BucketCounts) - 1
+	for i, bound := range WaitBoundsSeconds() {
+		if seconds <= bound {
+			bucket = i
+			break
+		}
+	}
+	h.Count++
+	h.SumSeconds += seconds
+	h.BucketCounts[bucket]++
 }
 
 // Limits returns a copy of the immutable configured admission limits.
@@ -73,7 +147,7 @@ func NewWithPayloadLimit(l Limits, payloadBytes int64) (*Budget, error) {
 	if payloadBytes < 1 || payloadBytes > 1<<40 {
 		return nil, domain.ErrInvalid
 	}
-	return &Budget{limits: l, effective: l, payloadLimit: payloadBytes}, nil
+	return &Budget{limits: l, effective: l, payloadLimit: payloadBytes, now: time.Now, started: time.Now()}, nil
 }
 
 func (b *Budget) PayloadBytes() (used, limit int64) {
@@ -149,6 +223,7 @@ func (b *Budget) Acquire(ctx context.Context, c app.WorkClass) (func(), error) {
 	b.dispatch()
 	if b.fits(c) {
 		b.change(c, 1)
+		b.observe(c, true, 0)
 		b.mu.Unlock()
 		release := b.release(c)
 		if err := ctx.Err(); err != nil {
@@ -164,12 +239,14 @@ func (b *Budget) Acquire(ctx context.Context, c app.WorkClass) (func(), error) {
 	w := &waiter{ctx: ctx, class: c, ready: make(chan struct{})}
 	w.element = b.pending.PushBack(w)
 	b.stats.Waiting++
+	queued := b.now()
 	b.mu.Unlock()
 	select {
 	case <-w.ready:
 	case <-ctx.Done():
 	}
 	b.mu.Lock()
+	b.observe(c, ctx.Err() == nil, b.now().Sub(queued))
 	if err := ctx.Err(); err != nil {
 		if w.granted {
 			b.change(c, -1)
