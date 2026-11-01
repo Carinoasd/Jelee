@@ -102,6 +102,13 @@ type forwardCore struct {
 	flushReq chan forwardFlush
 	stop     chan struct{}
 	done     chan struct{}
+	// push carries the batch pushes of the worker; Close cancels it when
+	// the flush timeout runs out, so a collector that hangs on a request in
+	// flight cannot hold shutdown for the whole request timeout.
+	push       context.Context
+	cancelPush context.CancelFunc
+	// closeBy is the deadline of shutdown, set by Close before stop closes.
+	closeBy time.Time
 
 	batchSize     int
 	batchInterval time.Duration
@@ -151,6 +158,7 @@ func newForwardCore(o forwardCoreOptions, sender batchSender) *forwardCore {
 		backoffMin: forwardBackoffMin, backoffMax: forwardBackoffMax, maxAttempts: forwardMaxAttempts,
 		notify: func(msg string) { fmt.Fprintln(os.Stderr, msg) },
 	}
+	c.push, c.cancelPush = context.WithCancel(context.Background())
 	go c.run()
 	return c
 }
@@ -218,11 +226,18 @@ func (c *forwardCore) Flush(ctx context.Context) error {
 // Close stops accepting records, makes a bounded last attempt to deliver
 // what is queued and releases the connection.
 func (c *forwardCore) Close() error {
+	var deadline *time.Timer
 	c.closing.Do(func() {
 		c.closed.Store(true)
+		c.closeBy = time.Now().Add(c.flushTimeout)
 		close(c.stop)
+		deadline = time.AfterFunc(c.flushTimeout, c.cancelPush)
 	})
 	<-c.done
+	if deadline != nil {
+		deadline.Stop()
+	}
+	c.cancelPush()
 	return nil
 }
 
@@ -264,14 +279,14 @@ func (c *forwardCore) run() {
 		case rec := <-c.queue:
 			add(rec)
 			if full() {
-				if send(context.Background(), true) {
+				if send(c.push, true) {
 					c.finish(&batch)
 					return
 				}
 				resetTimer()
 			}
 		case <-timer.C:
-			if send(context.Background(), true) {
+			if send(c.push, true) {
 				c.finish(&batch)
 				return
 			}
@@ -286,10 +301,10 @@ func (c *forwardCore) run() {
 	}
 }
 
-// finish makes the last, deadline bound attempt at shutdown and counts what
-// is still undelivered.
+// finish makes the last attempt at shutdown, bound by the deadline Close
+// set, and counts what is still undelivered.
 func (c *forwardCore) finish(batch *[][]byte) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.flushTimeout)
+	ctx, cancel := context.WithDeadline(context.Background(), c.closeBy)
 	defer cancel()
 	pending := *batch
 	for {

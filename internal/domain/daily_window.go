@@ -1,10 +1,8 @@
-package calendar
+package domain
 
 import (
 	"strings"
 	"time"
-
-	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 // DailyWindow is an immutable allowed local-time interval. A nil window allows
@@ -30,11 +28,11 @@ func ParseDailyWindow(start, end, timezone string) (*DailyWindow, error) {
 	a, okA := minute(start)
 	b, okB := minute(end)
 	if !okA || !okB || a == b || len(timezone) < 1 || len(timezone) > 128 || timezone == "Local" || strings.ContainsAny(timezone, " \t\r\n\\") {
-		return nil, domain.ErrInvalid
+		return nil, ErrInvalid
 	}
 	zone, err := time.LoadLocation(timezone)
 	if err != nil {
-		return nil, domain.ErrInvalid
+		return nil, ErrInvalid
 	}
 	return &DailyWindow{zone: zone, start: a, end: b}, nil
 }

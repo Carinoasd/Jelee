@@ -90,20 +90,9 @@ type Item struct {
 	RelativePath string
 }
 
-// Stats are aggregate counters without paths, IDs or text.
-type Stats struct {
-	Queued     int
-	Running    int
-	Completed  uint64
-	Failed     uint64
-	Dropped    uint64
-	Pictures   uint64
-	Recognized uint64
-	Reused     uint64
-	Rejected   uint64
-	Skipped    uint64
-	Throttled  uint64
-}
+// Stats is the OCR counter snapshot; the type lives in app so telemetry
+// reads it without importing this adapter (G28.2).
+type Stats = app.SubtitleOCRStats
 
 type entry struct {
 	Version int          `json:"version"`

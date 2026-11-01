@@ -69,22 +69,9 @@ func validOptions(o Options) bool {
 		(o.Index == nil || o.Store != nil) && validOutputFormats(o.OutputFormats) && validCropMode(o.Crop)
 }
 
-// Stats contains aggregate counts only; source identifiers and paths never
-// become labels. Completed means a response was prepared, not delivered.
-type Stats struct {
-	Active, ReservedBytes, MaxEstimatedImageBytes int64
-	Admitted, Completed, Failed, Busy             uint64
-	CacheHits, CacheMisses, Decodes               uint64
-	CacheEntries                                  int
-	CacheBytes                                    int64
-	CacheEvictions                                uint64
-	// Persistent store: variant hits, failed store or index writes (requests
-	// still succeed) and variants removed through the index.
-	VariantHits, StoreFailures, IndexFailures, IndexEvictions uint64
-	// Generated counts variants rendered from a decoded source because
-	// neither the memory cache nor the store had them (G40.13).
-	Generated uint64
-}
+// Stats is the processor counter snapshot; the type lives in app so
+// telemetry reads it without importing this adapter (G28.2).
+type Stats = app.ImageProcessorStats
 
 type Processor struct {
 	options     Options

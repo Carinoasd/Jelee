@@ -22,6 +22,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
@@ -93,16 +94,9 @@ func validStorePath(name string) bool {
 	return len(name) <= 4096 && utf8.ValidString(name) && !strings.ContainsFunc(name, unicode.IsControl) && filepath.IsAbs(name)
 }
 
-// StoreStats contains aggregate counts only; digests and paths never become
-// labels. Hits and misses per class provide the G42.4 hit-rate signal.
-type StoreStats struct {
-	OriginalEntries, VariantEntries           int
-	OriginalBytes, VariantBytes               int64
-	OriginalHits, OriginalMisses              uint64
-	VariantHits, VariantMisses                uint64
-	Evictions, Corrupt, Deduplicated, Cleared uint64
-	RemoveErrors, Foreign                     uint64
-}
+// StoreStats is the store counter snapshot; the type lives in app so
+// telemetry reads it without importing this adapter (G28.2).
+type StoreStats = app.ImageStoreStats
 
 type storeKey struct {
 	class           storeClass

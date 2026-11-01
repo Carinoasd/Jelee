@@ -407,7 +407,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			}
 			p := c.Jobs
 			opts := jobworker.Options{Budget: budget, Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second, ScanConcurrency: p.ScanConcurrency}
-			window, err := calendar.ParseDailyWindow(p.WindowStart, p.WindowEnd, p.WindowTimezone)
+			window, err := domain.ParseDailyWindow(p.WindowStart, p.WindowEnd, p.WindowTimezone)
 			if err != nil {
 				return nil, err
 			}

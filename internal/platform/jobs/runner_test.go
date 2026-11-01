@@ -15,6 +15,7 @@ import (
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	"github.com/MoYuanCN/Jelee/internal/platform/testutil"
 )
 
 type executionFake struct {
@@ -230,6 +231,7 @@ func oneJob(t *testing.T) jobFixture {
 }
 
 func TestRunnerOptionsAndLifecycle(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	repo := &executionFake{}
 	scan := scannerFunc(doneScanner)
@@ -281,6 +283,7 @@ func TestRunnerOptionsAndLifecycle(t *testing.T) {
 }
 
 func TestRunnerFixedConcurrencyAndCheckpointRelease(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
 	var claims, active, peak atomic.Int32
@@ -343,6 +346,7 @@ func TestRunnerFixedConcurrencyAndCheckpointRelease(t *testing.T) {
 }
 
 func TestRunnerIdlePollUsesTimerAndStopCancelsIt(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
 	opts.Workers = 1
@@ -370,6 +374,7 @@ func TestRunnerIdlePollUsesTimerAndStopCancelsIt(t *testing.T) {
 }
 
 func TestRunnerFairnessThreeManualThenBackground(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
 	opts.Workers = 1
@@ -409,6 +414,7 @@ func TestRunnerFairnessThreeManualThenBackground(t *testing.T) {
 }
 
 func TestRunnerHeartbeatCancellationAndLeaseFailure(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	for _, tc := range []struct {
 		name      string
 		requested bool
@@ -475,6 +481,7 @@ func TestRunnerHeartbeatCancellationAndLeaseFailure(t *testing.T) {
 }
 
 func TestRunnerJobTimeoutAndHeartbeatDBTimeout(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	for _, runtimeTimeout := range []bool{true, false} {
 		t.Run(fmt.Sprintf("job-timeout=%v", runtimeTimeout), func(t *testing.T) {
 			f := oneJob(t)
@@ -520,6 +527,7 @@ func TestRunnerJobTimeoutAndHeartbeatDBTimeout(t *testing.T) {
 }
 
 func TestRunnerFailureMappingAndCallbackContract(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	for _, tc := range []struct {
 		name                 string
 		scan                 scannerFunc
@@ -608,6 +616,7 @@ func TestRunnerFailureMappingAndCallbackContract(t *testing.T) {
 }
 
 func TestRunnerLeaseLostInSaveNeverFinishesOrReleases(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	f := oneJob(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
@@ -632,6 +641,7 @@ func TestRunnerLeaseLostInSaveNeverFinishesOrReleases(t *testing.T) {
 }
 
 func TestRunnerFinishFailureDoesNotClaimSuccessOrRetryOldLease(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	f := oneJob(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
@@ -653,6 +663,7 @@ func TestRunnerFinishFailureDoesNotClaimSuccessOrRetryOldLease(t *testing.T) {
 }
 
 func TestRunnerStopDeadlineDoesNotPretendBlockedScannerJoined(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	f := oneJob(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
@@ -688,6 +699,7 @@ func TestRunnerStopDeadlineDoesNotPretendBlockedScannerJoined(t *testing.T) {
 }
 
 func TestRunnerCompletionCancellationRaceChecksFlagAndLease(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	for _, tc := range []struct {
 		name         string
 		requested    bool
@@ -741,6 +753,7 @@ func TestRunnerCompletionCancellationRaceChecksFlagAndLease(t *testing.T) {
 }
 
 func TestRunnerHeartbeatRenewsWithoutResettingJobRuntime(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	f := oneJob(t)
 	clock := newTestClock()
 	opts := DefaultOptions()
@@ -781,6 +794,7 @@ func TestRunnerHeartbeatRenewsWithoutResettingJobRuntime(t *testing.T) {
 }
 
 func TestRunnerStreamsCompleteDirectoriesBeforeAdvancingFrontier(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	f := oneJob(t)
 	clock := newTestClock()
 	opts := DefaultOptions()

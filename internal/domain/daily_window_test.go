@@ -1,16 +1,14 @@
-package calendar
+package domain
 
 import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
 func TestDailyWindowValidation(t *testing.T) {
 	for _, v := range [][3]string{{"", "", "UTC"}, {"01:00", "", "UTC"}, {"1:00", "02:00", "UTC"}, {"24:00", "02:00", "UTC"}, {"00:60", "02:00", "UTC"}, {"01:00", "01:00", "UTC"}, {"01:00", "02:00", "Local"}, {"01:00", "02:00", "bad/zone"}, {"01:00", "02:00", " UTC"}, {"01:00", "02:00", ""}} {
-		if _, err := ParseDailyWindow(v[0], v[1], v[2]); !errors.Is(err, domain.ErrInvalid) {
+		if _, err := ParseDailyWindow(v[0], v[1], v[2]); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("accepted invalid window: %q", v)
 		}
 	}

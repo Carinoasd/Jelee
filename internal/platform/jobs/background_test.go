@@ -14,6 +14,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/resources"
+	"github.com/MoYuanCN/Jelee/internal/platform/testutil"
 )
 
 // fakeLocker grants a lock unless another holder has it, or fails.
@@ -122,6 +123,7 @@ func TestBackgroundRegister(t *testing.T) {
 // lock held elsewhere it is skipped and never starts, and a lock failure is
 // a failed run that is logged.
 func TestBackgroundClusterLock(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	locker := &fakeLocker{}
 	var logs bytes.Buffer
 	b, err := NewBackground(BackgroundOptions{Locker: locker, Logger: backgroundLogger(&logs)})
@@ -165,6 +167,7 @@ func TestBackgroundClusterLock(t *testing.T) {
 // to end and nothing else; a saturated budget skips the run after waiting
 // at most one interval, a full queue skips it at once.
 func TestBackgroundSharedBudget(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	budget, err := resources.New(resources.Limits{CPU: 1, IO: 1, Total: 1, Queue: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -244,6 +247,7 @@ func TestBackgroundSharedBudget(t *testing.T) {
 // Outcomes, waits and durations: a failed run, a run cancelled by the
 // stop, and the wait from due to start.
 func TestBackgroundOutcomesAndMetrics(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	now := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
 	var clock atomic.Int64
 	clock.Store(now.UnixNano())
@@ -310,6 +314,7 @@ func TestBackgroundOutcomesAndMetrics(t *testing.T) {
 // that kind has returned, and the delivery job's in-flight run keeps its
 // work context for the stop grace.
 func TestBackgroundStartWaitAndStopGrace(t *testing.T) {
+	testutil.TrackGoroutines(t)
 	locker := &fakeLocker{}
 	b, err := NewBackground(BackgroundOptions{Locker: locker, Logger: backgroundLogger(nil)})
 	if err != nil {

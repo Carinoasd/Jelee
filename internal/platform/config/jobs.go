@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MoYuanCN/Jelee/internal/adapter/calendar"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 )
 
@@ -53,7 +52,7 @@ func (c JobsConfig) Policy() domain.JobPolicy {
 }
 
 func (c JobsConfig) Validate() error {
-	if _, err := calendar.ParseDailyWindow(c.WindowStart, c.WindowEnd, c.WindowTimezone); err != nil {
+	if _, err := domain.ParseDailyWindow(c.WindowStart, c.WindowEnd, c.WindowTimezone); err != nil {
 		return errors.New("invalid job work window")
 	}
 	if c.Workers < 1 || c.Workers > 8 || c.PollMilliseconds < 100 || c.PollMilliseconds > 60000 || c.LeaseSeconds < 10 || c.LeaseSeconds > 300 || c.DatabaseTimeoutSeconds < 1 || c.DatabaseTimeoutSeconds > 99 || time.Duration(c.DatabaseTimeoutSeconds)*time.Second >= time.Duration(c.LeaseSeconds)*time.Second/3 || c.MaxRuntimeSeconds < 60 || c.MaxRuntimeSeconds > 86400 || c.ScanConcurrency < 1 || c.ScanConcurrency > 16 {
