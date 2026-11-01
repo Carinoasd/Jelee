@@ -158,7 +158,6 @@ JELEE_TEST_DATABASE_URL=… go test -p 1 -run TestClientControlOverheadPostgres 
 - 「按庫」作用範圍（`scopeKind: library`）：閘門在路由前不知道請求的目標庫，存儲仍拒絕。`restrict_libraries` 動作已實作（遷移 000079）。
 - 使用者群組作用範圍（目前沒有群組模型）。
 - 異常 UA 暴增告警（目前只有批量被拒告警）；告警門檻可設定。
-- 管理頁 UI（目前只有 API 與 OpenAPI 型別）。
 - `device_type` 的來源（需客戶端回報或由伺服器推斷）。
 - 限速計數跨實例共享（目前每個實例各自計數）。
 - TLS／JA3 指紋。

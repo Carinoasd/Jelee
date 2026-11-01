@@ -2,7 +2,7 @@
 
 `Dockerfile` 构建三个静态 Go 可执行文件，运行镜像使用 scratch 和 UID/GID 65532，不包含 shell、转码工具或旧服务。构建阶段使用 Go 1.27.1-alpine3.24，固定镜像索引摘要 `sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414`，已记录于 `tools/manifest.json`。最终镜像包含项目 LICENSE、Go LICENSE/PATENTS 与 CA 证书。
 
-当前支持登记后读取原媒体、离线 NFO 只读校验，以及可配置的持久只读盘点任务。ffprobe、mkvtoolnix、mediainfo、字幕/图片处理、NFO 编辑写回与其批量任务尚未接入，因此 G37 的完整镜像要求仍未完成。第3A镜像与只读扫描实测见[任务验证](jobs-verification.md)，以下保留首阶段镜像历史。
+当前支持登记后读取原媒体、离线 NFO 只读校验，以及可配置的持久只读盘点任务。ffprobe 探测、可选的 mkvtoolnix／MediaInfo（E4 已固定，不进生产镜像的只有 ffmpeg）、字幕提取与 OCR、图片处理、NFO 写回与其批量任务都已接入；G37 的完整镜像验收仍待正式容器实测（D6）。第3A镜像与只读扫描实测见[任务验证](jobs-verification.md)，以下保留首阶段镜像历史。
 
 Compose 使用 PostgreSQL 16.15 精确镜像摘要、健康检查及先迁移再启服务。数据库卷在项目 `data/postgres`；媒体以只读卷挂载到 `/media`，宿主机必须给予 UID 65532 读取与父目录遍历权限。
 
@@ -267,7 +267,7 @@ Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整
 
 ## 故障排查（G37.5）
 
-先运行 `make diag`（Windows：`scripts/make.ps1 diag`）。完整的 `jelee-cli diag export` 诊断包（G50.2）尚未实现，该入口目前依次执行 `jelee-cli doctor tools`、`doctor probe` 与 `doctor`，并在全部输出后汇总失败。
+先运行 `make diag`（Windows：`scripts/make.ps1 diag`）。该入口依次执行 `jelee-cli doctor tools`、`doctor probe` 与 `doctor`，并在全部输出后汇总失败；要收集完整诊断包用 `jelee-cli diag export --out jelee-diag.zip`（G50.2，见[故障排查](troubleshooting.md#diag-export)）。
 
 | 现象 | 优先检查 |
 | --- | --- |
@@ -277,7 +277,7 @@ Jelee 对 `/api/` 与 `/compat` 的请求套用每客户端令牌桶限流、整
 | 代理 502／504 | Jelee 是否在运行、代理连接的地址与 `JELEE_LISTEN` 是否一致；Compose 只向宿主环回发布 8097 |
 | 扫描异常 | 用 `jelee-cli jobs` 查看任务状态与错误码；媒体卷需要 UID 65532 可读、父目录可遍历；详见[任务 API](jobs-api.md)与[文件清单扫描](scanning-filesystem.md) |
 | 数据库连接失败 | `jelee-cli doctor` 与 `jelee-migrate status`；服务在 schema 不匹配时拒绝启动，先执行迁移；远程数据库使用证书验证的 `sslmode` |
-| NFO 权限或读取失败 | NFO 目前只读，不需要写权限；用 `make nfo NFO_ROOT=<绝对根目录> NFO_FILE=<相对路径>` 离线验证单个文件；详见 [NFO 工作流程](nfo-worker.md) |
+| NFO 权限或读取失败 | 未开启写回（`JELEE_ENABLE_NFO_WRITE`）时 NFO 只读、不需要写权限，开启后媒体目录须可写；用 `make nfo NFO_ROOT=<绝对根目录> NFO_FILE=<相对路径>` 离线验证单个文件；详见 [NFO 工作流程](nfo-worker.md) |
 | 图片取得失败 | 本地图片见[本地海报](local-images.md)；外部抓取受 SSRF 策略限制，私网／环回地址会被拦截，见[出站请求盘点](outbound-request-audit.md)与 [TMDB 重试](tmdb-retry.md) |
 | 告警触发 | 依告警名称查 [Runbook](runbook.md) 对应小节：每条告警都写明意义、确认、处置与回复验证 |
 | 目录与文件对不上 | `jelee-cli consistency check --library 名称` 检查孤儿条目／文件、版本计数、播放统计漂移、图片／NFO／外挂轨与实际文件、探测与图片快取、约束状态，见[资料一致性检查](consistency.md) |
