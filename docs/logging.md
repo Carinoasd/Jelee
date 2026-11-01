@@ -51,6 +51,66 @@
 
 `JELEE_LOG_COMPONENTS` 或配置文件中给 `audit`、`security`（或别名 `devmode`）设级别会被拒绝启动（`audit and security log levels cannot be configured`）。
 
+### 外部转发（G46.1）
+
+每条 JSON 记录（与日志文件同一份：已脱敏，字段相同）可以同时转发到 syslog 与 Loki，最多 8 个目的地，默认全部关闭。转发器与文件、stdout 一样走各自的有界队列，请求路径只做一次入队，收集器变慢、离线或拒收都不会让请求等待。OTLP 日志转发没有实现（追踪导出见 OpenTelemetry 相关文档）。
+
+配置写在 `logging.forwarders[]`，或用环境变量（每种至多一个，环境变量给出的种类会替换配置文件里同种类的全部条目）。密码与 token 不能写在配置文件里，只能用环境变量或 `*File`（配置文件写文件路径，≤ 4 KiB，去掉首尾空白）。只设了某一种的选项却没有设它的开关项（syslog 的 `ADDRESS`、Loki 的 `URL`）、认证只给一半、同时给两种认证、凭证用明文 http 送往非环回主机，都会拒绝启动，错误信息不含配置值。
+
+| 环境变量（`JELEE_LOG_FORWARD_` 之后） | 配置文件键 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `SYSLOG_ADDRESS` | `address` | 空 | 开关。`host:port`，或 `unix`／`unixgram` 的绝对路径 |
+| `SYSLOG_NETWORK` | `network` | `udp` | `udp`、`tcp`、`tls`（RFC 5425，系统根证书）、`unix`、`unixgram`；Windows 上 `unix*` 拒绝启动 |
+| `SYSLOG_FACILITY` | `facility` | `local0` | `user`、`daemon`、`auth`、`authpriv`、`local0`–`local7` |
+| `SYSLOG_APP_NAME`／`SYSLOG_HOSTNAME` | `appName`／`hostname` | `jelee`／本机主机名 | RFC 5424 的 APP-NAME 与 HOSTNAME |
+| `SYSLOG_FRAMING` | `framing` | `octet-counting` | 流式连接的分帧：`octet-counting`（RFC 6587）或 `newline`；数据报每条一个包 |
+| `LOKI_URL` | `url` | 空 | 开关。基础地址（自动补 `/loki/api/v1/push`，可带反向代理前缀）；`http` 或 `https`，不能含用户信息、查询或片段 |
+| `LOKI_USERNAME`＋`LOKI_PASSWORD`（或 `_PASSWORD_FILE`） | `username`＋`passwordFile` | 空 | 基本认证，两项必须同时给 |
+| `LOKI_BEARER_TOKEN`（或 `_BEARER_TOKEN_FILE`） | `bearerTokenFile` | 空 | Bearer 认证；与基本认证互斥 |
+| `LOKI_TENANT_ID` | `tenantId` | 空 | 多租户 Loki 的 `X-Scope-OrgID` |
+| `LOKI_SERVICE` | `service` | `jelee` | 标签 `service` 的值 |
+| `SYSLOG_`／`LOKI_` 加 `NAME` | `name` | 种类名 | 指标标签 `destination`，1–32 个小写字母、数字、`-`、`_`；重名自动加序号 |
+| `SYSLOG_`／`LOKI_` 加 `QUEUE_ENTRIES` | `queueEntries` | 4096 | 该目的地自己的队列长度，1–1048576 |
+| `SYSLOG_`／`LOKI_` 加 `BATCH_SIZE` | `batchSize` | 100 | 每次推送最多条数，1–10000（也受每批 1 MiB 限制） |
+| `SYSLOG_`／`LOKI_` 加 `BATCH_INTERVAL_MS` | `batchIntervalMs` | 1000 | 记录最多等多久凑批，10–60000 |
+| `SYSLOG_`／`LOKI_` 加 `TIMEOUT_MS` | `timeoutMs` | 10000 | 一次连接或推送的上限，≤ 120000 |
+
+**syslog 消息**：RFC 5424，`<PRI>1 时间戳 主机名 jelee 进程号 组件 - BOM+JSON`。PRI＝facility×8＋severity（DEBUG→7、INFO→6、WARN→4、ERROR→3），时间戳取记录自己的时间（UTC，微秒），MSGID 是记录的 `component`，没有结构化数据，MSG 是完整的 JSON 记录，因此收集器可以直接解析所有字段。数据报每条一个包（超过 32 KiB 的记录丢弃并计数）；流式连接断开后在下一批自动重连。
+
+**Loki 推送**：`POST /loki/api/v1/push`，`{"streams":[{"stream":{"service","component","level"},"values":[["<unix 纳秒>","<JSON 记录>"]]}]}`；同一批按 `component`＋`level` 分流、流内按时间排序。`component` 只允许 32 字符内的标识符（否则 `unknown`），`level` 是 `debug`／`info`／`warn`／`error`。其他字段留在日志行里，用 LogQL 的 `| json` 取出。TLS 一律用系统根证书校验，没有关闭校验或自带 CA 的选项；不跟随重定向（避免把凭证带到别处）。
+
+**队列、重试与丢弃**：
+
+- 请求路径的 `Write` 只复制记录并入队；队列满时丢弃新记录并计数，绝不阻塞。超过 256 KiB（数据报 32 KiB）的记录丢弃并计数，不截断 JSON。
+- 一批推送失败（连不上、超时、证书不被信任、HTTP 429／408／5xx）时，指数退避（0.5 秒起，上限 30 秒，带抖动，`Retry-After` 优先，最长 60 秒）重试同一批，最多 8 次，用尽后整批丢弃并计数。Loki 回 400／401／403 等其他 4xx（条目过旧、过长、认证错误）重试无用，整批丢弃并计数，不重试。
+- 投递从正常变为失败、再恢复时，行程 stderr 各写一行 `Jelee log forwarder <名称>: delivery failing (<类别>)`／`delivery recovered`，类别是固定词（`network`、`timeout`、`tls`、`status 503`、`rejected 400`），不含地址、凭证或记录内容。
+- 关机时 `Flush`／`Close` 有 5 秒期限（调用方给了期限则以它为准）：在期限内尽力把已入队的记录送出，送不出的计入丢弃，不会因收集器离线而卡住关机。
+- 投递是至少一次：一批中途失败重试时，收集器可能收到重复记录；TCP 对端关闭后的第一次写入可能被内核吞掉，那条记录可能丢失而不报错。
+
+**指标**（见 [metrics](metrics.md)）：`jelee_logging_forward_dropped_total{destination}`、`jelee_logging_forward_failures_total{destination}`、`jelee_logging_forward_sent_total{destination}`；默认告警 `JeleeLogForwardDropped`。原有的 `jelee_logging_records_dropped_total` 只统计路由器入口队列（stdout、文件、各转发器前的缓冲）满了的丢弃；转发器前的缓冲丢弃同时计入该目的地的 `forward_dropped`。
+
+Loki 示例（环境变量，凭证走 Docker／systemd 的文件机密）：
+
+```
+JELEE_LOG_FORWARD_LOKI_URL=https://loki.example.org
+JELEE_LOG_FORWARD_LOKI_USERNAME=jelee
+JELEE_LOG_FORWARD_LOKI_PASSWORD_FILE=/run/secrets/loki_password
+JELEE_LOG_FORWARD_LOKI_TENANT_ID=home
+JELEE_LOG_FORWARD_LOKI_SERVICE=jelee-prod
+```
+
+等价的配置文件片段：
+
+```json
+{"logging": {"forwarders": [
+  {"kind": "loki", "url": "https://loki.example.org", "username": "jelee",
+   "passwordFile": "/run/secrets/loki_password", "tenantId": "home", "service": "jelee-prod"},
+  {"kind": "syslog", "network": "tcp", "address": "syslog.example.org:514", "facility": "local0"}
+]}}
+```
+
+查询：`{service="jelee-prod", component="http", level="error"} | json | status >= 500`。仍然保留 stdout 或文件输出时，`jelee-cli logs` 与诊断导出照常可用。
+
 ### 运行时调整级别（G46.2）
 
 管理员可以不重启地调整全局级别或单个范围的级别：
@@ -251,7 +311,7 @@ code : "db_slow_query" and durationMs > 2000
 ## 尚未完成
 
 - 没有通用的审计查询接口（G49.6）；审计行只能直接查询数据库，分享链接的访问记录除外。
-- syslog、Loki、OTLP 转发器只定义了类型，尚未实现；请用容器运行时或日志代理收集 stdout 或日志文件。
+- OTLP 日志转发尚未实现（syslog 与 Loki 见上文「外部转发」）；真实 Loki／rsyslog／syslog-ng 收集器的端到端验证见验证清单 D49。
 - `jelee-cli logs` 只读本机日志文件；多实例部署请在日志系统中集中查询。
 - 级别覆写在其他实例上最多延迟 15 秒生效。
 - 高 QPS 压测（P95）只有开发机基准，尚未在固定硬件上做端到端压测（需要长时间验证）。

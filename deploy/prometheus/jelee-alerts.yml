@@ -39,6 +39,15 @@ groups:
           summary: "Jelee is dropping log records"
           description: "{{ $labels.instance }} dropped {{ $value | humanize }} log records in 10 minutes because a log queue was full (G46.8 backpressure); requests are not slowed, but records are lost."
           runbook: "docs/runbook.md#jeleelogrecordsdropped"
+      - alert: JeleeLogForwardDropped
+        expr: sum by (instance, destination) (increase(jelee_logging_forward_dropped_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jelee is losing log records for {{ $labels.destination }}"
+          description: "{{ $labels.instance }} dropped {{ $value | humanize }} log records bound for {{ $labels.destination }} in 10 minutes because the collector was slow, unreachable or rejecting them (G46.1, G46.8); requests are not slowed, but the collector's copy is incomplete."
+          runbook: "docs/runbook.md#jeleelogforwarddropped"
       - alert: JeleeDiskSpaceLow
         expr: jelee_storage_available_bytes / jelee_storage_size_bytes < 0.10
         for: 10m
