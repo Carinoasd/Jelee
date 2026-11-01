@@ -11,17 +11,21 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/access"
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
+	"github.com/MoYuanCN/Jelee/internal/adapter/postgres"
 	"github.com/MoYuanCN/Jelee/internal/adapter/subtitleocr"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 	"github.com/MoYuanCN/Jelee/internal/platform/ocrruntime"
+	"github.com/MoYuanCN/Jelee/internal/platform/resources"
 )
 
 // ocrLocator is the background subtitle OCR service (subtitleocr.Service).
+// Its queue is dispatched by Task on the background lane.
 type ocrLocator interface {
 	Locate(ctx context.Context, sourceID string, source domain.ProbeSource, index int) (subtitleocr.Item, error)
 	LocateSidecar(ctx context.Context, request subtitleocr.SidecarRequest) (subtitleocr.Item, error)
+	Task() app.BackgroundTask
 	Close() error
 }
 
@@ -100,8 +104,9 @@ func (m *matroskaService) ResolveSidecarOCR(ctx context.Context, principal acces
 	return media.Source{Root: m.ocrRoot, RelativePath: item.RelativePath, DeviceID: track.DeviceID, Limits: track.Limits, ShareStreams: track.ShareStreams}, nil
 }
 
-// newOCRService registers the isolated Tesseract runner and starts the
-// background OCR service over the verified Matroska extractor. A missing
+// newOCRService registers the isolated Tesseract runner and builds the
+// background OCR service over the verified Matroska extractor; its
+// subtitle_ocr job is registered on the background lane by the caller. A missing
 // or altered runtime, an unusable cache root or invalid settings leave OCR
 // off with one warning; extraction itself keeps working.
 func newOCRService(ctx context.Context, c config.SubtitleOCRConfig, extractor *matroska.Extractor, directory string, budget app.WorkBudget, logger *slog.Logger) ocrLocator {
@@ -145,4 +150,15 @@ func newOCRService(ctx context.Context, c config.SubtitleOCRConfig, extractor *m
 func ocrServiceConfig(c config.SubtitleOCRConfig, work, identity string, budget app.WorkBudget, logger *slog.Logger) subtitleocr.Config {
 	return subtitleocr.Config{CacheRoot: c.CacheRoot, MaxCacheBytes: c.CacheMaxBytes, WorkRoot: work, Languages: c.Languages,
 		PicturesPerMinute: c.PicturesPerMinute, Concurrency: c.Concurrency, QueueSize: c.QueueSize, Identity: identity, Budget: budget, Logger: logger}
+}
+
+// registerOCR puts the subtitle_ocr job of an OCR service on the
+// background lane (G41.1): the lane dispatches its queue with the
+// cluster-wide lock, stops it with the lifetime context and joins it before
+// the pool and the OCR scratch directory are closed.
+func (l *lifetime) registerOCR(store *postgres.Store, budget *resources.Budget, ocr ocrLocator) error {
+	if ocr == nil {
+		return nil
+	}
+	return l.registerBackground(store, budget, ocr.Task())
 }

@@ -93,7 +93,8 @@ func (m *matroskaService) Close() error {
 		return nil
 	}
 	if m.ocr != nil {
-		// Stops the background OCR job before its scratch directory goes.
+		// The background lane joined the OCR job before the pool closed;
+		// Close drops what is still queued before its scratch directory goes.
 		_ = m.ocr.Close()
 	}
 	if m.cleanup == nil {

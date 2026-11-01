@@ -13,6 +13,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/matroska"
 	"github.com/MoYuanCN/Jelee/internal/adapter/media"
 	"github.com/MoYuanCN/Jelee/internal/adapter/subtitleocr"
+	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
 	"github.com/MoYuanCN/Jelee/internal/platform/config"
 )
@@ -128,6 +129,8 @@ func (f *fakeOCR) LocateSidecar(_ context.Context, request subtitleocr.SidecarRe
 	f.request = request
 	return f.item, f.err
 }
+
+func (f *fakeOCR) Task() app.BackgroundTask { return app.BackgroundTask{} }
 
 func (f *fakeOCR) Close() error { f.closed = true; return nil }
 

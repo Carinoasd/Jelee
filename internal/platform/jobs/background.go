@@ -36,8 +36,8 @@ type BackgroundOptions struct {
 const backgroundLockTimeout = 5 * time.Second
 
 // Background is the job executor's lane for recurring background jobs
-// (G41.1): webhook delivery, the watch statistics roll-up and the playback
-// progress flush. It owns one goroutine per registered kind for the service
+// (G41.1): webhook delivery, the watch statistics roll-up, the playback
+// progress flush and subtitle OCR. It owns one goroutine per registered kind for the service
 // lifetime; app.RunBackground paces it. Every run is admitted first: a
 // cluster-wide kind takes its database advisory lock (another instance
 // running it skips the run), a kind with a work class takes one permit of
@@ -49,11 +49,11 @@ type Background struct {
 	mu      sync.Mutex
 	tasks   []app.BackgroundTask
 	started bool
-	done    [3]chan struct{}
+	done    [domain.BackgroundJobKindCount]chan struct{}
 
 	metricsMu sync.Mutex
 	since     time.Time
-	groups    [3]app.BackgroundJobGroup
+	groups    [domain.BackgroundJobKindCount]app.BackgroundJobGroup
 }
 
 // NewBackground builds an empty lane.

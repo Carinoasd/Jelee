@@ -124,7 +124,7 @@ groups:
           severity: warning
         annotations:
           summary: "Background job {{ $labels.kind }} keeps failing"
-          description: "Every run of the {{ $labels.kind }} background job failed for 30 minutes on all instances; webhooks, watch statistics or playback progress are not being written."
+          description: "Every run of the {{ $labels.kind }} background job failed for 30 minutes on all instances; webhooks, watch statistics, playback progress or subtitle OCR results are not being written."
           runbook: "docs/runbook.md#jeleebackgroundjobfailing"
   - name: jelee-integrations
     rules:

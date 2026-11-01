@@ -336,3 +336,117 @@ func TestBackgroundStatsAndProgressLanesPostgres(t *testing.T) {
 		t.Fatalf("flush outcomes %v", got)
 	}
 }
+
+// Two instances run the subtitle_ocr job against one database: the
+// session advisory lock lets one recognize at a time, the other's runs are
+// skipped with its queue left for later, and it takes over once the lock is
+// free. Each run is one queued source, as subtitleocr.Service.Task does.
+func TestBackgroundSubtitleOCROneInstancePostgres(t *testing.T) {
+	f := newJobFixture(t)
+	stores := []*Store{f.s, secondInstance(t, f.s)}
+	const sources = 6
+	var inFlight atomic.Int32
+	var overlap atomic.Bool
+	var queued [2]atomic.Int32
+	gate, holding := make(chan struct{}), make(chan struct{})
+	var holdOnce sync.Once
+	lanes := make([]*jobworker.Background, 2)
+	for i, s := range stores {
+		queued[i].Store(sources)
+		lanes[i] = backgroundLane(t, s, nil)
+		err := lanes[i].Register(app.BackgroundTask{Kind: domain.JobSubtitleOCR, Interval: 5 * time.Millisecond, IdleWait: true, Cluster: true,
+			Run: func(_, work context.Context) (bool, error) {
+				if queued[i].Load() == 0 {
+					return false, nil
+				}
+				if inFlight.Add(1) != 1 {
+					overlap.Store(true)
+				}
+				defer inFlight.Add(-1)
+				if i == 0 {
+					// The first instance's first source keeps the lock
+					// until the test has seen the other one skip.
+					holdOnce.Do(func() {
+						close(holding)
+						select {
+						case <-gate:
+						case <-work.Done():
+						}
+					})
+				}
+				select {
+				case <-time.After(2 * time.Millisecond):
+				case <-work.Done():
+					return false, work.Err()
+				}
+				return queued[i].Add(-1) > 0, nil
+			}})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, stop := context.WithCancel(f.ctx)
+	t.Cleanup(func() {
+		stop()
+		for _, lane := range lanes {
+			lane.Wait()
+		}
+	})
+	if err := lanes[0].Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	<-holding
+	if err := lanes[1].Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for laneOutcomes(lanes[1], domain.JobSubtitleOCR)[3] < 3 {
+		if time.Now().After(deadline) {
+			t.Fatal("second instance never skipped")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if queued[1].Load() != sources || lanes[1].BackgroundJobMetrics().Groups[domain.BackgroundJobKindIndex(domain.JobSubtitleOCR)].Running != 0 {
+		t.Fatal("second instance recognized while the first held the lock")
+	}
+	if n := syncCount(t, f, `SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND granted AND classid=hashtext(current_schema())::oid AND objid=17481270`); n != 1 {
+		t.Fatalf("subtitle_ocr lock held by %d sessions", n)
+	}
+	close(gate)
+	for queued[0].Load()+queued[1].Load() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("queues left %d %d", queued[0].Load(), queued[1].Load())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	stop()
+	for _, lane := range lanes {
+		lane.Wait()
+	}
+	if overlap.Load() {
+		t.Fatal("both instances recognized at the same time")
+	}
+	for i, lane := range lanes {
+		if got := laneOutcomes(lane, domain.JobSubtitleOCR); got[0] < sources || got[1] != 0 {
+			t.Fatalf("instance %d outcomes %v", i, got)
+		}
+	}
+	// A lock attempt cancelled by the stop closes its session, whose
+	// backend may take a moment to exit and drop the lock.
+	for syncCount(t, f, `SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND classid=hashtext(current_schema())::oid AND objid=17481270`) != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("subtitle_ocr lock left after the lanes stopped")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	// The pool returns a cancelled lock attempt's connection only after
+	// its session has closed, so give that the same deadline.
+	for i, s := range stores {
+		for s.Pool.Stat().AcquiredConns() != 0 {
+			if time.Now().After(deadline) {
+				t.Fatalf("instance %d kept %d connections", i, s.Pool.Stat().AcquiredConns())
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+}

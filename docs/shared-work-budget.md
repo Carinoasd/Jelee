@@ -121,11 +121,12 @@ Windows outbound/metadata/runtime/architecture與vet通過；[Linux race](eviden
 
 Windows nfo/architecture/jobs/runtime及vet、[Linux nfo/architecture race](evidence/nfo-writer-budget-race-linux.txt)通過，含真budget的total1、兩類queue0拒絕與queue1取消/恢復、sync故障與共用等待者取消。詳見[writer契約](nfo-bound-writer.md)。目前正式read-write策略與持久寫回worker尚未實作，runtime尚未供應此writer；本批未跑真PG寫回或完整混合負載。G41.3/G41.9狀態保持。
 
-## 背景工作：Webhook 投遞、觀看統計彙總、播放進度 flush
+## 背景工作：Webhook 投遞、觀看統計彙總、播放進度 flush、字幕 OCR
 
-三者是任務執行器的背景工作（[背景工作](jobs-api.md#背景工作)），runtime 把同一個 Budget 交給背景工作線與 Webhook 投遞器。
+四者是任務執行器的背景工作（[背景工作](jobs-api.md#背景工作)），runtime 把同一個 Budget 交給背景工作線與 Webhook 投遞器。
 
 - Webhook 投遞：投遞器在簽章前為每次嘗試取得一個 I/O，請求結束即釋放，寫回嘗試紀錄不持有；輪次本身不持有，避免與嘗試巢狀。投遞器用的 HTTP client 不再自己取配額（管理員測試送出的 client 照舊在 `Post` 內取）。等待最多到「租約到期 − 端點逾時 − 10 秒」；佇列滿或等不到時這次嘗試**不記錄**，不計入嘗試次數、不會因背壓進死信，租約到期後以同一 `eventId` 重送。原本背壓會被分類成 `network`／`timeout` 失敗並消耗重試次數。
 - 觀看統計彙總、播放進度 flush：每次執行前取得一個 I/O（資料庫讀寫為主；彙總的計算在交易內，若在交易中等 CPU 會延長鎖的持有），執行結束釋放，最多等一個間隔，佇列滿或等不到就跳過這一次並計入 `jelee_jobs_background_runs_total{outcome="skipped"}`。叢集單例的工作先取叢集鎖再取配額，跳過時鎖一併釋放。停止回報的即時寫入與關機前最後一次 flush 不經配額。
+- 字幕 OCR（`subtitle_ocr`）：OCR 是 CPU 類工作，但執行本身不持有配額：一個來源最長 4 小時、同時 1–4 個 Tesseract，每張圖在辨識前各取一個 CPU（原本的做法），持有一個執行層配額會與逐圖配額巢狀，CPU 配額為 1 時甚至會自鎖。逐圖的等待算在該次執行的 `jelee_jobs_background_duration_seconds` 內，並反映在 `jelee_resources_waiting`；`wait_seconds` 只有叢集鎖的等待。驗證見 `internal/adapter/subtitleocr/lane_test.go`（真 Budget CPU1／total1：外部占住時執行中但未辨識、等待數 1，釋放後完成、耗時含等待、配額歸零）。
 
 驗證：`internal/app/background_test.go`（佇列滿時不記錄嘗試、等待期限、配額只涵蓋請求）、`internal/platform/jobs/background_test.go`（真 Budget total1：執行中 IO／total 各 1、結束歸零；飽和時等一個間隔後跳過；佇列滿立即跳過；跳過時釋放叢集鎖）、`internal/adapter/postgres/background_locks_test.go`（真 PG 與真 Budget：兩實例投遞、彙總與 flush 結束後配額歸零）。混合負載下的實測仍待 [C52](owner-verification-queue.md)。

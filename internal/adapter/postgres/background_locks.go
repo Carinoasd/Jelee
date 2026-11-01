@@ -15,6 +15,7 @@ import (
 const (
 	webhookDeliveryLock       = 17481268
 	watchStatsAggregationLock = 17481269
+	subtitleOCRLock           = 17481270
 )
 
 func backgroundLockKey(kind string) (int32, bool) {
@@ -23,6 +24,8 @@ func backgroundLockKey(kind string) (int32, bool) {
 		return webhookDeliveryLock, true
 	case domain.JobWatchStatsAggregation:
 		return watchStatsAggregationLock, true
+	case domain.JobSubtitleOCR:
+		return subtitleOCRLock, true
 	}
 	return 0, false
 }

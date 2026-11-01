@@ -11,9 +11,10 @@ import (
 var _ jobworker.BackgroundLocker = (*postgres.Store)(nil)
 
 // backgroundJobs returns the job executor's background lane (G41.1),
-// building it on first use: webhook delivery, the watch statistics roll-up
-// and the playback progress flush run there with the store's cluster-wide
-// locks and the shared budget, instead of goroutines of their own. The lane
+// building it on first use: webhook delivery, the watch statistics roll-up,
+// the playback progress flush and subtitle OCR run there with the store's
+// cluster-wide locks and the shared budget, instead of goroutines of their
+// own. The lane
 // starts with the workers; its metrics are exported with the job metrics.
 func (l *lifetime) backgroundJobs(store *postgres.Store, budget *resources.Budget) (*jobworker.Background, error) {
 	if l.background != nil {

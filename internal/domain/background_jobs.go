@@ -20,6 +20,11 @@ const (
 	// buffered and closes stale sessions (G23.2). Per instance: the buffer
 	// lives in this process's memory, so every instance flushes its own.
 	JobPlaybackProgressFlush = "playback_progress_flush"
+	// JobSubtitleOCR recognizes the next source of this instance's subtitle
+	// OCR queue (G15.6). Cluster-wide: OCR is the heaviest CPU work of the
+	// service, so one source is recognized across all instances at a time;
+	// each run takes one queued source and releases the lock afterwards.
+	JobSubtitleOCR = "subtitle_ocr"
 )
 
 // BackgroundJobPriority is the priority dimension of every background job.
@@ -34,10 +39,13 @@ const (
 	BackgroundRunSkipped   = "skipped"
 )
 
+// BackgroundJobKindCount is the number of background kinds.
+const BackgroundJobKindCount = 4
+
 // BackgroundJobKinds lists the background kinds in a stable order; metric
 // snapshots keep this order.
-func BackgroundJobKinds() [3]string {
-	return [3]string{JobPlaybackProgressFlush, JobWatchStatsAggregation, JobWebhookDelivery}
+func BackgroundJobKinds() [BackgroundJobKindCount]string {
+	return [BackgroundJobKindCount]string{JobPlaybackProgressFlush, JobSubtitleOCR, JobWatchStatsAggregation, JobWebhookDelivery}
 }
 
 // BackgroundRunOutcomes lists the run outcomes in a stable order.
@@ -59,5 +67,5 @@ func BackgroundJobKindIndex(kind string) int {
 // BackgroundJobClusterWide reports a kind that must run on one instance at a
 // time; the others run on every instance.
 func BackgroundJobClusterWide(kind string) bool {
-	return kind == JobWebhookDelivery || kind == JobWatchStatsAggregation
+	return kind == JobWebhookDelivery || kind == JobWatchStatsAggregation || kind == JobSubtitleOCR
 }
