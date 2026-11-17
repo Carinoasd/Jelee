@@ -1,0 +1,34 @@
+{
+ "Name": "Web (Chromium on a desktop without HEVC Dolby Vision)",
+ "MaxStreamingBitrate": 120000000, "MaxStaticBitrate": 100000000, "MusicStreamingTranscodingBitrate": 384000,
+ "DirectPlayProfiles": [
+  {"Container": "webm", "Type": "Video", "VideoCodec": "vp8,vp9,av1", "AudioCodec": "vorbis,opus"},
+  {"Container": "mp4,m4v", "Type": "Video", "VideoCodec": "h264,hevc,vp9,av1", "AudioCodec": "aac,mp3,ac3,eac3,flac,alac,opus"},
+  {"Container": "mkv", "Type": "Video", "VideoCodec": "h264,hevc,vp9,av1", "AudioCodec": "aac,mp3,ac3,eac3,flac,opus"},
+  {"Container": "opus", "Type": "Audio"}, {"Container": "mp3", "Type": "Audio"}, {"Container": "flac", "Type": "Audio"}
+ ],
+ "TranscodingProfiles": [
+  {"Container": "ts", "Type": "Video", "AudioCodec": "aac,mp3", "VideoCodec": "h264,hevc", "Context": "Streaming", "Protocol": "hls", "MaxAudioChannels": "2", "MinSegments": "1", "BreakOnNonKeyFrames": true},
+  {"Container": "mp4", "Type": "Video", "AudioCodec": "aac", "VideoCodec": "h264", "Context": "Static", "Protocol": "http"}
+ ],
+ "ContainerProfiles": [],
+ "CodecProfiles": [
+  {"Type": "VideoAudio", "Codec": "aac", "Conditions": [{"Condition": "Equals", "Property": "IsSecondaryAudio", "Value": "false", "IsRequired": false}]},
+  {"Type": "VideoAudio", "Conditions": [{"Condition": "LessThanEqual", "Property": "AudioChannels", "Value": "6", "IsRequired": false}]},
+  {"Type": "Video", "Codec": "h264", "Conditions": [
+   {"Condition": "NotEquals", "Property": "IsAnamorphic", "Value": "true", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "high|main|baseline|constrained baseline", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoRangeType", "Value": "SDR", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "52", "IsRequired": false},
+   {"Condition": "NotEquals", "Property": "IsInterlaced", "Value": "true", "IsRequired": false}]},
+  {"Type": "Video", "Codec": "hevc", "Conditions": [
+   {"Condition": "NotEquals", "Property": "IsAnamorphic", "Value": "true", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "main|main 10", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoRangeType", "Value": "SDR|HDR10|HLG", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "183", "IsRequired": false}]}
+ ],
+ "SubtitleProfiles": [
+  {"Format": "vtt", "Method": "External"}, {"Format": "ass", "Method": "External"}, {"Format": "ssa", "Method": "External"}
+ ],
+ "ResponseProfiles": [{"Type": "Video", "Container": "m4v", "MimeType": "video/mp4"}]
+}

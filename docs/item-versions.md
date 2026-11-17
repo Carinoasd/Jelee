@@ -92,7 +92,7 @@
 
 播放資訊的來源順序就是預設版本順序，依序套用：
 
-1. **客戶端能力聲明**（只用來排除）：自有 API 的 `POST /api/v1/items/{id}/playback/check`（`containers`、`videoCodecs`、`audioCodecs`、`maxBitrate`，判定同直投 `DecideDirectPlay`，未探測來源不確認）、相容層 PlaybackInfo 的 `DeviceProfile.DirectPlayProfiles`、`MaxStreamingBitrate`、`EnableDirectPlay`、`MediaSourceId`。不能原樣直投的版本被排除；聲明**永遠不會**讓轉換變成可接受（ADR 0007，守衛照舊 409 轉換參數），全部被排除時照舊：自有 API 200 且 `directPlayable=false`、相容層 `NoCompatibleStream`。
+1. **客戶端能力聲明**（只用來排除）：自有 API 的 `POST /api/v1/items/{id}/playback/check`（`containers`、`videoCodecs`、`audioCodecs`、`maxBitrate`，判定同直投 `DecideDirectPlay`，未探測來源不確認）、相容層 PlaybackInfo 的 `DeviceProfile`（`DirectPlayProfiles`、`ContainerProfiles`、`CodecProfiles` 條件，見[相容矩陣](compat-matrix.md)）、`MaxStreamingBitrate`、`EnableDirectPlay`、`MediaSourceId`。不能原樣直投的版本被排除；聲明**永遠不會**讓轉換變成可接受（ADR 0007，守衛照舊 409 轉換參數），全部被排除時照舊：自有 API 200 且 `directPlayable=false`、相容層 `NoCompatibleStream`。
 2. **頻寬上限**（使用者偏好 `maxBitrate`）：已知位元率不超過上限的版本在前，超過的依位元率由低到高；未知位元率不算超過。客戶端自己聲明的上限屬第 1 步（硬排除），使用者偏好的上限只排序、不隱藏。
 3. **其他使用者偏好**，依序：解析度上限 `maxHeight`（以解析度級別比較，1080 包含 1920×800 的寬銀幕；不超過者在前，超過者小的在前）、動態範圍 `dynamicRange`（hdr 涵蓋 HDR10／HDR10+／HLG／杜比視界）、`preferSmaller`（檔案小的在前，大小未知排最後）。
 4. 既有規則：主版本 → 品質分數 → 來源 ID。

@@ -1,0 +1,180 @@
+{
+ "android-exoplayer": {
+  "av1_unknown_depth_mkv_opus": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv5_mp4_eac3": {
+   "codes": [
+    "codec_condition_unmet:VideoRangeType"
+   ],
+   "reasons": [
+    "VideoRangeTypeNotSupported"
+   ]
+  },
+  "dv81_mkv_truehd_atmos": {
+   "codes": [
+    "audio_codec_unsupported"
+   ],
+   "reasons": [
+    "AudioCodecNotSupported"
+   ]
+  },
+  "h264_4k60_level52_mp4": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_mkv_aac_pgs": {
+   "codes": [],
+   "reasons": []
+  },
+  "hevc10_hdr10_mkv_eac3": {
+   "codes": [],
+   "reasons": []
+  }
+ },
+ "findroid-mpv": {
+  "av1_unknown_depth_mkv_opus": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv5_mp4_eac3": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv81_mkv_truehd_atmos": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_4k60_level52_mp4": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_mkv_aac_pgs": {
+   "codes": [],
+   "reasons": []
+  },
+  "hevc10_hdr10_mkv_eac3": {
+   "codes": [],
+   "reasons": []
+  }
+ },
+ "infuse": {
+  "av1_unknown_depth_mkv_opus": {
+   "codes": [
+    "codec_condition_unmet:VideoBitDepth"
+   ],
+   "reasons": [
+    "VideoBitDepthNotSupported"
+   ]
+  },
+  "dv5_mp4_eac3": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv81_mkv_truehd_atmos": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_4k60_level52_mp4": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_mkv_aac_pgs": {
+   "codes": [],
+   "reasons": []
+  },
+  "hevc10_hdr10_mkv_eac3": {
+   "codes": [],
+   "reasons": []
+  }
+ },
+ "swiftfin-native": {
+  "av1_unknown_depth_mkv_opus": {
+   "codes": [
+    "container_unsupported",
+    "video_codec_unsupported",
+    "audio_codec_unsupported"
+   ],
+   "reasons": [
+    "ContainerNotSupported",
+    "VideoCodecNotSupported",
+    "AudioCodecNotSupported"
+   ]
+  },
+  "dv5_mp4_eac3": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv81_mkv_truehd_atmos": {
+   "codes": [
+    "container_unsupported",
+    "audio_codec_unsupported"
+   ],
+   "reasons": [
+    "ContainerNotSupported",
+    "AudioCodecNotSupported"
+   ]
+  },
+  "h264_4k60_level52_mp4": {
+   "codes": [
+    "codec_condition_unmet:VideoLevel"
+   ],
+   "reasons": [
+    "VideoLevelNotSupported"
+   ]
+  },
+  "h264_mkv_aac_pgs": {
+   "codes": [
+    "container_unsupported"
+   ],
+   "reasons": [
+    "ContainerNotSupported"
+   ]
+  },
+  "hevc10_hdr10_mkv_eac3": {
+   "codes": [
+    "container_unsupported"
+   ],
+   "reasons": [
+    "ContainerNotSupported"
+   ]
+  }
+ },
+ "web": {
+  "av1_unknown_depth_mkv_opus": {
+   "codes": [],
+   "reasons": []
+  },
+  "dv5_mp4_eac3": {
+   "codes": [
+    "codec_condition_unmet:VideoRangeType"
+   ],
+   "reasons": [
+    "VideoRangeTypeNotSupported"
+   ]
+  },
+  "dv81_mkv_truehd_atmos": {
+   "codes": [
+    "audio_codec_unsupported",
+    "codec_condition_unmet:AudioChannels"
+   ],
+   "reasons": [
+    "AudioCodecNotSupported",
+    "AudioChannelsNotSupported"
+   ]
+  },
+  "h264_4k60_level52_mp4": {
+   "codes": [],
+   "reasons": []
+  },
+  "h264_mkv_aac_pgs": {
+   "codes": [],
+   "reasons": []
+  },
+  "hevc10_hdr10_mkv_eac3": {
+   "codes": [],
+   "reasons": []
+  }
+ }
+}

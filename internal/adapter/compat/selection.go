@@ -11,16 +11,22 @@ import (
 // Default version choice for PlaybackInfo (G20.2). The catalog lists the
 // sources in the user's default version order; the request's declaration
 // (EnableDirectPlay, MaxStreamingBitrate, the DeviceProfile's direct play
-// profiles, a named MediaSourceId) only removes sources, so the first
+// profiles and their container, codec and bit rate conditions, a named
+// MediaSourceId) only removes sources, so the first
 // listed MediaSource is the default version. A declaration never makes a
 // conversion acceptable: a source the client cannot play as it is is left
 // out, and with none left the answer stays NoCompatibleStream.
 
-// Exclusion codes of PlaybackInfo. They only appear in the debug log.
+// Exclusion codes of PlaybackInfo besides the capability codes of
+// domain.DeviceProfileReasons (container_unsupported,
+// video_codec_unsupported, audio_codec_unsupported,
+// container_condition_unmet:<property>, codec_condition_unmet:<property>,
+// bitrate_exceeds_client). When no source is left the reasons are logged
+// at info level and answered as JeleeUnsupportedReasons; otherwise they
+// only reach the debug log.
 const (
 	exclusionDirectPlayOff = "direct_play_disabled"
 	exclusionNotRequested  = "media_source_not_requested"
-	exclusionProfile       = "device_profile_unsupported"
 )
 
 // playbackChooser is implemented by the server's catalog; a catalog without
@@ -52,19 +58,15 @@ func (rt *router) playbackChoice(r *http.Request, principal access.Principal, it
 }
 
 // playbackExclusion returns why the request cannot use source as it is; nil
-// when it can (directPlayable).
+// when it can.
 func (rt *router) playbackExclusion(req playbackRequest, source domain.PlaybackSource) []string {
 	switch {
 	case req.mediaSourceID != "" && source.ID != req.mediaSourceID && !hasPart(source, req.mediaSourceID):
 		return []string{exclusionNotRequested}
 	case !rt.opts.Library.DirectPlay || !req.directPlay:
 		return []string{exclusionDirectPlayOff}
-	case rt.directPlayable(req, source):
-		return nil
-	case req.maxBitrate > 0 && source.BitRate != nil && *source.BitRate > req.maxBitrate:
-		return []string{domain.PlaybackReasonBitrate}
 	}
-	return []string{exclusionProfile}
+	return domain.DeviceProfileReasons(req.profile, req.maxBitrate, source)
 }
 
 // hasPart reports a multi-part version one of whose parts is id (G21.1).

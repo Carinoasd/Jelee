@@ -149,6 +149,9 @@ type PlaybackAudioTrack struct {
 	// visual_impaired or descriptions disposition (audio description).
 	Commentary     bool `json:"commentary"`
 	VisualImpaired bool `json:"visualImpaired"`
+	// BitDepth is the probe's bits per raw sample, else bits per sample
+	// (lossless and PCM streams); it only feeds device profile conditions.
+	BitDepth *int64 `json:"-"`
 	// Features lists commercial formats (dolby_atmos, dolby_truehd, dts_x,
 	// dts_hd_ma): from the probe's codec and profile first, then MediaInfo.
 	Features []string `json:"features,omitempty"`
@@ -334,6 +337,8 @@ var playbackSubtitleAliases = map[string]string{
 	"subrip": "srt", "vtt": "webvtt", "dfxp": "ttml", "smi": "sami",
 	"hdmv_pgs_subtitle": "pgs", "sup": "pgs", "dvd_subtitle": "vobsub", "idx": "vobsub",
 	"dvb_subtitle": "dvb", "tx3g": "mov_text",
+	// Upstream device profile spellings.
+	"pgssub": "pgs", "dvdsub": "vobsub", "dvbsub": "dvb",
 }
 
 // Embedded subtitle codecs from the probe whitelist and their formats.
@@ -455,6 +460,10 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 					VisualImpaired: playbackFlag(stream.VisualImpaired) || playbackFlag(stream.Descriptions)}
 				if a := stream.Audio; a != nil {
 					track.Channels, track.ChannelLayout, track.SampleRate, track.Atmos = a.Channels, playbackText(a.ChannelLayout), a.SampleRate, playbackFlag(a.Atmos)
+					track.BitDepth = a.BitsPerRawSample
+					if track.BitDepth == nil {
+						track.BitDepth = a.BitsPerSample
+					}
 				}
 				mergeAudioDetail(&track, streamDetail(meta.Matroska, stream.Index))
 				s.Audio = append(s.Audio, track)
@@ -782,7 +791,7 @@ func DecideDirectPlay(caps ClientCapabilities, source PlaybackSource) (bool, []s
 	if len(source.Audio) > 0 && !slices.ContainsFunc(source.Audio, func(a PlaybackAudioTrack) bool { return supportedCodec(caps.AudioCodecs, a.Codec) }) {
 		reasons = append(reasons, PlaybackReasonAudioCodec)
 	}
-	if caps.MaxBitrate > 0 && source.BitRate != nil && *source.BitRate > caps.MaxBitrate {
+	if BitrateExceedsClient(caps.MaxBitrate, source) {
 		reasons = append(reasons, PlaybackReasonBitrate)
 	}
 	return len(reasons) == 0, reasons

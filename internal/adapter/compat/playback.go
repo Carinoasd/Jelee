@@ -63,6 +63,11 @@ type playbackInfoResponse struct {
 	MediaSources  []mediaSourceInfo `json:"MediaSources"`
 	PlaySessionID string            `json:"PlaySessionId,omitempty"`
 	ErrorCode     string            `json:"ErrorCode,omitempty"`
+	// UnsupportedReasons explains a NoCompatibleStream with upstream
+	// TranscodeReason names (G10.5): what in the client's declaration
+	// excluded the sources. It is an extension member, absent otherwise;
+	// it never offers or describes a conversion.
+	UnsupportedReasons []string `json:"JeleeUnsupportedReasons,omitempty"`
 }
 
 // playbackInfoBody holds the PlaybackInfoDto members that influence the
@@ -76,22 +81,6 @@ type playbackInfoBody struct {
 	MediaSourceID       string         `json:"MediaSourceId"`
 	EnableDirectPlay    *bool          `json:"EnableDirectPlay"`
 	DeviceProfile       *deviceProfile `json:"DeviceProfile"`
-}
-
-// deviceProfile is the part of the upstream DeviceProfile that decides
-// direct play. Transcoding, container, codec and subtitle profiles are not
-// read: the first describe conversions, and the conditions of the others
-// are not evaluated (see docs/compat-matrix.md).
-type deviceProfile struct {
-	MaxStreamingBitrate *int64              `json:"MaxStreamingBitrate"`
-	DirectPlayProfiles  []directPlayProfile `json:"DirectPlayProfiles"`
-}
-
-type directPlayProfile struct {
-	Container  string      `json:"Container"`
-	AudioCodec string      `json:"AudioCodec"`
-	VideoCodec string      `json:"VideoCodec"`
-	Type       profileType `json:"Type"`
 }
 
 // profileType is the upstream DlnaProfileType, sent by name or by number.
@@ -122,7 +111,8 @@ type playbackRequest struct {
 	mediaSourceID string
 	maxBitrate    int64
 	directPlay    bool
-	profile       *deviceProfile
+	// profile is nil when no DeviceProfile was declared.
+	profile *domain.DeviceProfile
 }
 
 var errUnsupportedBody = errors.New("compat: unsupported body type")
@@ -165,7 +155,7 @@ func parsePlaybackRequest(r *http.Request, q browseQuery) (playbackRequest, erro
 	case body.EnableDirectPlay != nil:
 		req.directPlay = *body.EnableDirectPlay
 	}
-	req.profile = body.DeviceProfile
+	req.profile = body.DeviceProfile.declaration()
 	switch raw := q.get("maxstreamingbitrate"); {
 	case raw != "":
 		v, err := strconv.ParseInt(raw, 10, 64)
@@ -175,8 +165,8 @@ func parsePlaybackRequest(r *http.Request, q browseQuery) (playbackRequest, erro
 		req.maxBitrate = v
 	case body.MaxStreamingBitrate != nil:
 		req.maxBitrate = *body.MaxStreamingBitrate
-	case req.profile != nil && req.profile.MaxStreamingBitrate != nil:
-		req.maxBitrate = *req.profile.MaxStreamingBitrate
+	case body.DeviceProfile != nil && body.DeviceProfile.MaxStreamingBitrate != nil:
+		req.maxBitrate = *body.DeviceProfile.MaxStreamingBitrate
 	}
 	return req, nil
 }
@@ -216,6 +206,9 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := playbackInfoResponse{MediaSources: []mediaSourceInfo{}}
+	// The sources the declaration left out, and why.
+	var excludedIDs []string
+	var excluded [][]string
 	itemID, err := FormatID(item.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError)
@@ -231,7 +224,10 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, source := range sources {
-			if rt.playbackExclusion(req, source) != nil {
+			if reasons := rt.playbackExclusion(req, source); reasons != nil {
+				if !slices.Contains(reasons, exclusionNotRequested) {
+					excludedIDs, excluded = append(excludedIDs, source.ID), append(excluded, reasons)
+				}
 				continue
 			}
 			// A MediaSourceId naming a later part of a multi-part version
@@ -247,6 +243,7 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			rt.addOCRStreams(r.Context(), principal, itemID, source, &info)
+			rt.logSubtitleProfiles(r.Context(), req, source, info)
 			result.MediaSources = append(result.MediaSources, info)
 		}
 	}
@@ -255,6 +252,8 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		// here it also covers every source the client cannot play as it
 		// is, because no conversion is ever offered in its place.
 		result.ErrorCode = playbackErrorNoCompatibleStream
+		result.UnsupportedReasons = unsupportedReasons(excluded)
+		logUnsupported(r.Context(), rt.opts.Library.Logger, excludedIDs, excluded)
 	} else if result.PlaySessionID, err = newPlaySessionID(); err != nil {
 		writeError(w, http.StatusInternalServerError)
 		return
@@ -274,100 +273,6 @@ var newPlaySessionID = func() (string, error) {
 
 func playableKind(kind string) bool {
 	return kind == "Movie" || kind == "Episode" || kind == "HomeVideo"
-}
-
-// directPlayable decides whether the client can play source as it is.
-// Without a DeviceProfile nothing was declared and every source is offered
-// when direct delivery is on. With one, some video direct play profile must
-// accept the container, the primary video codec and the default audio
-// codec, and a declared bit rate ceiling must not be exceeded. Values the
-// server does not know (an unprobed source's codecs or bit rate) are not
-// held against the source: the client may try it, and the bytes it gets are
-// the original either way.
-func (rt *router) directPlayable(req playbackRequest, source domain.PlaybackSource) bool {
-	if !rt.opts.Library.DirectPlay || !req.directPlay {
-		return false
-	}
-	if len(source.Parts) > 1 {
-		// A multi-part version is offered only when every part is.
-		for _, part := range source.Parts {
-			single := part.PlaybackSource
-			single.Parts = nil
-			if !rt.directPlayable(req, single) {
-				return false
-			}
-		}
-		return true
-	}
-	if req.maxBitrate > 0 && source.BitRate != nil && *source.BitRate > req.maxBitrate {
-		return false
-	}
-	if req.profile == nil {
-		return true
-	}
-	return slices.ContainsFunc(req.profile.DirectPlayProfiles, func(p directPlayProfile) bool { return profileAccepts(p, source) })
-}
-
-func profileAccepts(p directPlayProfile, source domain.PlaybackSource) bool {
-	if !strings.EqualFold(string(p.Type), string(dlnaProfileTypeVideo)) {
-		return false
-	}
-	caps, err := domain.NormalizeClientCapabilities(domain.ClientCapabilities{
-		Containers: splitList(p.Container), VideoCodecs: splitList(p.VideoCodec), AudioCodecs: splitList(p.AudioCodec),
-	})
-	if err != nil {
-		// A list the server cannot read declares nothing it can rely on.
-		return false
-	}
-	if source.Container != "" && len(caps.Containers) > 0 && !slices.Contains(caps.Containers, source.Container) {
-		return false
-	}
-	for _, video := range source.Video {
-		if video.Primary && video.Codec != "" && len(caps.VideoCodecs) > 0 && !slices.Contains(caps.VideoCodecs, video.Codec) {
-			return false
-		}
-	}
-	if audio, ok := defaultAudio(source); ok && audio.Codec != "" && len(caps.AudioCodecs) > 0 && !audioCodecDeclared(caps.AudioCodecs, audio.Codec) {
-		return false
-	}
-	return true
-}
-
-// audioCodecDeclared matches like the server's own check: "pcm" covers
-// every PCM sample format.
-func audioCodecDeclared(declared []string, codec string) bool {
-	return slices.Contains(declared, codec) || strings.HasPrefix(codec, "pcm") && slices.Contains(declared, "pcm")
-}
-
-func splitList(value string) []string {
-	var out []string
-	for _, part := range strings.Split(value, ",") {
-		if part = strings.TrimSpace(part); part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
-}
-
-// defaultAudio is the embedded audio stream a player starts with: the one
-// the user's track preferences pick, else the default one, else the first.
-func defaultAudio(source domain.PlaybackSource) (domain.PlaybackAudioTrack, bool) {
-	if len(source.Audio) == 0 {
-		return domain.PlaybackAudioTrack{}, false
-	}
-	if tracks := source.DefaultTracks; tracks != nil && tracks.Audio != nil && tracks.Audio.Kind == domain.TrackEmbedded && tracks.Audio.Index != nil {
-		for _, audio := range source.Audio {
-			if audio.Index == *tracks.Audio.Index {
-				return audio, true
-			}
-		}
-	}
-	for _, audio := range source.Audio {
-		if audio.Default {
-			return audio, true
-		}
-	}
-	return source.Audio[0], true
 }
 
 // externalSubtitle is an external subtitle file with its stream index.

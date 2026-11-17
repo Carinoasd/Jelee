@@ -980,7 +980,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 	for _, a := range source.Audio {
 		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, Title: a.Title, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index, AudioSpatialFormat: spatialFormat(a.Features)})
 	}
-	if audio, ok := defaultAudio(source); ok {
+	if audio, ok := domain.DefaultAudioTrack(source); ok {
 		index := audio.Index
 		info.DefaultAudioStreamIndex = &index
 	}

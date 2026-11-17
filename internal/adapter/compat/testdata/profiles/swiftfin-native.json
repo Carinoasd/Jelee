@@ -1,0 +1,20 @@
+{
+ "Name": "Swiftfin native player (AVPlayer on Apple TV 4K)",
+ "MaxStreamingBitrate": 120000000,
+ "DirectPlayProfiles": [
+  {"Type": "Video", "Container": "mp4,m4v,mov", "VideoCodec": "h264,hevc,mpeg4", "AudioCodec": "aac,ac3,eac3,alac,flac,mp3"}
+ ],
+ "CodecProfiles": [
+  {"Type": "Video", "Codec": "h264", "Conditions": [
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "high|main|baseline|constrained baseline", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "51", "IsRequired": false},
+   {"Condition": "NotEquals", "Property": "IsInterlaced", "Value": "true", "IsRequired": false}]},
+  {"Type": "Video", "Codec": "hevc", "Conditions": [
+   {"Condition": "EqualsAny", "Property": "VideoProfile", "Value": "main|main 10", "IsRequired": false},
+   {"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "175", "IsRequired": false},
+   {"Condition": "EqualsAny", "Property": "VideoRangeType", "Value": "SDR|HDR10|HLG|DOVI|DOVIWithHDR10|DOVIWithSDR|DOVIWithHLG", "IsRequired": false}]}
+ ],
+ "SubtitleProfiles": [
+  {"Format": "vtt", "Method": "External"}, {"Format": "srt", "Method": "External"}, {"Format": "mov_text", "Method": "Embed"}, {"Format": "tx3g", "Method": "Embed"}
+ ]
+}

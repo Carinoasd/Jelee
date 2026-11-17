@@ -199,6 +199,10 @@ func TestPlaybackInfoDirectPlayDecision(t *testing.T) {
 		name, query, body string
 		sources           []domain.PlaybackSource
 		playable          bool
+		// reasons is the JeleeUnsupportedReasons list of a refusal; a
+		// refusal that says nothing about the client's capabilities
+		// (direct play off, another source) has none.
+		reasons string
 	}{
 		{name: "no declaration", playable: true},
 		{name: "empty body", body: "{}", playable: true},
@@ -206,23 +210,23 @@ func TestPlaybackInfoDirectPlayDecision(t *testing.T) {
 		{name: "matching profile", body: playbackBody(mkv("h265", "eac3,ac-3"), ""), playable: true},
 		{name: "profile type by number", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mkv","Type":1}]}`, ""), playable: true},
 		{name: "any codec", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"","Type":"Video"}]}`, ""), playable: true},
-		{name: "container not declared", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mp4","Type":"Video"}]}`, "")},
-		{name: "video codec not declared", body: playbackBody(mkv("h264", "eac3"), "")},
-		{name: "audio codec not declared", body: playbackBody(mkv("hevc", "aac,opus"), "")},
-		{name: "audio profile only", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mkv","Type":"Audio"}]}`, "")},
-		{name: "no direct play profiles", body: playbackBody(`{"DirectPlayProfiles":[]}`, "")},
-		{name: "unreadable list", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mkv","Type":"Video","VideoCodec":"h e v c"}]}`, "")},
-		{name: "bitrate in body", body: playbackBody(mkv("hevc", "eac3"), `,"MaxStreamingBitrate":4000000`)},
-		{name: "bitrate in profile", body: playbackBody(`{"MaxStreamingBitrate":4000000,"DirectPlayProfiles":[{"Container":"mkv","Type":"Video"}]}`, "")},
+		{name: "container not declared", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mp4","Type":"Video"}]}`, ""), reasons: `"ContainerNotSupported"`},
+		{name: "video codec not declared", body: playbackBody(mkv("h264", "eac3"), ""), reasons: `"VideoCodecNotSupported"`},
+		{name: "audio codec not declared", body: playbackBody(mkv("hevc", "aac,opus"), ""), reasons: `"AudioCodecNotSupported"`},
+		{name: "audio profile only", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mkv","Type":"Audio"}]}`, ""), reasons: `"ContainerNotSupported"`},
+		{name: "no direct play profiles", body: playbackBody(`{"DirectPlayProfiles":[]}`, ""), reasons: `"ContainerNotSupported"`},
+		{name: "unreadable list", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mkv","Type":"Video","VideoCodec":"h e v c"}]}`, ""), reasons: `"ContainerNotSupported","VideoCodecNotSupported","AudioCodecNotSupported"`},
+		{name: "bitrate in body", body: playbackBody(mkv("hevc", "eac3"), `,"MaxStreamingBitrate":4000000`), reasons: `"ContainerBitrateExceedsLimit"`},
+		{name: "bitrate in profile", body: playbackBody(`{"MaxStreamingBitrate":4000000,"DirectPlayProfiles":[{"Container":"mkv","Type":"Video"}]}`, ""), reasons: `"ContainerBitrateExceedsLimit"`},
 		{name: "bitrate at source rate", query: "?MaxStreamingBitrate=4597701", playable: true},
-		{name: "query bitrate wins", query: "?MaxStreamingBitrate=4000000", body: `{"MaxStreamingBitrate":9000000}`},
+		{name: "query bitrate wins", query: "?MaxStreamingBitrate=4000000", body: `{"MaxStreamingBitrate":9000000}`, reasons: `"ContainerBitrateExceedsLimit"`},
 		{name: "direct play off", body: `{"EnableDirectPlay":false}`},
 		{name: "direct play off in query", query: "?EnableDirectPlay=false", body: `{"EnableDirectPlay":true}`},
 		{name: "source chosen", query: "?MediaSourceId=" + wire(testSourceID), playable: true},
 		{name: "source chosen in body", body: `{"MediaSourceId":"` + testSourceID + `"}`, playable: true},
 		{name: "other source", query: "?MediaSourceId=" + strings.Repeat("ab", 16)},
 		{name: "unprobed codecs are not held against it", body: playbackBody(mkv("h264", "aac"), ""), sources: unprobed, playable: true},
-		{name: "unprobed container still checked", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mp4","Type":"Video"}]}`, ""), sources: unprobed},
+		{name: "unprobed container still checked", body: playbackBody(`{"DirectPlayProfiles":[{"Container":"mp4","Type":"Video"}]}`, ""), sources: unprobed, reasons: `"ContainerNotSupported"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newPlaybackHarness(t, http.StatusNotFound)
@@ -236,8 +240,14 @@ func TestPlaybackInfoDirectPlayDecision(t *testing.T) {
 				if !strings.Contains(body, `"SupportsDirectPlay":true`) || strings.Contains(body, "ErrorCode") || !strings.Contains(body, `"PlaySessionId":"5ee5`) {
 					t.Fatalf("not offered: %s", body)
 				}
-			} else if body != `{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}` {
-				t.Fatalf("not refused: %s", body)
+			} else {
+				want := `{"MediaSources":[],"ErrorCode":"NoCompatibleStream"}`
+				if tc.reasons != "" {
+					want = `{"MediaSources":[],"ErrorCode":"NoCompatibleStream","JeleeUnsupportedReasons":[` + tc.reasons + `]}`
+				}
+				if body != want {
+					t.Fatalf("not refused as %s: %s", want, body)
+				}
 			}
 			assertNoTranscoding(t, body)
 		})
