@@ -269,7 +269,7 @@ func throttledCopy(t *testing.T, clock *fakeClock, bucket *tokenBucket, payloads
 		wg.Go(func() {
 			recorder := httptest.NewRecorder()
 			writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second,
-				buffers: &sync.Pool{New: func() any { return new([32 << 10]byte) }}, throttle: &throttle{bucket: bucket, clock: clock}}
+				buffers: &sync.Pool{New: func() any { buffer := make([]byte, DefaultBufferSize); return &buffer }}, throttle: &throttle{bucket: bucket, clock: clock}}
 			if n, err := writer.ReadFrom(bytes.NewReader(payload)); err != nil || n != int64(len(payload)) || !bytes.Equal(recorder.Body.Bytes(), payload) {
 				t.Errorf("throttled copy: n=%d err=%v", n, err)
 			}

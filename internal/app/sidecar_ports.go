@@ -52,3 +52,20 @@ type SidecarProbeRepository interface {
 type SidecarProber interface {
 	ProbeSidecar(ctx context.Context, source domain.ProbeSource) (domain.ProbeObservation, error)
 }
+
+// SourceLayoutRepository pages, under a catalog sync lease, the media
+// sources whose container layout was not read for the scan's current stamp
+// of the file (or by the current reader version), and records what a
+// bounded read found (G10.6). A result applies only while the scan's stamp
+// still equals the one that was read.
+type SourceLayoutRepository interface {
+	NextSourceLayoutInspections(ctx context.Context, lease domain.JobLease, after string, limit int) ([]domain.SourceLayoutTarget, error)
+	RecordSourceLayouts(ctx context.Context, lease domain.JobLease, results []domain.SourceLayoutInspection) (int, error)
+}
+
+// SourceLayoutInspector reads a bounded part of one media source without
+// changing it and classifies where it keeps its start and seek index. A
+// file that is gone, replaced or changed since the scan fails.
+type SourceLayoutInspector interface {
+	InspectSourceLayout(ctx context.Context, target domain.SourceLayoutTarget) (domain.SourceLayoutInspection, error)
+}

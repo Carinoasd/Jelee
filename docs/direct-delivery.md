@@ -72,6 +72,9 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 | `enableBandwidthLimit` | `JELEE_BANDWIDTH_LIMIT_ENABLED` | true | 布尔 |
 | `maxKbpsPerUser` | `JELEE_BANDWIDTH_MAX_KBPS_PER_USER` | 0 | 0–10000000，0＝无全局速率 |
 | `bandwidthScope` | `JELEE_BANDWIDTH_SCOPE` | `user` | `user` 或 `device` |
+| `bufferKiB` | `JELEE_STREAM_BUFFER_KIB` | 32 | 16–1024（0＝默认）；缓冲路径每路复制缓冲，见下文“首段预读与缓冲参数” |
+| `prefetchKiB` | `JELEE_STREAM_PREFETCH_KIB` | 2048 | 64–65536（0＝默认）；开文件时的预读建议量 |
+| `disablePrefetch` | `JELEE_STREAM_PREFETCH_DISABLED` | false | 布尔；关闭预读建议 |
 
 默认值的含义：每个用户最多同时播放 4 个不同资源；带宽开关打开但没有全局速率，所以只有被管理员设置了 `maxKbps` 的用户会被限速。超出范围的值在启动时拒绝。用户覆写的取值范围相同，由数据库 CHECK 约束与应用层双重校验。
 
@@ -84,7 +87,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 - 不是错误响应（412/416 等）、不是 TLS 连接（Go 不做内核 TLS，TLS 下 net/http 会退回它自己的未清零共享缓冲）；
 - 原始 ResponseWriter 实现 `io.ReaderFrom`，且支持 `SetWriteDeadline`。
 
-其余情况——多段 Range（`ServeContent` 经管道写 multipart，读取端不是文件）、限速、HTTP/2、测试用 `httptest.ResponseRecorder`、非 Linux——维持原有 32 KiB 缓冲复制，行为不变。Windows 与 macOS 编译 `sendfile_other.go`，常量为 false，整个程序照常编译、运行，只走缓冲路径。Content-Length、Range、HEAD、ETag、CSP 等标头仍完全由 `ServeContent` 与 `ServeSource` 决定，零拷贝只替换正文的复制方式。进入零拷贝前先 `Flush` 发出响应头，这样 net/http 不会再为内容嗅探把正文前 512 字节复制进它的共享缓冲。
+其余情况——多段 Range（`ServeContent` 经管道写 multipart，读取端不是文件）、限速、HTTP/2、测试用 `httptest.ResponseRecorder`、非 Linux——走缓冲复制（默认 32 KiB，`streaming.bufferKiB` 可调），行为不变。Windows 与 macOS 编译 `sendfile_other.go`，常量为 false，整个程序照常编译、运行，只走缓冲路径。Content-Length、Range、HEAD、ETag、CSP 等标头仍完全由 `ServeContent` 与 `ServeSource` 决定，零拷贝只替换正文的复制方式。进入零拷贝前先 `Flush` 发出响应头，这样 net/http 不会再为内容嗅探把正文前 512 字节复制进它的共享缓冲。
 
 **取消、撤销与写超时。** 取消与撤销沿用同一机制：串流上下文结束时 `context.AfterFunc` 把写截止时间设为现在并关闭文件；阻塞在 sendfile 中的调用因套接字写截止时间到期立即返回。缓冲路径每写一次刷新一次 `WriteTimeout`，而一次 sendfile 调用可能持续整个下载，固定截止时间会误杀读得慢但仍在读的客户端。因此零拷贝期间有一个看门狗协程，每 `WriteTimeout/4`（至少 10 毫秒）读取文件偏移量（Linux sendfile 每次系统调用后推进偏移量）；偏移量前进就把截止时间延长到“现在＋`WriteTimeout`”，延长后若上下文已结束则立即重新到期，避免延长抵消取消。语义从“每次写入不超过 `WriteTimeout`”变为“连续无进展不超过 `WriteTimeout`（最多再加一个轮询间隔）”，对停住不读的客户端效果相同。进展的粒度受内核限制：套接字发送缓冲排空约一半后内核才唤醒写方，偏移量才前进；loopback 上以约 16 MiB/s 读取时实测两次前进之间可隔 200～300 毫秒。缓冲路径的单次 `write` 同样要等这次唤醒，所以两条路径对慢客户端的容忍度一致；`WriteTimeout` 不应设得接近这个粒度（生产为 30 秒）。非 Linux 平台偏移量要到整个调用结束才更新，看门狗无法观察进度，这是那些平台不开零拷贝的原因。
 
@@ -142,6 +145,28 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 断言：处理函数全部返回；**处理函数一返回，原文件的打开描述符（`/proc/self/fd` 逐项 `readlink`）就为 0**，不靠垃圾回收终结器（测试刻意不调用 `runtime.GC`）；进度看门狗（`watchProgress`）、会话监视（`watchSession`）与 `deliver` 协程在 200 毫秒内消失；`slots` 播放名额回到 0；零拷贝路径计数等于预期（sendfile 路径每路一次，缓冲路径为零，证明测的确实是该路径）；随后关闭连接，进程协程数与描述符总数不超过测试前；原文件 SHA-256 前后一致。非 Linux 平台没有 `/proc`，描述符计数跳过，其余照跑。
 
 反向验证（临时改代码，确认测试失败后还原）：去掉处理函数里的 `defer file.Close()` 与取消回调里的关闭，“描述符仍打开”在所有场景失败；去掉 `defer <-h.slots` 的名额释放，“播放名额仍被占用”失败；让看门狗不随上下文结束也不被 `stop()` 等待，“协程活过其串流”失败。
+
+## 容器布局提示与 faststart 建议（G10.6、G10.10）
+
+**只读、只给建议。** Jelee 不改写、不重封装、不搬移原文件中的任何东西（G10.1、G10.10）。下面的布局判定只读文件头，结果只用于在播放信息里给管理员建议，以及给内核预读建议；需要 faststart 的文件由管理员自己用工具在副本上处理（例如 `ffmpeg -i in.mp4 -c copy -movflags +faststart out.mp4`，Matroska 用 `mkvmerge -o out.mkv in.mkv` 补 Cues）。
+
+**布局判定**（`internal/adapter/containerlayout`，纯 Go，无外部工具）。每个文件最多读 64 KiB（`domain.SourceLayoutReadLimit`，所有走访过的盒子／元素头都计入）：
+
+- MP4／MOV／M4V：逐个读顶层盒子的 8 字节头（`size==1` 时再读 64 位长度，`size==0` 视为延伸到文件尾），按长度跳过 `mdat` 等负载，不读媒体数据；最多 4096 个顶层盒子。`moov` 在第一个 `mdat` 之前为 `moov_before_mdat`（即 faststart）；在 `mdat` 之后为 `moov_at_end`；`moov` 之后、`mdat` 之前出现 `moof` 为 `fragmented`。盒子类型不是可打印 ASCII、第一个盒子不是 `ftyp`／`styp`／`moov`／`mdat`／`free`／`skip`／`wide`／`pnot`／`uuid`／`junk`、长度小于盒子头或超出文件、重复的 `moov`、`moov` 之前的 `moof`、找不到 `moov` 都判为 `unknown`。
+- Matroska／WebM：确认 EBML 头与 Segment（允许未知长度的 Segment），走访 Segment 的顶层元素直到第一个 Cluster（最多 256 个，未知长度只允许在 Segment／Cluster），解析 SeekHead（最多 16 KiB，最多再跟一层指向另一个 SeekHead 的条目），并在 SeekHead 指出的位置核对确实是 Cues 元素。Cues 在第一个 Cluster 之前为 `cues_before_clusters`，之后为 `cues_after_clusters`（多数封装器的默认输出，客户端多一次 Range 请求即可），读完第一个 Cluster 之前的全部元素仍找不到可达的 Cues 为 `no_cues`；没有 Cluster、截断或格式不符为 `unknown`。
+- AVI、MPEG-TS 不判定，播放信息里不出现 `layout`。
+
+判定结果同时记下索引范围（`moov` 盒子或 Cues 元素的起点与长度，超过 1 GiB 只分类不记范围）。读取中途文件变短（大小与扫描记录不符）判为 `unknown`；真正的 I/O 错误与取消返回错误，留给下一次同步重读。表驱动测试覆盖截断、超大长度、64 位长度溢出、二进制盒子类型、盒子数／元素数上限、SeekHead 畸形条目；`FuzzRead` 断言任何输入都不 panic、读取量不超过 64 KiB、记下的范围在文件内；`TestReadRealMuxerOutput`（build tag `jelee_fixture_tools`，需要 ffmpeg，只用来产生样本）以真实封装器输出验证除 `unknown` 外的六种判定（不加 `-movflags`→`moov_at_end`、`+faststart`→`moov_before_mdat`、`frag_keyframe+empty_moov`→`fragmented`、MOV、MKV 默认→`cues_after_clusters`、`-reserve_index_space`→`cues_before_clusters`、`-live 1`→`no_cues`），并比对读取前后的 SHA-256。
+
+**何时读、存在哪里。** 目录同步（`catalog_sync`）在外挂轨检查之后多一步：分页（每页 64 个，每次同步最多 20000 个，其余留给下一次同步）找出布局缺失、或记录时的大小／修改时间与扫描记录不同、或判定器版本（`domain.SourceLayoutVersion`，目前 `layout-v1`）不同的资源，在事务外经库根 `os.OpenRoot` 以只读方式打开（`scan.LayoutInspector`），读前读后都核对文件戳，变了就跳过等下一次扫描；结果在带租约围栏的事务里写入 `media_source_layouts`，写入时再核对一次扫描戳。资源被删除时布局随之级联删除；这是可重建的衍生状态，不导出、降级直接删表。未变的资源重扫不会重读。
+
+**播放信息。** 自有 API 的 `GET /api/v1/items/{id}/playback` 与 `GET /api/v1/items/{id}/sources` 在每个资源（多分片版本的每个分片）上加 `layout` 与 `layoutHints`：`moov_at_end` 给 `faststart_recommended`，`no_cues` 给 `no_seek_index`，其余没有建议时省略。只有记录时的文件戳等于最近一次扫描戳才报告，文件改过而尚未重扫时不报。相容层（`/compat`）不加任何字段（上游 `MediaSourceInfo` 没有对应成员）。网页条目页的版本面板（仅管理员可见）在对应版本下显示建议文字（四语系），只是说明，没有任何会改动文件的按钮。
+
+## 首段预读与缓冲参数（G10.6）
+
+**首段预读。** GET 请求打开文件后（HEAD 不做），对“第一个请求区间的起点”起 `prefetchKiB`（默认 2 MiB）发 `posix_fadvise(WILLNEED)`；请求从文件开头开始（无 Range 或 Range 起点为 0）时，若目录同步记下了索引范围、且打开的文件大小与修改时间仍等于记录时的戳，再对该范围（最多 16 MiB）发同样的建议——`moov_at_end` 的文件因此在客户端回头要 `moov` 之前就开始读文件尾。这只是给内核的预读建议：内核排入读取后即返回、不等待读完（量大时排队本身可能花几毫秒，所以索引范围上限 16 MiB），不改变发送的字节、错误一律忽略，经 `SyscallConn` 调用而不是 `Fd()`，不会把描述符改成阻塞模式，也不和取消时的关闭竞争。Range 格式异常时不发建议，留给 `ServeContent` 正常回 416。非 Linux 平台（`prefetch_other.go`）是空操作。`TestPrefetchAdviceKeepsBytes` 记录每次建议并比对完整、单段、多段、后缀与越界 Range 的响应字节与原文件 SHA-256；`disablePrefetch=true` 关闭全部建议。
+
+**缓冲参数。** 缓冲路径（TLS、限速、多段 Range、非 Linux）每路复制缓冲由 `bufferKiB` 设定，范围 16 KiB–1 MiB，**默认维持 32 KiB**。依据是上一节的本机基线：两条路径首字节在噪声内，缓冲大小不影响首字节，影响的是持续传输的系统调用次数与 CPU；开发机的冷／热快取也看不出预读效果。所以预设值不按开发机数字调整，要在目标硬体（C42）与 Windows（B24）上按 16 KiB 到 1 MiB 实测后再定；改成更大缓冲的代价是每路常驻内存（`maxStreams` 路 × 缓冲大小，缓冲池复用并在归还前清零）。`jelee-cli doctor` 的 `config` 检查以事实列出生效值：`streamBufferKiB`、`streamPrefetchKiB`、`streamPrefetch`（`advise`／`off`／非 Linux 为 `unsupported`）。
 
 ## 外挂字幕与音轨直投（G10.9、G15.5、G16.4）
 
@@ -217,6 +242,8 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 网页会话可改用 `GET /api/v1/items/{id}/sources`（见 `docs/catalog-api.md`）读取同样的资源描述：同一条 SQL 只去掉原生会话限定，响应 schema 为 `MediaSourceInfo`，外挂轨没有 `url`，也不带投递声明。
 
 ### 资源描述
+
+容器布局与 faststart 建议（`layout`、`layoutHints`）见上文“容器布局提示与 faststart 建议”。
 
 每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式，以及原文件的直投地址 `url`，见上一节）。多个资源按版本质量分数从高到低排列，同分按 ID。
 

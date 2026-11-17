@@ -23,6 +23,11 @@ import (
 // audio, ".sub" and ".sup" files still pending with the sandboxed metadata
 // runtime (B4): at most domain.SidecarProbeMaxPerJob per sync, each under the
 // IO work budget and outside any transaction.
+// With Layouts and LayoutInspector set, the job then reads the container
+// layout of every media source whose layout is missing or stale for the
+// scan's stamp (G10.6): a bounded header read outside any transaction, at
+// most domain.SourceLayoutMaxPerJob per sync, results stored in fenced
+// pages. Files are never modified.
 //
 // With Images set, the job then records the library's image references
 // (G40.2, G40.3): image files next to each item recognized by name and the
@@ -34,13 +39,16 @@ import (
 // ChapterImages set (G40.1, off by default), it last copies the stored
 // chapter pictures of probed media files.
 type CatalogSyncOptions struct {
-	Repository     app.CatalogSyncExecutionRepository
-	Sidecars       app.SidecarInspectionRepository
-	Inspector      app.SidecarInspector
-	Images         app.ItemImageIngestRepository
-	EmbeddedCovers *EmbeddedCoverOptions
-	ChapterImages  *ChapterImageOptions
-	SidecarProbes  *SidecarProbeOptions
+	Repository app.CatalogSyncExecutionRepository
+	Sidecars   app.SidecarInspectionRepository
+	Inspector  app.SidecarInspector
+	// Layouts and LayoutInspector enable the container layout pass.
+	Layouts         app.SourceLayoutRepository
+	LayoutInspector app.SourceLayoutInspector
+	Images          app.ItemImageIngestRepository
+	EmbeddedCovers  *EmbeddedCoverOptions
+	ChapterImages   *ChapterImageOptions
+	SidecarProbes   *SidecarProbeOptions
 }
 
 // SidecarProbeOptions is trusted local wiring of the external track probe
@@ -92,6 +100,9 @@ func (r *Runner) executeCatalogSync(ctx context.Context, lease domain.JobLease) 
 				return err, storage
 			}
 			if storage, err := r.probeSidecars(ctx, lease); err != nil {
+				return err, storage
+			}
+			if storage, err := r.inspectLayouts(ctx, lease); err != nil {
 				return err, storage
 			}
 			// Local and NFO rows go first: they outrank an embedded cover,
@@ -186,6 +197,59 @@ func (r *Runner) inspectSidecars(ctx context.Context, lease domain.JobLease) (er
 		}
 		after = page[len(page)-1].ID
 	}
+}
+
+// inspectLayouts walks the sources without a current layout once, by ID.
+// A file that cannot be read now (gone, replaced, changed, an I/O error) is
+// skipped and stays without a layout until a later sync.
+func (r *Runner) inspectLayouts(ctx context.Context, lease domain.JobLease) (storage bool, err error) {
+	options := r.options.CatalogSync
+	if options.Layouts == nil || options.LayoutInspector == nil {
+		return false, nil
+	}
+	after, started := "", 0
+	for started < domain.SourceLayoutMaxPerJob {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		var page []domain.SourceLayoutTarget
+		err = r.ignoreDB(ctx, func(c context.Context) error {
+			var err error
+			page, err = options.Layouts.NextSourceLayoutInspections(c, lease, after, domain.SourceLayoutInspectionBatch)
+			return err
+		})
+		if err != nil {
+			return true, err
+		}
+		if len(page) == 0 {
+			return false, nil
+		}
+		results := make([]domain.SourceLayoutInspection, 0, len(page))
+		for _, target := range page {
+			started++
+			value, err := options.LayoutInspector.InspectSourceLayout(ctx, target)
+			if err := ctx.Err(); err != nil {
+				return false, err
+			}
+			if err == nil {
+				results = append(results, value)
+			}
+		}
+		if len(results) > 0 {
+			err = r.ignoreDB(ctx, func(c context.Context) error {
+				_, err := options.Layouts.RecordSourceLayouts(c, lease, results)
+				return err
+			})
+			if err != nil {
+				return true, err
+			}
+		}
+		if len(page) < domain.SourceLayoutInspectionBatch {
+			return false, nil
+		}
+		after = page[len(page)-1].SourceID
+	}
+	return false, nil
 }
 
 // extractEmbeddedCovers walks the candidates once, by item ID, and starts at

@@ -472,7 +472,7 @@ func TestCancellationBetweenDeadlineRefreshAndWrite(t *testing.T) {
 
 // Concurrent copies use distinct payloads and sizes to detect premature reuse.
 func TestStreamCopyConcurrentIsolation(t *testing.T) {
-	pool := &sync.Pool{New: func() any { return new([32 << 10]byte) }}
+	pool := &sync.Pool{New: func() any { buffer := make([]byte, DefaultBufferSize); return &buffer }}
 	var wg sync.WaitGroup
 	for worker := 0; worker < 16; worker++ {
 		wg.Go(func() {
@@ -498,7 +498,8 @@ func (failingCopyReader) Read(p []byte) (int, error) {
 }
 
 func TestStreamCopyClearsBufferAfterReadFailure(t *testing.T) {
-	buffer := new([32 << 10]byte)
+	raw := make([]byte, DefaultBufferSize)
+	buffer := &raw
 	pool := &sync.Pool{New: func() any { return buffer }}
 	recorder := httptest.NewRecorder()
 	writer := &streamWriter{ResponseWriter: recorder, request: nativeRequest("GET", "/stream"), controller: http.NewResponseController(recorder), timeout: time.Second, buffers: pool}
@@ -506,7 +507,7 @@ func TestStreamCopyClearsBufferAfterReadFailure(t *testing.T) {
 	if !errors.Is(err, io.ErrUnexpectedEOF) || n != 13 || recorder.Body.String() != "private media" {
 		t.Fatalf("copy lost partial read or error: n=%d err=%v", n, err)
 	}
-	if *buffer != [32 << 10]byte{} {
+	if !bytes.Equal(*buffer, make([]byte, DefaultBufferSize)) {
 		t.Fatal("failed copy retained media bytes")
 	}
 }

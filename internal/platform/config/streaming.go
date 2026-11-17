@@ -31,9 +31,25 @@ type StreamingConfig struct {
 	MaxKbpsPerUser int64 `json:"maxKbpsPerUser"`
 	// BandwidthScope is "user" (default) or "device".
 	BandwidthScope string `json:"bandwidthScope"`
+	// BufferKiB is the per-stream copy buffer of the buffered delivery path
+	// (TLS, bandwidth limits, platforms without sendfile, multipart ranges),
+	// 16 to 1024 KiB; zero keeps the 32 KiB default (G10.6).
+	BufferKiB int `json:"bufferKiB"`
+	// PrefetchKiB is the read-ahead advice a GET gives when it opens a file:
+	// that much from the first requested offset, plus the recorded seek
+	// index (MP4 moov, Matroska Cues) for a request from the start. 64 to
+	// 65536 KiB; zero keeps the 2048 KiB default. Linux only; it never
+	// changes the bytes sent.
+	PrefetchKiB int `json:"prefetchKiB"`
+	// DisablePrefetch turns the read-ahead advice off.
+	DisablePrefetch bool `json:"disablePrefetch"`
 }
 
-const defaultRevokeCheckSeconds = 5
+const (
+	defaultRevokeCheckSeconds = 5
+	defaultBufferKiB          = 32
+	defaultPrefetchKiB        = 2048
+)
 
 // DefaultStreamingConfig limits each user to four simultaneous playbacks and
 // enables the bandwidth limit without a server-wide rate, so administrators
@@ -55,7 +71,32 @@ func (c StreamingConfig) Validate() error {
 	if c.BandwidthScope != "" && c.BandwidthScope != "user" && c.BandwidthScope != "device" {
 		return errors.New("streaming bandwidthScope must be user or device")
 	}
+	if c.BufferKiB != 0 && (c.BufferKiB < 16 || c.BufferKiB > 1024) {
+		return errors.New("streaming bufferKiB must be between 16 and 1024")
+	}
+	if c.PrefetchKiB != 0 && (c.PrefetchKiB < 64 || c.PrefetchKiB > 65536) {
+		return errors.New("streaming prefetchKiB must be between 64 and 65536")
+	}
 	return nil
+}
+
+// BufferBytes is the effective copy buffer size of the buffered path.
+func (c StreamingConfig) BufferBytes() int {
+	if c.BufferKiB == 0 {
+		return defaultBufferKiB << 10
+	}
+	return c.BufferKiB << 10
+}
+
+// PrefetchBytes is the effective read-ahead advice size; zero when disabled.
+func (c StreamingConfig) PrefetchBytes() int64 {
+	switch {
+	case c.DisablePrefetch:
+		return 0
+	case c.PrefetchKiB == 0:
+		return defaultPrefetchKiB << 10
+	}
+	return int64(c.PrefetchKiB) << 10
 }
 
 // RevokeCheckInterval is the effective session recheck interval.
@@ -67,7 +108,7 @@ func (c StreamingConfig) RevokeCheckInterval() time.Duration {
 }
 
 func (c *StreamingConfig) loadEnvironment(lookup func(string) (string, bool)) error {
-	for key, target := range map[string]*bool{"JELEE_STREAM_LIMIT_ENABLED": &c.EnableStreamLimit, "JELEE_BANDWIDTH_LIMIT_ENABLED": &c.EnableBandwidthLimit} {
+	for key, target := range map[string]*bool{"JELEE_STREAM_LIMIT_ENABLED": &c.EnableStreamLimit, "JELEE_BANDWIDTH_LIMIT_ENABLED": &c.EnableBandwidthLimit, "JELEE_STREAM_PREFETCH_DISABLED": &c.DisablePrefetch} {
 		if value, ok := lookup(key); ok {
 			b, err := strconv.ParseBool(value)
 			if err != nil {
@@ -76,7 +117,8 @@ func (c *StreamingConfig) loadEnvironment(lookup func(string) (string, bool)) er
 			*target = b
 		}
 	}
-	for key, target := range map[string]*int{"JELEE_STREAM_REVOKE_CHECK_SECONDS": &c.RevokeCheckSeconds, "JELEE_STREAM_MAX_PER_USER": &c.MaxStreamsPerUser, "JELEE_STREAM_MAX_PER_DEVICE": &c.MaxStreamsPerDevice} {
+	for key, target := range map[string]*int{"JELEE_STREAM_REVOKE_CHECK_SECONDS": &c.RevokeCheckSeconds, "JELEE_STREAM_MAX_PER_USER": &c.MaxStreamsPerUser, "JELEE_STREAM_MAX_PER_DEVICE": &c.MaxStreamsPerDevice,
+		"JELEE_STREAM_BUFFER_KIB": &c.BufferKiB, "JELEE_STREAM_PREFETCH_KIB": &c.PrefetchKiB} {
 		if value, ok := lookup(key); ok {
 			n, err := strconv.Atoi(value)
 			if err != nil || key == "JELEE_STREAM_REVOKE_CHECK_SECONDS" && n == 0 {

@@ -47,9 +47,13 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **按需探測（B4，schema 109）**：音軌、`.sub`、`.sup` 寫入時 `probe_state='pending'`，其他文字字幕為 `not_applicable`（資料庫 CHECK 限定只有這三類可排程）。檢查之後、圖片入庫之前，worker 以 `NextSidecarProbes` 逐頁（每頁 16 軌，部分索引 `media_sidecar_tracks_probe_pending_idx`）取出待探測軌，每個檔在交易之外、IO 工作配額下以**同一個沙箱 ffprobe runtime**（媒體探測的 `IsolatedRunner`、同樣的進程上限與 30 秒逾時；新的封閉操作 `sidecar`，只把 demuxer 白名單換成外掛音軌與字幕需要的格式，見 `docs/direct-delivery.md`）探測，每次同步至多 512 個，其餘留給下次同步。結果寫回 `codec`、`profile`、`channels`、`channel_layout`、`sample_rate`、`bit_rate`、`duration_micros` 與探測時的 `probed_size`／`probed_modified_unix_nano`；寫回條件是列仍為 pending 且大小＋mtime 等於探測的那一版。檔案本身的失敗（ffprobe 拒絕、輸出不合白名單或超限、沒有音訊／字幕串流）記為 `failed`，同一版檔案不再重試；忙碌、逾時、檔案變動或讀不到則保持 pending；runtime 不可用就結束這一趟。資料庫 CHECK 保證 ready／failed 的探測戳記必須等於列的戳記，重掃發現大小、mtime、種類或格式改變時，同一條 UPDATE 把探測欄位與 `subtitle_kind` 清回初始狀態，之後重新檢查與探測。探測結果不進探測快取，不改探測身分（仍是 `media-metadata-v5`）。
 - **直投**：寫入的列即 `/api/v1/sources/{id}/subtitles|audio/{trackId}` 的資料來源（見 `direct-delivery.md`）。
 
+## 容器佈局（G10.6、G10.10）
+
+外掛軌檢查之後、圖片入庫之前，worker 以 `NextSourceLayoutInspections` 逐頁（每頁 64 個來源，每次同步最多 `domain.SourceLayoutMaxPerJob`＝20000 個，其餘留給下一次同步）找出未標記缺失、容器為 MP4／MOV／MKV／WebM，且 `media_source_layouts` 沒有列、或列的大小／mtime 與 `catalog_scan_sources` 不同、或判定器版本不是目前版本的來源；在交易之外以 `scan.LayoutInspector` 唯讀開檔（`os.OpenRoot`，前後比對大小與 mtime），用 `containerlayout.Read` 讀至多 64 KiB 的盒子／元素頭判定 `moov` 位置或 Cues，結果以 `RecordSourceLayouts` 在帶租約圍欄的交易寫回，寫回時再比對一次掃描戳。讀不到的檔案跳過、下次同步再試；結構讀不出記為 `unknown`，不會每次重讀。只讀檔頭，從不改寫、重封裝或搬移原檔；判定與用途見 [direct-delivery.md](direct-delivery.md#容器布局提示与-faststart-建议g106g1010)。
+
 ## 圖片入庫（G40.2、G40.3，schema 94）
 
-外掛軌檢查之後、內嵌封面之前，worker 以 `IngestItemImages` 逐頁（每頁 64 個條目、每頁一個帶 lease fence 的交易）把整個媒體庫的圖片引用寫入 `item_images`：條目目錄中依 G40.2 命名的圖片（`local`）與 NFO art（root 內路徑為 `nfo`、`https://` 網址為 `remote`，不抓取）。只讀發布的基準與目錄資料，不開檔、不連網；基準被新的盤點取代時整段停止（`Stale`）。鎖定與手動列不動，掃描寫入的 local／nfo 列在檔案或引用消失時移除。詳見 [image-ingest.md](image-ingest.md)。
+容器佈局檢查之後、內嵌封面之前，worker 以 `IngestItemImages` 逐頁（每頁 64 個條目、每頁一個帶 lease fence 的交易）把整個媒體庫的圖片引用寫入 `item_images`：條目目錄中依 G40.2 命名的圖片（`local`）與 NFO art（root 內路徑為 `nfo`、`https://` 網址為 `remote`，不抓取）。只讀發布的基準與目錄資料，不開檔、不連網；基準被新的盤點取代時整段停止（`Stale`）。鎖定與手動列不動，掃描寫入的 local／nfo 列在檔案或引用消失時移除。詳見 [image-ingest.md](image-ingest.md)。
 
 ## 人工版本決定（G20.3，schema 78）
 

@@ -41,7 +41,9 @@
       "undoDone": "變更已撤銷。",
       "blockedUndone": "已撤銷",
       "blockedExpired": "已超過撤銷期限",
-      "blockedLater": "請先撤銷之後的變更"
+      "blockedLater": "請先撤銷之後的變更",
+      "hintFaststart": "建議以 faststart 重新封裝（把索引移到檔頭），客戶端不必先讀檔尾即可起播。Jelee 不會修改檔案。",
+      "hintNoSeekIndex": "此檔案沒有搜尋索引（Cues），客戶端可能無法跳轉；可用 mkvmerge 等工具重新封裝補上。Jelee 不會修改檔案。"
     },
     "tracks": {
       "title": "音軌與字幕偏好",

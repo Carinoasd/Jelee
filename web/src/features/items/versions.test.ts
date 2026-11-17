@@ -47,7 +47,9 @@ function routes(): RouteFetch {
     .on("GET", "/api/v1/items/:id/details", () =>
       data({ id: itemId, libraryId: itemId, kind: "Movie", title: "Heat", genres: [], externalIds: [], nfo: { status: "unread", fields: [] } }),
     )
-    .on("GET", "/api/v1/items/:id/sources", () => data({ itemId, sources: [source(low, "1080p", true), source(high, "2160p", false)] }))
+    .on("GET", "/api/v1/items/:id/sources", () =>
+      data({ itemId, sources: [source(low, "1080p", true), { ...source(high, "2160p", false), layout: "moov_at_end", layoutHints: ["faststart_recommended"] }] }),
+    )
     .on("GET", "/api/v1/items/:id/versions", () => data(overview))
     .on("GET", "/api/v1/items/:id/track-preferences", () => data({ itemId, user: null, item: { audioLanguage: "ja", subtitleMode: "off" }, versions: [] }))
     .on("PUT", "/api/v1/items/:id/track-preferences", ({ body }) => data({ itemId, user: null, item: null, versions: [{ sourceId: high, preference: body }] }))
@@ -121,6 +123,18 @@ describe("item versions panel", () => {
     await flushPromises();
     expect(fetch.calls("POST", `/api/v1/items/${itemId}/versions/merge`)[0]!.body).toEqual({ sourceItemId: "30000000-0000-4000-8000-000000000002" });
     expect(useToastStore().toasts.map((toast) => toast.key)).toContain("versions.errors.identity");
+  });
+
+  it("shows layout advice only on the version it concerns", async () => {
+    const fetch = routes();
+    const wrapper = await open(fetch);
+    const hints = wrapper.findAll("[data-testid=layout-hint]");
+    expect(hints).toHaveLength(1);
+    expect(hints[0]!.text()).toBe(text.panel.hintFaststart);
+    expect(wrapper.find("#version-" + high).find("[data-testid=layout-hint]").exists()).toBe(true);
+    expect(wrapper.find("#version-" + low).find("[data-testid=layout-hint]").exists()).toBe(false);
+    // Advice is text only: nothing offers to rewrite the file.
+    expect(fetch.calls("POST", `/api/v1/items/${itemId}/versions/split`)).toHaveLength(0);
   });
 
   it("is not shown to other users, who still set their track preferences", async () => {

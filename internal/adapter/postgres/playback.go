@@ -27,7 +27,8 @@ var (
 // External tracks are aggregated per source so the bounded probe document
 // is read once per source rather than once per sidecar row. Every part of a
 // multi-part version is listed with its version and number (G21.1); the
-// application folds them.
+// application folds them. A container layout (G10.6) is only reported while
+// it was read against the scan's current stamp of the file.
 func listSourcesSQL(sessionFilter string) string {
 	return `SELECT m.id IS NOT NULL,COALESCE(m.id::text,''),COALESCE(m.content_type,''),COALESCE(m.relative_path,''),
  CASE WHEN p.root_id IS NOT NULL AND (c.source_id IS NULL OR (c.size=p.size AND c.modified_unix_nano=p.modified_unix_nano)) THEN p.metadata END,
@@ -39,7 +40,8 @@ func listSourcesSQL(sessionFilter string) string {
   ORDER BY t.kind DESC,t.root_id,t.relative_path)
   FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb),
  EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id),
- COALESCE(pp.version_source_id::text,''),COALESCE(pp.part_number,0)
+ COALESCE(pp.version_source_id::text,''),COALESCE(pp.part_number,0),
+ ml.layout,COALESCE(ml.index_offset,0),COALESCE(ml.index_length,0)
  FROM items i
  JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
  JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id` + sessionFilter + ` AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
@@ -48,6 +50,7 @@ func listSourcesSQL(sessionFilter string) string {
   AND p.state='ready' AND p.expires_at>clock_timestamp()
  LEFT JOIN catalog_scan_sources c ON c.source_id=m.id AND c.library_id=m.library_id
  LEFT JOIN media_source_parts pp ON pp.source_id=m.id
+ LEFT JOIN media_source_layouts ml ON ml.source_id=m.id AND ml.size=c.size AND ml.modified_unix_nano=c.modified_unix_nano
  WHERE i.id=$3::uuid AND ` + itemVisibleSQL("$4", "i.library_id", "i.id") + `
  ORDER BY m.id`
 }
@@ -120,7 +123,9 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 		var primary bool
 		var partOf string
 		var partNumber int
-		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars, &primary, &partOf, &partNumber); err != nil {
+		var layout *string
+		var indexOffset, indexLength int64
+		if err := rows.Scan(&present, &id, &contentType, &relativePath, &metadata, &scanSize, &sidecars, &primary, &partOf, &partNumber, &layout, &indexOffset, &indexLength); err != nil {
 			return nil, storageError(err)
 		}
 		if !present {
@@ -128,6 +133,9 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 		}
 		record := domain.PlaybackSourceRecord{ID: id, ContentType: contentType, FileName: path.Base(relativePath), ScanSize: scanSize, Primary: primary,
 			PartOf: partOf, PartNumber: partNumber}
+		if layout != nil {
+			record.Layout = &domain.SourceLayout{Layout: domain.ContainerLayout(*layout), IndexOffset: indexOffset, IndexLength: indexLength}
+		}
 		if len(metadata) > 0 {
 			var meta domain.MediaMetadata
 			// The cache only stores validated documents; one that no longer

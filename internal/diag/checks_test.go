@@ -855,3 +855,27 @@ func TestEveryCodeHasMessageAndIsDocumented(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigReportsStreamingFacts(t *testing.T) {
+	env, _ := healthyEnv(t)
+	env.Config.Streaming.BufferKiB = 256
+	r := runCheck(t, env, "config")
+	want := "unsupported"
+	if runtime.GOOS == "linux" {
+		want = "advise"
+	}
+	if r.Facts["streamBufferKiB"] != "256" || r.Facts["streamPrefetchKiB"] != "2048" || r.Facts["streamPrefetch"] != want {
+		t.Fatalf("facts %v", r.Facts)
+	}
+	env.Config.Streaming.DisablePrefetch = true
+	if r := runCheck(t, env, "config"); r.Facts["streamPrefetch"] != "off" || r.Facts["streamPrefetchKiB"] != "0" {
+		t.Fatalf("disabled facts %v", r.Facts)
+	}
+	if got := streamingFacts(32<<10, 1<<20, "windows"); got["streamPrefetch"] != "unsupported" || got["streamBufferKiB"] != "32" {
+		t.Fatalf("windows facts %v", got)
+	}
+	env.ConfigErr = errors.New("invalid JELEE_STREAM_BUFFER_KIB")
+	if r := runCheck(t, env, "config"); r.Facts != nil {
+		t.Fatalf("facts of an unloaded configuration %v", r.Facts)
+	}
+}

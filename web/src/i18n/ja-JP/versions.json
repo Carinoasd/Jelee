@@ -41,7 +41,9 @@
       "undoDone": "変更を元に戻しました。",
       "blockedUndone": "元に戻し済み",
       "blockedExpired": "元に戻せる期間を過ぎました",
-      "blockedLater": "先に後の変更を元に戻してください"
+      "blockedLater": "先に後の変更を元に戻してください",
+      "hintFaststart": "faststart で再多重化（インデックスを先頭へ）することをお勧めします。クライアントがファイル末尾を先に読まずに再生を始められます。Jelee はファイルを変更しません。",
+      "hintNoSeekIndex": "このファイルにはシーク用インデックス（Cues）がありません。クライアントでシークできない場合があります。mkvmerge などで再多重化すると追加されます。Jelee はファイルを変更しません。"
     },
     "tracks": {
       "title": "音声と字幕の設定",

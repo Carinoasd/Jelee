@@ -44,6 +44,17 @@ const kindKey = {
   primary: "versions.panel.kindMain",
   unexclude: "versions.panel.kindUnexclude",
 } as const;
+// Layout advice (G10.6, G10.10): only shown, never acted upon; the server
+// does not modify files.
+const hintKey: Record<string, string> = {
+  faststart_recommended: "versions.panel.hintFaststart",
+  no_seek_index: "versions.panel.hintNoSeekIndex",
+};
+
+function layoutHints(source: MediaSourceInfo): string[] {
+  return (source.layoutHints ?? []).filter((hint) => hint in hintKey).map((hint) => hintKey[hint] as string);
+}
+
 const blockedKey = {
   undone: "versions.panel.blockedUndone",
   expired: "versions.panel.blockedExpired",
@@ -130,6 +141,7 @@ onMounted(load);
           :describedby="'version-' + source.id"
           @confirm="split(source)"
         />
+        <p v-for="key in layoutHints(source)" :key="key" class="jl-versions__hint" data-testid="layout-hint">{{ t(key) }}</p>
       </li>
     </ul>
     <UiCheckbox v-model="exclude" :label="t('versions.panel.exclude')" :hint="t('versions.panel.excludeHint')" />
@@ -225,6 +237,13 @@ onMounted(load);
 .jl-versions__name {
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.jl-versions__hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--jl-color-text-muted);
+  font-size: var(--jl-font-size-sm);
 }
 
 .jl-versions__merge {

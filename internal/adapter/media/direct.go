@@ -47,6 +47,18 @@ type Source struct {
 	// SubtitleKind is the content kind of an external ".sub" (VobSub data
 	// or MicroDVD text); it only selects the Content-Type.
 	SubtitleKind string
+	// SeekIndex is where the container keeps its start and seek index (an
+	// MP4 movie box, Matroska Cues), as read for one file stamp (G10.6). It
+	// only guides read-ahead advice and is ignored unless the opened file
+	// still has that stamp; a zero Length means unknown.
+	SeekIndex SeekIndex
+}
+
+// SeekIndex is a byte range of a media file and the file stamp (size and
+// modification time) it was read against.
+type SeekIndex struct {
+	Offset, Length         int64
+	Size, ModifiedUnixNano int64
 }
 
 // Resolver must apply authorization in its lookup, check enabled users and
@@ -79,7 +91,31 @@ type Options struct {
 	// ExtractTimeout bounds a lookup that may extract an embedded item
 	// (ServeExtracted); zero means DefaultExtractTimeout.
 	ExtractTimeout time.Duration
+	// BufferSize is the per-stream copy buffer of the buffered path (TLS,
+	// bandwidth limits, platforms without sendfile, multipart ranges); zero
+	// means DefaultBufferSize. It must be within MinBufferSize..MaxBufferSize.
+	BufferSize int
+	// PrefetchBytes is the read-ahead advice given when a GET opens a file
+	// (G10.6): that many bytes from the first requested offset and, for a
+	// request from the start, the recorded seek index. Zero disables the
+	// advice. It never changes the bytes sent; on platforms without
+	// posix_fadvise it does nothing.
+	PrefetchBytes int64
 }
+
+// Copy buffer bounds. The 32 KiB default matches the development baseline
+// (docs/evidence/direct-play-latency-linux.txt), where buffer size did not
+// change first-byte latency; larger buffers only trade memory for fewer
+// system calls on the buffered path.
+const (
+	DefaultBufferSize = 32 << 10
+	MinBufferSize     = 16 << 10
+	MaxBufferSize     = 1 << 20
+	// MaxPrefetchBytes bounds PrefetchBytes; prefetchIndexMax bounds the
+	// advice for a recorded seek index.
+	MaxPrefetchBytes = 64 << 20
+	prefetchIndexMax = 16 << 20
+)
 
 type Handler struct {
 	resolver Resolver
@@ -88,6 +124,8 @@ type Handler struct {
 	buffers  sync.Pool
 	clock    Clock
 	limiter  *limiter
+	// advise gives one read-ahead advice; tests record the calls.
+	advise func(file *os.File, offset, length int64)
 }
 
 func NewHandler(resolver Resolver, options Options) (*Handler, error) {
@@ -100,6 +138,12 @@ func NewHandler(resolver Resolver, options Options) (*Handler, error) {
 	if err := options.Limits.validate(); err != nil {
 		return nil, err
 	}
+	if options.BufferSize == 0 {
+		options.BufferSize = DefaultBufferSize
+	}
+	if options.BufferSize < MinBufferSize || options.BufferSize > MaxBufferSize || options.PrefetchBytes < 0 || options.PrefetchBytes > MaxPrefetchBytes {
+		return nil, fmt.Errorf("direct delivery buffer options: %w", ErrInvalidRequest)
+	}
 	if options.LookupTimeout == 0 {
 		options.LookupTimeout = 5 * time.Second
 	}
@@ -110,8 +154,8 @@ func NewHandler(resolver Resolver, options Options) (*Handler, error) {
 	if clock == nil {
 		clock = systemClock{}
 	}
-	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options, clock: clock, limiter: newLimiter(options.Limits, clock),
-		buffers: sync.Pool{New: func() any { return new([32 << 10]byte) }},
+	return &Handler{resolver: resolver, slots: make(chan struct{}, options.MaxConcurrent), options: options, clock: clock, limiter: newLimiter(options.Limits, clock), advise: adviseWillNeed,
+		buffers: sync.Pool{New: func() any { buffer := make([]byte, options.BufferSize); return &buffer }},
 	}, nil
 }
 
@@ -250,6 +294,9 @@ func (h *Handler) deliver(w http.ResponseWriter, r *http.Request, sourceID strin
 	if err != nil || !info.Mode().IsRegular() {
 		h.options.WriteError(w, r, ErrNotFound)
 		return
+	}
+	if r.Method == http.MethodGet {
+		h.prefetch(file, info, r.Header.Get("Range"), source.SeekIndex)
 	}
 	contentType := source.ContentType
 	if contentType == "" {
@@ -467,13 +514,13 @@ func (w *streamWriter) ReadFrom(reader io.Reader) (int64, error) {
 	}
 	// Hide optional copy interfaces to retain cancellation/deadline checks and a
 	// predictable per-stream copy buffer, including multipart Range responses.
-	buffer := w.buffers.Get().(*[32 << 10]byte)
+	buffer := w.buffers.Get().(*[]byte)
 	defer func() {
 		// Release media bytes before another request can borrow the buffer.
-		clear(buffer[:])
+		clear(*buffer)
 		w.buffers.Put(buffer)
 	}()
-	return io.CopyBuffer(struct{ io.Writer }{w}, struct{ io.Reader }{reader}, buffer[:])
+	return io.CopyBuffer(struct{ io.Writer }{w}, struct{ io.Reader }{reader}, *buffer)
 }
 
 var _ io.ReadSeeker = (*contextFile)(nil)

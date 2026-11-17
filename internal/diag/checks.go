@@ -51,7 +51,25 @@ func (s *Session) checkConfig(context.Context) Result {
 			findings = append(findings, warnf(name, CodeConfigSecretFileMode))
 		}
 	}
-	return newResult("config", findings...)
+	r := newResult("config", findings...)
+	if s.env.ConfigErr == nil {
+		r.Facts = streamingFacts(s.env.Config.Streaming.BufferBytes(), s.env.Config.Streaming.PrefetchBytes(), runtime.GOOS)
+	}
+	return r
+}
+
+// streamingFacts reports the effective delivery buffer and read-ahead
+// settings (G10.6). Read-ahead advice uses posix_fadvise, so it only takes
+// effect on Linux.
+func streamingFacts(buffer int, prefetch int64, goos string) map[string]string {
+	state := "advise"
+	switch {
+	case prefetch == 0:
+		state = "off"
+	case goos != "linux":
+		state = "unsupported"
+	}
+	return map[string]string{"streamBufferKiB": strconv.Itoa(buffer >> 10), "streamPrefetchKiB": strconv.FormatInt(prefetch>>10, 10), "streamPrefetch": state}
 }
 
 // databaseVariableSet distinguishes a missing setting from a load error that

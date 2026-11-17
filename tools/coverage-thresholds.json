@@ -39,6 +39,11 @@
       "minimum": 98
     },
     {
+      "path": "internal/adapter/containerlayout",
+      "tier": "critical",
+      "minimum": 89
+    },
+    {
       "path": "internal/platform/ignore",
       "tier": "critical",
       "minimum": 90
