@@ -5774,7 +5774,10 @@ export type paths = {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -6663,7 +6666,10 @@ export type paths = {
         /** Read a visible video item */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -6711,11 +6717,14 @@ export type paths = {
         };
         /**
          * Read the display metadata of a visible item
-         * @description Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. No query parameters are accepted.
+         * @description Any session kind. Overview, release date and year, original title, tagline, genres, external IDs and the NFO read state for every user who may see the item. No file paths, roots, provider origins or NFO file identities are returned; the administrator metadata view stays at /api/v1/items/{id}/metadata. The only query parameter is fields.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -11175,7 +11184,10 @@ export type paths = {
         /** Read job progress; total work and ETA remain unknown */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -21083,7 +21095,10 @@ export type paths = {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -23634,7 +23649,10 @@ export type paths = {
         /** Read a share link */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -27914,7 +27932,10 @@ export type paths = {
         /** Read own account or any account as administrator */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -31049,7 +31070,10 @@ export type paths = {
         /** Read own account */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -33977,7 +34001,10 @@ export type paths = {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Comma separated top-level members of data to return; the others are omitted. Unknown or empty names are 400 invalid_request. id is always returned. */
+                    fields?: string;
+                };
                 header?: never;
                 path: {
                     id: string;

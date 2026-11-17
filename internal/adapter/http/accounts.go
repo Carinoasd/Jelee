@@ -67,8 +67,10 @@ func (s *Server) accountEndpoint(admin, listQuery bool, operation accountOperati
 			WriteError(w, r, domain.ErrForbidden)
 			return
 		}
+		var detail listRequest
 		if !listQuery {
-			if _, err := strictQuery(r); err != nil {
+			var err error
+			if detail, err = detailQuery(r); err != nil {
 				WriteError(w, r, err)
 				return
 			}
@@ -89,12 +91,23 @@ func (s *Server) accountEndpoint(admin, listQuery bool, operation accountOperati
 			w.WriteHeader(status)
 			return
 		}
+		var body map[string]any
 		if list, ok := data.(listResponse); ok {
 			// A data-array list keeps its pagination beside data (G08.2).
-			writeJSON(w, status, map[string]any{"data": list.data, "pagination": list.pagination})
+			body = map[string]any{"data": list.data, "pagination": list.pagination}
+		} else {
+			if data, err = detail.projectOne(data); err != nil {
+				WriteError(w, r, err)
+				return
+			}
+			body = map[string]any{"data": data}
+		}
+		if status == http.StatusOK && r.Method == http.MethodGet {
+			// Reads carry a content validator (G25.2).
+			writeValidatedJSON(w, r, body)
 			return
 		}
-		writeJSON(w, status, map[string]any{"data": data})
+		writeJSON(w, status, body)
 	}
 }
 

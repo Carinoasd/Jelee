@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -123,19 +124,23 @@ func TestAccountHTTPWriteDeadlineReleasesAdmissionSlots(t *testing.T) {
 	server.Start()
 	defer server.Close()
 	defer server.CloseClientConnections()
-	address, err := net.ResolveTCPAddr("tcp", server.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The receive buffer is fixed before the handshake. Set afterwards, it
+	// does not bound what a Windows loopback connection accepts: the whole
+	// page, written at once (writeValidatedJSON), is absorbed and no write
+	// deadline ever expires.
+	dialer := net.Dialer{Control: func(_, _ string, raw syscall.RawConn) error {
+		var setErr error
+		if err := raw.Control(func(fd uintptr) { setErr = setReceiveBuffer(fd, 1024) }); err != nil {
+			return err
+		}
+		return setErr
+	}}
 	for i := 0; i < slots; i++ {
-		conn, err := net.DialTCP("tcp", nil, address)
+		conn, err := dialer.Dial("tcp", server.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer conn.Close()
-		if err = conn.SetReadBuffer(1024); err != nil {
-			t.Fatal(err)
-		}
 		if err = conn.SetWriteDeadline(time.Now().Add(3 * time.Second)); err != nil {
 			t.Fatal(err)
 		}

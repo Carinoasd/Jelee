@@ -112,6 +112,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 	}
 	errorSpecification(paths, schemas)
 	listSpecification(paths, schemas)
+	detailSpecification(paths)
 	webSessionSpecification(paths)
 	deprecationSpecification(paths, deprecations)
 	apiDocsSpecification(paths)
