@@ -6881,6 +6881,19 @@
                 "default": {
                   "type": "boolean"
                 },
+                "features": {
+                  "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement.",
+                  "items": {
+                    "enum": [
+                      "dolby_atmos",
+                      "dolby_truehd",
+                      "dts_x",
+                      "dts_hd_ma"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "forced": {
                   "type": "boolean"
                 },
@@ -6912,6 +6925,31 @@
             "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
             "minimum": 1,
             "type": "integer"
+          },
+          "chapters": {
+            "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMicros": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "startMicros"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "container": {
             "description": "Container token derived from the stored content type.",
@@ -7063,6 +7101,19 @@
                       "default": {
                         "type": "boolean"
                       },
+                      "features": {
+                        "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement.",
+                        "items": {
+                          "enum": [
+                            "dolby_atmos",
+                            "dolby_truehd",
+                            "dts_x",
+                            "dts_hd_ma"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
                       "forced": {
                         "type": "boolean"
                       },
@@ -7094,6 +7145,31 @@
                   "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
                   "minimum": 1,
                   "type": "integer"
+                },
+                "chapters": {
+                  "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "startMicros": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "startMicros"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
                 },
                 "container": {
                   "description": "Container token derived from the stored content type.",
@@ -7283,6 +7359,12 @@
                       "default": {
                         "type": "boolean"
                       },
+                      "dolbyVisionLevel": {
+                        "type": "integer"
+                      },
+                      "dolbyVisionProfile": {
+                        "type": "integer"
+                      },
                       "frameRate": {
                         "additionalProperties": false,
                         "properties": {
@@ -7300,6 +7382,19 @@
                           "denominator"
                         ],
                         "type": "object"
+                      },
+                      "hdr": {
+                        "description": "HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name.",
+                        "items": {
+                          "enum": [
+                            "dolby_vision",
+                            "hdr10plus",
+                            "hdr10",
+                            "hlg"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
                       },
                       "height": {
                         "type": "integer"
@@ -7439,6 +7534,12 @@
                 "default": {
                   "type": "boolean"
                 },
+                "dolbyVisionLevel": {
+                  "type": "integer"
+                },
+                "dolbyVisionProfile": {
+                  "type": "integer"
+                },
                 "frameRate": {
                   "additionalProperties": false,
                   "properties": {
@@ -7456,6 +7557,19 @@
                     "denominator"
                   ],
                   "type": "object"
+                },
+                "hdr": {
+                  "description": "HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name.",
+                  "items": {
+                    "enum": [
+                      "dolby_vision",
+                      "hdr10plus",
+                      "hdr10",
+                      "hlg"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
                 },
                 "height": {
                   "type": "integer"
@@ -9928,6 +10042,19 @@
                 "default": {
                   "type": "boolean"
                 },
+                "features": {
+                  "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement.",
+                  "items": {
+                    "enum": [
+                      "dolby_atmos",
+                      "dolby_truehd",
+                      "dts_x",
+                      "dts_hd_ma"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "forced": {
                   "type": "boolean"
                 },
@@ -9959,6 +10086,31 @@
             "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
             "minimum": 1,
             "type": "integer"
+          },
+          "chapters": {
+            "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMicros": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "startMicros"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "container": {
             "description": "Container token derived from the stored content type.",
@@ -10209,6 +10361,19 @@
                       "default": {
                         "type": "boolean"
                       },
+                      "features": {
+                        "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement.",
+                        "items": {
+                          "enum": [
+                            "dolby_atmos",
+                            "dolby_truehd",
+                            "dts_x",
+                            "dts_hd_ma"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
                       "forced": {
                         "type": "boolean"
                       },
@@ -10240,6 +10405,31 @@
                   "description": "Bits per second as probed, or size × 8 ÷ duration when the container states none.",
                   "minimum": 1,
                   "type": "integer"
+                },
+                "chapters": {
+                  "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "index": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "startMicros": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "startMicros"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
                 },
                 "container": {
                   "description": "Container token derived from the stored content type.",
@@ -10464,6 +10654,12 @@
                       "default": {
                         "type": "boolean"
                       },
+                      "dolbyVisionLevel": {
+                        "type": "integer"
+                      },
+                      "dolbyVisionProfile": {
+                        "type": "integer"
+                      },
                       "frameRate": {
                         "additionalProperties": false,
                         "properties": {
@@ -10481,6 +10677,19 @@
                           "denominator"
                         ],
                         "type": "object"
+                      },
+                      "hdr": {
+                        "description": "HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name.",
+                        "items": {
+                          "enum": [
+                            "dolby_vision",
+                            "hdr10plus",
+                            "hdr10",
+                            "hlg"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
                       },
                       "height": {
                         "type": "integer"
@@ -10650,6 +10859,12 @@
                 "default": {
                   "type": "boolean"
                 },
+                "dolbyVisionLevel": {
+                  "type": "integer"
+                },
+                "dolbyVisionProfile": {
+                  "type": "integer"
+                },
                 "frameRate": {
                   "additionalProperties": false,
                   "properties": {
@@ -10667,6 +10882,19 @@
                     "denominator"
                   ],
                   "type": "object"
+                },
+                "hdr": {
+                  "description": "HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name.",
+                  "items": {
+                    "enum": [
+                      "dolby_vision",
+                      "hdr10plus",
+                      "hdr10",
+                      "hlg"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
                 },
                 "height": {
                   "type": "integer"

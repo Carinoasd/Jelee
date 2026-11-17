@@ -4,6 +4,7 @@ import (
 	"math"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -20,7 +21,45 @@ type MediaMatroska struct {
 	Attachments  []MediaAttachment   `json:"attachments,omitempty"`
 	Tags         []MediaTag          `json:"tags,omitempty"`
 	StreamTitles []MediaStreamTitle  `json:"streamTitles,omitempty"`
+	// StreamDetails are MediaInfo's encoding details per stream (G19.1):
+	// HDR formats, commercial audio formats and the format profile. They only
+	// supplement the ffprobe fields; they never replace a value ffprobe has.
+	StreamDetails []MediaStreamDetail `json:"streamDetails,omitempty"`
 }
+
+// MediaStreamDetail is what MediaInfo says about the stream with this probe
+// index. HDR holds VersionHDR tokens and AudioFeatures the Audio* tokens
+// below; both come from fixed tables, never from file text. FormatProfile is
+// MediaInfo's Format_Profile (for example "High" or "Main 10"), kept as text.
+type MediaStreamDetail struct {
+	Index              int      `json:"index"`
+	HDR                []string `json:"hdr,omitempty"`
+	DolbyVisionProfile *int64   `json:"dolbyVisionProfile,omitempty"`
+	DolbyVisionLevel   *int64   `json:"dolbyVisionLevel,omitempty"`
+	AudioFeatures      []string `json:"audioFeatures,omitempty"`
+	FormatProfile      string   `json:"formatProfile,omitempty"`
+}
+
+// Commercial audio format tokens of MediaStreamDetail.AudioFeatures and
+// PlaybackAudioTrack.Features.
+const (
+	AudioFeatureAtmos  = "dolby_atmos"
+	AudioFeatureTrueHD = "dolby_truehd"
+	AudioFeatureDTSX   = "dts_x"
+	AudioFeatureDTSHD  = "dts_hd_ma"
+)
+
+// MaxMatroskaStreamDetails bounds StreamDetails; MaxMatroskaFormatProfile
+// bounds the profile text.
+const (
+	MaxMatroskaStreamDetails = 64
+	MaxMatroskaFormatProfile = 64
+)
+
+var (
+	validDetailHDR   = []string{string(VersionHDRDolbyVision), string(VersionHDR10Plus), string(VersionHDR10), string(VersionHDRHLG)}
+	validDetailAudio = []string{AudioFeatureAtmos, AudioFeatureTrueHD, AudioFeatureDTSX, AudioFeatureDTSHD}
+)
 
 // MediaNamedChapter is one edition chapter start and its title.
 type MediaNamedChapter struct {
@@ -90,10 +129,10 @@ func validMatroska(v *MediaMatroska, duration *int64, streams map[int]bool) bool
 	if v == nil {
 		return true
 	}
-	if len(v.Chapters) > MaxMatroskaChapters || len(v.Attachments) > MaxMatroskaAttachments || len(v.Tags) > MaxMatroskaTags || len(v.StreamTitles) > 64 {
+	if len(v.Chapters) > MaxMatroskaChapters || len(v.Attachments) > MaxMatroskaAttachments || len(v.Tags) > MaxMatroskaTags || len(v.StreamTitles) > 64 || len(v.StreamDetails) > MaxMatroskaStreamDetails {
 		return false
 	}
-	if len(v.Chapters) == 0 && len(v.Attachments) == 0 && len(v.Tags) == 0 && len(v.StreamTitles) == 0 {
+	if len(v.Chapters) == 0 && len(v.Attachments) == 0 && len(v.Tags) == 0 && len(v.StreamTitles) == 0 && len(v.StreamDetails) == 0 {
 		return false
 	}
 	previous := int64(-1)
@@ -121,6 +160,39 @@ func validMatroska(v *MediaMatroska, duration *int64, streams map[int]bool) bool
 			return false
 		}
 		titled[s.Index] = true
+	}
+	detailed := make(map[int]bool, len(v.StreamDetails))
+	for _, d := range v.StreamDetails {
+		if !streams[d.Index] || detailed[d.Index] || !validDetail(d) {
+			return false
+		}
+		detailed[d.Index] = true
+	}
+	return true
+}
+
+func validDetail(d MediaStreamDetail) bool {
+	if len(d.HDR) == 0 && len(d.AudioFeatures) == 0 && d.FormatProfile == "" && d.DolbyVisionProfile == nil && d.DolbyVisionLevel == nil {
+		return false
+	}
+	if !validTokens(d.HDR, validDetailHDR) || !validTokens(d.AudioFeatures, validDetailAudio) ||
+		len(d.FormatProfile) > MaxMatroskaFormatProfile || !ValidMatroskaText(d.FormatProfile, MaxMatroskaFormatProfile) {
+		return false
+	}
+	for _, n := range []*int64{d.DolbyVisionProfile, d.DolbyVisionLevel} {
+		if n != nil && (*n < 0 || *n > 255) {
+			return false
+		}
+	}
+	// Dolby Vision numbers only make sense next to the dolby_vision token.
+	return (d.DolbyVisionProfile == nil && d.DolbyVisionLevel == nil) || slices.Contains(d.HDR, string(VersionHDRDolbyVision))
+}
+
+func validTokens(tokens, allowed []string) bool {
+	for i, t := range tokens {
+		if !slices.Contains(allowed, t) || slices.Contains(tokens[:i], t) {
+			return false
+		}
 	}
 	return true
 }

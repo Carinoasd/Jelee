@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -208,6 +209,64 @@ func TestNormalizeClientCapabilities(t *testing.T) {
 	} {
 		if _, err := NormalizeClientCapabilities(bad); err != ErrInvalid {
 			t.Errorf("accepted %+v", bad)
+		}
+	}
+}
+
+func TestPlaybackMergesMediaInfoWithoutOverridingFFprobe(t *testing.T) {
+	str := func(s string) *string { return &s }
+	yes := true
+	meta := MediaMetadata{
+		Streams: []MediaStream{
+			{Index: 0, Kind: "video", Codec: str("hevc"), Profile: str("Main 10"), Video: &MediaVideo{ColorTransfer: str("smpte2084"), HDR10Plus: &yes,
+				DolbyVision: &MediaDolbyVision{Profile: func() *int64 { v := int64(8); return &v }(), Level: func() *int64 { v := int64(6); return &v }()}}},
+			{Index: 1, Kind: "video", Codec: str("h264"), Video: &MediaVideo{}},
+			{Index: 2, Kind: "audio", Codec: str("truehd"), Audio: &MediaAudio{}},
+			{Index: 3, Kind: "audio", Codec: str("dts"), Profile: str("DTS-HD MA"), Audio: &MediaAudio{}},
+		},
+		Matroska: &MediaMatroska{StreamDetails: []MediaStreamDetail{
+			{Index: 0, HDR: []string{"hlg", "hdr10"}, FormatProfile: "Ignored"},
+			{Index: 1, HDR: []string{"hdr10"}, FormatProfile: "High"},
+			{Index: 2, AudioFeatures: []string{AudioFeatureAtmos, AudioFeatureTrueHD}},
+			{Index: 3, AudioFeatures: []string{AudioFeatureDTSX, AudioFeatureDTSHD}},
+		}},
+	}
+	s := BuildPlaybackSource(PlaybackSourceRecord{ID: "s", ContentType: "video/x-matroska", FileName: "a.mkv", Metadata: &meta})
+	if got := strings.Join(s.Video[0].HDR, ","); got != "dolby_vision,hdr10plus,hdr10,hlg" || s.Video[0].Profile != "Main 10" ||
+		s.Video[0].DolbyVisionProfile == nil || *s.Video[0].DolbyVisionProfile != 8 || *s.Video[0].DolbyVisionLevel != 6 {
+		t.Fatalf("ffprobe values must lead: %+v", s.Video[0])
+	}
+	if s.Video[1].Profile != "High" || strings.Join(s.Video[1].HDR, ",") != "hdr10" {
+		t.Fatalf("gaps are filled from MediaInfo: %+v", s.Video[1])
+	}
+	if a := s.Audio[0]; !a.Atmos || strings.Join(a.Features, ",") != "dolby_truehd,dolby_atmos" {
+		t.Fatalf("truehd %+v", a)
+	}
+	if a := s.Audio[1]; strings.Join(a.Features, ",") != "dts_hd_ma,dts_x" || a.Atmos {
+		t.Fatalf("dts %+v", a)
+	}
+}
+
+func TestPlaybackChapters(t *testing.T) {
+	v := func(n int64) *int64 { return &n }
+	probe := []MediaChapter{{ID: 0, StartMicros: v(0)}, {ID: 1, StartMicros: v(60_000_000)}, {ID: 2}}
+	named := []MediaNamedChapter{{StartMicros: 0, Title: "Intro"}, {StartMicros: 60_000_000, Title: "Main"}}
+	cases := []struct {
+		name string
+		meta MediaMetadata
+		want []PlaybackChapter
+	}{
+		{"none", MediaMetadata{}, nil},
+		{"probe only", MediaMetadata{Chapters: probe[:2]}, []PlaybackChapter{{0, 0, ""}, {1, 60_000_000, ""}}},
+		{"unknown start skipped", MediaMetadata{Chapters: probe}, []PlaybackChapter{{0, 0, ""}, {1, 60_000_000, ""}}},
+		{"titles by position", MediaMetadata{Chapters: probe[:2], Matroska: &MediaMatroska{Chapters: named}}, []PlaybackChapter{{0, 0, "Intro"}, {1, 60_000_000, "Main"}}},
+		{"supplement only", MediaMetadata{Matroska: &MediaMatroska{Chapters: named}}, []PlaybackChapter{{0, 0, "Intro"}, {1, 60_000_000, "Main"}}},
+		{"count mismatch drops titles", MediaMetadata{Chapters: probe[:1], Matroska: &MediaMatroska{Chapters: named}}, []PlaybackChapter{{0, 0, ""}}},
+		{"time mismatch drops titles", MediaMetadata{Chapters: []MediaChapter{{ID: 0, StartMicros: v(0)}, {ID: 1, StartMicros: v(61_000_000)}}, Matroska: &MediaMatroska{Chapters: named}}, []PlaybackChapter{{0, 0, ""}, {1, 61_000_000, ""}}},
+	}
+	for _, c := range cases {
+		if got := playbackChapters(c.meta); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: %+v", c.name, got)
 		}
 	}
 }

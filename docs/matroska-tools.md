@@ -60,12 +60,13 @@ E1（[ADR 0001](adr/0001-external-process-start.md)）照舊：以 `os.StartProc
 
 ## 探測補充：MediaInfo（G19.1）
 
-探測對 Matroska／WebM 來源在 ffprobe 之後以同一個已開啟的檔案執行 MediaInfo，結果解析為 `MediaMetadata.matroska`（探測資料 schema 2、解析器 `media-metadata-v3`；與 G40.4 的 attached_pic 記錄合併後的版本，兩者各自開發時都用過 v2，合併後升 v3 讓任何一邊寫下的快取都重新探測一次）：
+探測對 Matroska／WebM 來源在 ffprobe 之後以同一個已開啟的檔案執行 MediaInfo，結果解析為 `MediaMetadata.matroska`（探測資料 schema 2、解析器 `media-metadata-v4`，v4 加入 `streamDetails`，見 [媒體中繼資料](media-metadata.md#章節與-mediainfo-編碼細節g091g191)；與 G40.4 的 attached_pic 記錄合併後的版本，兩者各自開發時都用過 v2，合併後升 v3 讓任何一邊寫下的快取都重新探測一次）：
 
 - `chapters`：第一個 edition 的章節起點與標題；
 - `attachments`：附件檔名（依檔案順序，ID 即 mkvtoolnix 的 1 起附件 ID）與是否為字型；
 - `tags`：容器層標籤（Title、Movie、Encoded_Application 等固定欄位與自訂標籤，名稱限識別字，值 ≤512 位元組）；
-- `streamTitles`：各軌的 Matroska 軌名，對應探測串流索引。
+- `streamTitles`：各軌的 Matroska 軌名，對應探測串流索引；
+- `streamDetails`：各影片、音訊軌的 HDR 格式、Dolby Vision profile／level、商業音訊格式（Atmos、TrueHD、DTS:X、DTS-HD MA）與 Format_Profile，只補 ffprobe 沒有的值（G19.1，規則見 [媒體中繼資料](media-metadata.md#章節與-mediainfo-編碼細節g091g191)）。
 
 檔案系統欄位（檔名、日期、大小）一律不保留；任何一項不符白名單就整份丟棄，不留下部分結果。MediaInfo 失敗或輸出不可用時只省略補充，ffprobe 結果照常快取；取消、逾時、忙碌與沙箱失敗則讓本次探測失敗並重試。補充的有無與 MediaInfo 執行檔、閉包、argv 一起折入探測身分的 `RuntimeSHA256`／`ArgumentsSHA256`，有、無補充的快取不會混用；版本升為 2 後既有快取以新身分重新探測一次。
 

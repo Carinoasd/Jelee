@@ -92,6 +92,9 @@ type PlaybackSource struct {
 	// Attachments are the Matroska attachments the MediaInfo supplement
 	// listed (G15.7); empty without the supplement.
 	Attachments []PlaybackAttachment `json:"attachments,omitempty"`
+	// Chapters are the container's chapters in start order (G09.1); empty
+	// when the file has none or the source is unprobed.
+	Chapters []PlaybackChapter `json:"chapters,omitempty"`
 	// Primary marks the administrator's main version; it is listed first.
 	Primary bool `json:"primary"`
 	// DefaultTracks is the audio and subtitle the user's preferences pick
@@ -116,6 +119,12 @@ type PlaybackVideoTrack struct {
 	FrameRate *MediaRational `json:"frameRate,omitempty"`
 	BitRate   *int64         `json:"bitRate,omitempty"`
 	Default   bool           `json:"default"`
+	// HDR lists the HDR formats (VersionHDR tokens, strongest first).
+	// ffprobe's findings come first; MediaInfo only adds formats the probe
+	// did not name. DolbyVisionProfile and Level follow the same rule.
+	HDR                []string `json:"hdr,omitempty"`
+	DolbyVisionProfile *int64   `json:"dolbyVisionProfile,omitempty"`
+	DolbyVisionLevel   *int64   `json:"dolbyVisionLevel,omitempty"`
 	// Primary marks the stream the decision checks: the default, else the
 	// largest, else the first real video stream. Cover art is never listed.
 	Primary bool `json:"primary"`
@@ -133,6 +142,16 @@ type PlaybackAudioTrack struct {
 	Default       bool   `json:"default"`
 	Forced        bool   `json:"forced"`
 	Atmos         bool   `json:"atmos"`
+	// Features lists commercial formats (dolby_atmos, dolby_truehd, dts_x,
+	// dts_hd_ma): from the probe's codec and profile first, then MediaInfo.
+	Features []string `json:"features,omitempty"`
+}
+
+// PlaybackChapter is one chapter start with its title when known.
+type PlaybackChapter struct {
+	Index       int    `json:"index"`
+	StartMicros int64  `json:"startMicros"`
+	Title       string `json:"title,omitempty"`
 }
 
 type PlaybackSubtitleTrack struct {
@@ -384,12 +403,14 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 					continue
 				}
 				v := stream.Video
+				detail := streamDetail(meta.Matroska, stream.Index)
 				track := PlaybackVideoTrack{Index: stream.Index, Codec: playbackText(stream.Codec), Profile: playbackText(stream.Profile), Level: v.Level,
 					Width: v.Width, Height: v.Height, FrameRate: v.AverageFrameRate, BitRate: stream.BitRate, Default: playbackFlag(stream.Default),
 					Primary: primary != nil && primary.Index == stream.Index}
 				if track.FrameRate == nil {
 					track.FrameRate = v.FrameRate
 				}
+				mergeVideoDetail(&track, *v, detail)
 				s.Video = append(s.Video, track)
 			case "audio":
 				track := PlaybackAudioTrack{Index: stream.Index, Codec: playbackText(stream.Codec), Profile: playbackText(stream.Profile),
@@ -397,6 +418,7 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 				if a := stream.Audio; a != nil {
 					track.Channels, track.ChannelLayout, track.SampleRate, track.Atmos = a.Channels, playbackText(a.ChannelLayout), a.SampleRate, playbackFlag(a.Atmos)
 				}
+				mergeAudioDetail(&track, streamDetail(meta.Matroska, stream.Index))
 				s.Audio = append(s.Audio, track)
 			case "subtitle":
 				codec := playbackText(stream.Codec)
@@ -408,6 +430,7 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 			}
 		}
 		s.Attachments = playbackAttachments(meta)
+		s.Chapters = playbackChapters(meta)
 	}
 	for _, sidecar := range r.Sidecars {
 		t := sidecar.Track
@@ -421,6 +444,124 @@ func BuildPlaybackSource(r PlaybackSourceRecord) PlaybackSource {
 		s.External = append(s.External, track)
 	}
 	return s
+}
+
+func streamDetail(m *MediaMatroska, index int) *MediaStreamDetail {
+	if m == nil {
+		return nil
+	}
+	for i := range m.StreamDetails {
+		if m.StreamDetails[i].Index == index {
+			return &m.StreamDetails[i]
+		}
+	}
+	return nil
+}
+
+// mergeVideoDetail applies the merge rule: ffprobe is the primary source and
+// MediaInfo only fills what ffprobe did not state.
+func mergeVideoDetail(track *PlaybackVideoTrack, v MediaVideo, d *MediaStreamDetail) {
+	if hdr, known, dv := probeHDR(v); known {
+		for _, h := range hdr {
+			track.HDR = append(track.HDR, string(h))
+		}
+		track.DolbyVisionProfile = dv
+	}
+	if v.DolbyVision != nil {
+		track.DolbyVisionLevel = v.DolbyVision.Level
+		if track.DolbyVisionProfile == nil {
+			track.DolbyVisionProfile = v.DolbyVision.Profile
+		}
+	}
+	if d == nil {
+		return
+	}
+	for _, h := range d.HDR {
+		if !slices.Contains(track.HDR, h) {
+			track.HDR = append(track.HDR, h)
+		}
+	}
+	if track.DolbyVisionProfile == nil {
+		track.DolbyVisionProfile = d.DolbyVisionProfile
+	}
+	if track.DolbyVisionLevel == nil {
+		track.DolbyVisionLevel = d.DolbyVisionLevel
+	}
+	if track.Profile == "" {
+		track.Profile = d.FormatProfile
+	}
+}
+
+func mergeAudioDetail(track *PlaybackAudioTrack, d *MediaStreamDetail) {
+	add := func(name string) {
+		if !slices.Contains(track.Features, name) {
+			track.Features = append(track.Features, name)
+		}
+	}
+	if track.Atmos || track.Profile == "Dolby TrueHD + Dolby Atmos" || track.Profile == "Dolby Digital Plus + Dolby Atmos" {
+		add(AudioFeatureAtmos)
+	}
+	if track.Codec == "truehd" {
+		add(AudioFeatureTrueHD)
+	}
+	if track.Codec == "dts" {
+		switch {
+		case strings.HasSuffix(track.Profile, "DTS:X"):
+			add(AudioFeatureDTSX)
+			add(AudioFeatureDTSHD)
+		case track.Profile == "DTS-HD MA":
+			add(AudioFeatureDTSHD)
+		}
+	}
+	if d != nil {
+		for _, f := range d.AudioFeatures {
+			add(f)
+		}
+		if track.Profile == "" {
+			track.Profile = d.FormatProfile
+		}
+	}
+	if slices.Contains(track.Features, AudioFeatureAtmos) {
+		track.Atmos = true
+	}
+}
+
+// playbackChapters lists the chapters ffprobe found, which fix the start
+// times. Titles come from the MediaInfo supplement when it lists as many
+// chapters at the same positions; a file whose chapters only MediaInfo
+// listed uses the supplement's list. Chapters with an unknown start are
+// skipped, and the indices are 0-based list positions.
+func playbackChapters(meta MediaMetadata) []PlaybackChapter {
+	var named []MediaNamedChapter
+	if meta.Matroska != nil {
+		named = meta.Matroska.Chapters
+	}
+	var out []PlaybackChapter
+	for _, c := range meta.Chapters {
+		if c.StartMicros != nil {
+			out = append(out, PlaybackChapter{StartMicros: *c.StartMicros})
+		}
+	}
+	if len(out) == 0 {
+		for _, c := range named {
+			out = append(out, PlaybackChapter{StartMicros: c.StartMicros, Title: c.Title})
+		}
+	} else if len(named) == len(out) {
+		for i := range out {
+			// MediaInfo prints milliseconds; ffprobe keeps finer ticks.
+			if d := out[i].StartMicros - named[i].StartMicros; d < -1000 || d > 1000 {
+				for j := range out {
+					out[j].Title = ""
+				}
+				break
+			}
+			out[i].Title = named[i].Title
+		}
+	}
+	for i := range out {
+		out[i].Index = i
+	}
+	return out
 }
 
 func streamTitle(m *MediaMatroska, index int) string {

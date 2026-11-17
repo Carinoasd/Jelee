@@ -71,6 +71,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `GET /compat/Videos/{itemId}/AdditionalParts` | native 工作階段 | `QueryResult<BaseItemDto>`：預設版本的第 2..n 片（G21.1），每片一個條目、唯一的 `MediaSource` 就是該片；單檔條目為空列表 |
 | `GET`、`HEAD /compat/Videos/{itemId}/stream`、`…/stream.{container}` | native 工作階段（直投開啟時才掛載） | 原檔位元組（交給伺服器的直投模組，Range／HEAD／限流／撤銷斷流同自有 API） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}`、`…/{index}/{startPositionTicks}/Stream.{format}` | 同上 | 外掛字幕原檔位元組（`format` 必須是原檔格式）；擷取開啟且可用時，Matroska 內嵌文字字幕為擷取快取的原樣副本（E4） |
+| `GET /compat/Items/{itemId}`、`POST /compat/Items/{itemId}/PlaybackInfo` 的章節與 HDR 欄位 | 同上 | `Items/{id}` 的 `Chapters` 與每個 `MediaSources[].Chapters`：`StartPositionTicks`、`Name`（無標題為 `Chapter N`），不送 `ImageTag`；`MediaStreams` 的視訊軌帶 `VideoRange`（`HDR`）、`VideoRangeType`（`DOVI`／`HDR10Plus`／`HLG`／`HDR10`，取最強者）、`DvProfile`、`DvLevel`，音軌帶 `AudioSpatialFormat`（`DolbyAtmos`／`DTSX`）；SDR 與未知不送這些欄（G09.1、G19.1，見 [媒體中繼資料](media-metadata.md#章節與-mediainfo-編碼細節g091g191)） |
 | `GET`、`HEAD /compat/Videos/{itemId}/{mediaSourceId}/Attachments/{index}` | 同上（只在擷取開啟時掛載） | Matroska 字型附件的原樣副本，`index` 為附件的探測串流索引（G15.7，見 [mkvtoolnix 與 MediaInfo](matroska-tools.md)） |
 | `GET`、`HEAD /compat/Audio/{itemId}/stream`、`…/stream.{container}` | 同上 | 目錄沒有音訊條目，驗證後一律回隱藏狀態（預設 404） |
 | `POST /compat/Sessions/Playing`、`…/Playing/Progress`、`…/Playing/Stopped` | native 工作階段（目錄開啟時才掛載） | 播放開始／進度／停止回報，一律 204 空主體（見「播放狀態模組」） |

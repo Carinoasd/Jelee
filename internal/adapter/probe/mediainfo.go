@@ -57,6 +57,11 @@ func ParseMediaInfo(data []byte, streams map[int]bool, duration *int64) *domain.
 			}
 		case "Video", "Audio", "Text":
 			order, err := strconv.Atoi(text(track["StreamOrder"]))
+			if detail, ok := streamDetail(track); ok && err == nil && streams[order] && len(result.StreamDetails) < domain.MaxMatroskaStreamDetails &&
+				!slices.ContainsFunc(result.StreamDetails, func(d domain.MediaStreamDetail) bool { return d.Index == order }) {
+				detail.Index = order
+				result.StreamDetails = append(result.StreamDetails, detail)
+			}
 			title := strings.TrimSpace(text(track["Title"]))
 			if err == nil && streams[order] && title != "" && domain.ValidMatroskaText(title, domain.MaxMatroskaTextBytes) &&
 				!slices.ContainsFunc(result.StreamTitles, func(s domain.MediaStreamTitle) bool { return s.Index == order }) && len(result.StreamTitles) < 64 {
@@ -64,7 +69,7 @@ func ParseMediaInfo(data []byte, streams map[int]bool, duration *int64) *domain.
 			}
 		}
 	}
-	if len(result.Chapters) == 0 && len(result.Attachments) == 0 && len(result.Tags) == 0 && len(result.StreamTitles) == 0 {
+	if len(result.Chapters) == 0 && len(result.Attachments) == 0 && len(result.Tags) == 0 && len(result.StreamTitles) == 0 && len(result.StreamDetails) == 0 {
 		return nil
 	}
 	// The whole supplement must pass the stored whitelist; otherwise none of
@@ -176,5 +181,99 @@ func chapters(track map[string]json.RawMessage, duration *int64) []domain.MediaN
 		}
 		return strings.Compare(a.Title, b.Title)
 	})
+	return out
+}
+
+var mediaInfoDolbyVisionProfile = regexp.MustCompile(`(?i)dv[a-z0-9]{2,4}\.(\d{2})(?:\.(\d{2}))?`)
+
+// streamDetail reads the encoding details of one Video or Audio track. The
+// result carries tokens from fixed tables only; Index is set by the caller.
+func streamDetail(track map[string]json.RawMessage) (domain.MediaStreamDetail, bool) {
+	var d domain.MediaStreamDetail
+	switch text(track["@type"]) {
+	case "Video":
+		d.HDR, d.DolbyVisionProfile, d.DolbyVisionLevel = mediaInfoHDR(track)
+	case "Audio":
+		d.AudioFeatures = mediaInfoAudioFeatures(track)
+	default:
+		return d, false
+	}
+	if profile := strings.TrimSpace(text(track["Format_Profile"])); profile != "" && domain.ValidMatroskaText(profile, domain.MaxMatroskaFormatProfile) {
+		d.FormatProfile = profile
+	}
+	return d, len(d.HDR) > 0 || len(d.AudioFeatures) > 0 || d.FormatProfile != ""
+}
+
+// mediaInfoHDR classifies the HDR_Format* fields. Dolby Vision is reported
+// with the profile and level of its "dvhe.08.06" style profile string; the
+// base layer's HDR10 or HLG fallback comes from the compatibility field.
+func mediaInfoHDR(track map[string]json.RawMessage) (tokens []string, profile, level *int64) {
+	format := strings.ToLower(text(track["HDR_Format"]))
+	compatibility := strings.ToLower(text(track["HDR_Format_Compatibility"]))
+	transfer := strings.ToLower(text(track["transfer_characteristics"]))
+	var found [4]bool
+	if strings.Contains(format, "dolby vision") {
+		found[0] = true
+		if match := mediaInfoDolbyVisionProfile.FindStringSubmatch(text(track["HDR_Format_Profile"])); match != nil {
+			p, _ := strconv.ParseInt(match[1], 10, 64)
+			profile = &p
+			levelText := match[2]
+			if levelText == "" {
+				levelText = text(track["HDR_Format_Level"])
+			}
+			if l, err := strconv.ParseInt(strings.TrimSpace(levelText), 10, 64); err == nil && l >= 0 && l <= 255 {
+				level = &l
+			}
+		}
+	}
+	for _, part := range strings.FieldsFunc(compatibility+" / "+format, func(r rune) bool { return r == '/' || r == ',' }) {
+		part = strings.TrimSpace(part)
+		switch {
+		case strings.HasPrefix(part, "hdr10+") || strings.Contains(part, "smpte st 2094 app 4"):
+			found[1] = true
+		case part == "hdr10" || strings.HasPrefix(part, "hdr10 ") || strings.Contains(part, "smpte st 2086"):
+			found[2] = true
+		case part == "hlg" || strings.HasPrefix(part, "hlg ") || strings.Contains(part, "arib std-b67"):
+			found[3] = true
+		}
+	}
+	if strings.Contains(transfer, "hlg") || strings.Contains(transfer, "arib std-b67") {
+		found[3] = true
+	}
+	for i, name := range []domain.VersionHDR{domain.VersionHDRDolbyVision, domain.VersionHDR10Plus, domain.VersionHDR10, domain.VersionHDRHLG} {
+		if found[i] {
+			tokens = append(tokens, string(name))
+		}
+	}
+	if len(tokens) == 0 {
+		return nil, nil, nil
+	}
+	return tokens, profile, level
+}
+
+// mediaInfoAudioFeatures classifies commercial audio formats from Format,
+// Format_Commercial_IfAny, Format_AdditionalFeatures and Format_Profile.
+func mediaInfoAudioFeatures(track map[string]json.RawMessage) []string {
+	format := strings.ToLower(strings.TrimSpace(text(track["Format"])))
+	commercial := strings.ToLower(text(track["Format_Commercial_IfAny"]))
+	features := strings.Fields(strings.ToLower(text(track["Format_AdditionalFeatures"])))
+	profile := strings.ToLower(strings.TrimSpace(text(track["Format_Profile"])))
+	dts := format == "dts" || strings.Contains(commercial, "dts")
+	truehd := format == "mlp fba" || strings.Contains(commercial, "truehd")
+	atmos := strings.Contains(commercial, "atmos") || strings.Contains(profile, "atmos") ||
+		// Joint object coding is how E-AC-3 carries Atmos.
+		(format == "e-ac-3" || format == "mlp fba") && slices.Contains(features, "joc")
+	dtsx := dts && (slices.Contains(features, "x") || strings.Contains(commercial, "dts:x") || strings.Contains(commercial, "dts-x"))
+	// DTS:X rides on a lossless DTS-HD MA core; XLL is the lossless extension.
+	dtsma := dts && (dtsx || slices.Contains(features, "xll") || strings.Contains(commercial, "master audio") || profile == "ma")
+	var out []string
+	for _, f := range []struct {
+		on   bool
+		name string
+	}{{atmos, domain.AudioFeatureAtmos}, {truehd, domain.AudioFeatureTrueHD}, {dtsx, domain.AudioFeatureDTSX}, {dtsma, domain.AudioFeatureDTSHD}} {
+		if f.on {
+			out = append(out, f.name)
+		}
+	}
 	return out
 }

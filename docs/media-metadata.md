@@ -53,6 +53,15 @@
 
 side data 記錄可只有部分欄位，模型保留其餘欄位為空；空的已知記錄只表示觀察到該記錄種類。這不證明完整 HDR 資料存在或可解碼。相同已知 side data 種類重複時拒絕輸入。此階段以合成 JSON 驗證這些映射；真實 HDR、Dolby Vision、Atmos 素材仍未驗收。
 
+## 章節與 MediaInfo 編碼細節（G09.1、G19.1）
+
+章節與編碼細節來自兩個來源，合併規則一律是 **ffprobe 為主，MediaInfo 只填缺口**，不覆蓋 ffprobe 已有的值。
+
+- **章節輸出。** 播放資訊（`GET /api/v1/items/{id}/playback` 與檔案資訊）的來源有 `chapters`：`index`（0 起的位置）、`startMicros`、`title`。起始時間取 ffprobe 的章節（起點未知者略過）；MediaInfo 補充列出相同數量且每章起點相差不超過 1 毫秒（MediaInfo 只印到毫秒）時，依位置補標題，否則整份不補標題；只有 MediaInfo 列出章節時使用補充清單。ffprobe 白名單不含章節標題，所以無補充時標題為空。相容層 `Items/{id}` 的 `Chapters` 與每個 `MediaSources[].Chapters` 為 `StartPositionTicks`（微秒 × 10）與 `Name`（無標題為 `Chapter N`）；`ImageTag` 不送，章節圖是另一項功能（G40.1）。
+- **編碼細節。** `MediaInfo` 補充的 `streamDetails[]`（每個探測串流至多一筆，至多 64 筆）：影片取 `HDR_Format`、`HDR_Format_Profile`、`HDR_Format_Level`、`HDR_Format_Compatibility` 與 `transfer_characteristics`，分類為 `dolby_vision`、`hdr10plus`、`hdr10`、`hlg`（Dolby Vision 另解析 `dvhe.08.06` 形式的 profile 與 level）；音訊取 `Format`、`Format_Commercial_IfAny`、`Format_AdditionalFeatures`（`JOC`＝E-AC-3 Atmos，`XLL`＝DTS-HD 無損，`X`＝DTS:X）與 `Format_Profile`，分類為 `dolby_atmos`、`dolby_truehd`、`dts_x`、`dts_hd_ma`；兩者的 `Format_Profile` 保留為不超過 64 位元組的文字。所有詞彙來自固定表，檔案中的任意文字不會進入這些欄位；不符白名單的補充與其他補充一樣整份丟棄。
+- **合併。** 影片軌 `hdr` 先放 ffprobe 的結論（沿用版本標籤的 HDR 推導），再追加 MediaInfo 多出的格式；`dolbyVisionProfile`／`Level` 先取 ffprobe 的 DOVI 記錄；`profile` 只在 ffprobe 沒有時採用 `Format_Profile`。音軌 `features` 先放 ffprobe 的 codec／profile 所能確認者，再追加 MediaInfo 的；任何來源確認 Atmos 時 `atmos` 為 true。MediaInfo 只對 Matroska／WebM 執行，其他容器沒有補充。版本標籤（`version`）仍只用 ffprobe 與檔名。
+- **快取失效。** 探測 parser 版本從 `media-metadata-v3` 升為 `media-metadata-v4`，探測資料 schema 維持 2（新欄位皆選填，舊讀取端忽略）。parser 版本是探測身分的一部分，升級後每個既有 Matroska 探測快取會在下次探測時重算一次以取得 `streamDetails`；非 Matroska 來源同樣重算（身分改變），結果與先前相同。
+
 ## 隱私與驗證界線
 
 不保留原始 filename、任意 tags、vendor、URL、軌道標題、章節標題、字型附件名稱或未列入允許清單的值。固定錯誤不帶原始內容，模型也没有原始 JSON 欄位。

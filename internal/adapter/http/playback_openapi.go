@@ -141,14 +141,19 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"videoTracks": array(objectSchema(map[string]any{
 			"index": nonNegative, "codec": str, "profile": str, "level": integer, "width": integer, "height": integer,
 			"frameRate": rational, "bitRate": integer, "default": boolean,
+			"hdr":                map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"dolby_vision", "hdr10plus", "hdr10", "hlg"}}, "description": "HDR formats, strongest first. ffprobe's findings come first; the optional MediaInfo supplement only adds formats the probe did not name."},
+			"dolbyVisionProfile": integer, "dolbyVisionLevel": integer,
 			"primary": map[string]any{"type": "boolean", "description": "The stream the direct play decision checks. Cover art is not listed."},
 		}, "index", "default", "primary")),
 		"audioTracks": array(objectSchema(map[string]any{
 			"index": nonNegative, "codec": str, "profile": str, "language": str, "channels": integer, "channelLayout": str,
 			"sampleRate": integer, "bitRate": integer, "default": boolean, "forced": boolean, "atmos": boolean,
+			"features": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"dolby_atmos", "dolby_truehd", "dts_x", "dts_hd_ma"}}, "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement."},
 		}, "index", "default", "forced", "atmos")),
 		"subtitleTracks": array(objectSchema(subtitleTrack, "index", "default", "forced")),
 		"attachments":    array(objectSchema(attachment, "id", "fileName", "font")),
+		"chapters": map[string]any{"type": "array", "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
+			"items": objectSchema(map[string]any{"index": nonNegative, "startMicros": nonNegative, "title": str}, "index", "startMicros")},
 		"externalTracks": array(objectSchema(external, externalRequired...)),
 		"primary":        map[string]any{"type": "boolean", "description": "The administrator's main version (G20.3); listed first, then by qualityScore."},
 	}
