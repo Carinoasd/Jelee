@@ -44,3 +44,16 @@ G40.1 要求“Chapter 图（可提取或生成）”。**生成**（从视频�
 - `internal/architecture/no_exec_test.go`：`TestDeliveryPackagesCannotRunEncoders` 禁止直投、兼容层与 HTTP 包及其依赖导入 `os/exec`、调用建立进程的 API 或在字面量中出现 ffmpeg；`TestNoExecScannerDetectsViolations` 证明扫描器有效。
 - `internal/adapter/media/guard_params_test.go`、`guard_test.go`：转码参数拒绝清单覆盖上游控制器的全部参数。
 - 启动自检：`transcode_unreachable` 确认拒绝中间件在位；PATH 上存在 ffmpeg 时 `encoder_absent` 告警（`encoder_on_path`）但不阻止启动，因为二进制本身没有调用它的路径。
+
+## 后续：外挂字幕的 UTF-8 衍生副本（2026-10-31，G15.4）
+
+G15.4 要求外挂字幕的编码检测与转换；G10.1 禁止转码，G10.9 要求字幕原样直投。两者不冲突，决定如下：对扫描已有把握地检测为非 UTF-8 的文本字幕（SubRip、ASS、SSA、WebVTT、SAMI、MicroDVD），按需生成一份 UTF-8 **副本**，另设路由 `/api/v1/sources/{id}/subtitles/{trackId}/utf8`；兼容层的字幕路由对这类字幕投递副本（上游客户端预期 UTF-8）。
+
+为何不违反本 ADR 与 G10：
+
+1. **不是媒体转换**：只是把字幕文本从一种字符集解码再写成 UTF-8，用纯 Go 的 `golang.org/x/text` 解码器完成，不涉及任何编码器、外部进程或容器重新封装；`TestDeliveryPackagesCannotRunEncoders` 不变，转换代码在 `internal/adapter/subtitles`，投递包只拿到缓存里的文件。
+2. **不改原文件**：原文件只读打开；原文件路由（自有 API 的默认 `url`）永远可用、逐字节不变。
+3. **可重建**：副本只在字幕缓存根下，键含原文件的大小、修改时间、字符集与转换器版本，原文件一变即失效；整个缓存可随时删除，由 `subtitle_cache_cleanup` 与大小上限维护。
+4. **怀疑就回退**：字符集未知、重新检测不一致或低信心、替换字符超过 1% 时不提供副本，只给原文件并记录原因码，不猜第二候选。
+
+TTML／DFXP 等可自带编码声明的格式不提供副本，以免副本与声明矛盾。细节见[直投：外挂文本字幕的 UTF-8 衍生副本](../direct-delivery.md#外挂文本字幕的-utf-8-衍生副本g154第-10-阶段-b5)。

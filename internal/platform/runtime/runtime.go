@@ -528,6 +528,9 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				extraction := newMatroskaService(c, store, work, l)
 				lifetime.closeMatroska = extraction.Close
 				options = append(options, httpapi.WithExtracted(extraction))
+				// UTF-8 copies of external text subtitles (G15.4) share the
+				// cache root but not the mkvtoolnix runtime.
+				options = append(options, httpapi.WithUTF8Subtitles(newUTF8Service(c, store, l)))
 				// Subtitle OCR counters (G15.6), when OCR runs.
 				if stats, ok := extraction.ocr.(telemetry.SubtitleOCRStats); ok && metrics != nil {
 					if err := metrics.RegisterSubtitleOCR(stats); err != nil {

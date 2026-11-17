@@ -26803,6 +26803,216 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources/{id}/subtitles/{trackId}/utf8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the UTF-8 copy of an external text subtitle
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external subtitle listed with charsetState convertible and a utf8Url under externalTracks of GET /api/v1/items/{id}/playback. On first use the subtitle text is decoded from its recorded charset and written as UTF-8 (no byte order mark, line endings kept) into a rebuildable cache below the subtitle cache root (G15.4); the original file is never changed and stays the default url, byte for byte. This is a character set conversion of subtitle text, not a media conversion. The charset is detected again on the current bytes first: when it is no longer confidently the recorded one, when more than 1% of the input bytes do not decode, when the format declares its own encoding (TTML, DFXP) or the charset is unknown or already UTF-8, there is no copy and the answer is that of a missing track; the reason is logged with the track ID only. A changed original gets a new copy. Content-Type is the format's fixed type with charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read the UTF-8 copy of an external text subtitle
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external subtitle listed with charsetState convertible and a utf8Url under externalTracks of GET /api/v1/items/{id}/playback. On first use the subtitle text is decoded from its recorded charset and written as UTF-8 (no byte order mark, line endings kept) into a rebuildable cache below the subtitle cache root (G15.4); the original file is never changed and stays the default url, byte for byte. This is a character set conversion of subtitle text, not a media conversion. The charset is detected again on the current bytes first: when it is no longer confidently the recorded one, when more than 1% of the input bytes do not decode, when the format declares its own encoding (TTML, DFXP) or the charset is unknown or already UTF-8, there is no copy and the answer is that of a missing track; the reason is logged with the track ID only. A changed original gets a new copy. Content-Type is the format's fixed type with charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system": {
         parameters: {
             query?: never;
@@ -36061,6 +36271,11 @@ export type components = {
                 channels?: number;
                 /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                 charset?: string;
+                /**
+                 * @description External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.
+                 * @enum {string}
+                 */
+                charsetState?: "pending" | "undetermined" | "utf8" | "convertible";
                 /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                 codec?: string;
                 commentary: boolean;
@@ -36155,6 +36370,11 @@ export type components = {
                     channels?: number;
                     /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                     charset?: string;
+                    /**
+                     * @description External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.
+                     * @enum {string}
+                     */
+                    charsetState?: "pending" | "undetermined" | "utf8" | "convertible";
                     /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                     codec?: string;
                     commentary: boolean;
@@ -37060,6 +37280,11 @@ export type components = {
                 channels?: number;
                 /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                 charset?: string;
+                /**
+                 * @description External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.
+                 * @enum {string}
+                 */
+                charsetState?: "pending" | "undetermined" | "utf8" | "convertible";
                 /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                 codec?: string;
                 commentary: boolean;
@@ -37092,6 +37317,8 @@ export type components = {
                 title?: string;
                 /** @description Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only. */
                 url: string;
+                /** @description With charsetState convertible and the subtitle cache enabled: /api/v1/sources/{id}/subtitles/{trackId}/utf8, a UTF-8 copy of the subtitle text in a rebuildable cache. url stays the default and the original. The copy is withheld (404) when conversion disproves the charset. Native sessions only. */
+                utf8Url?: string;
             }[];
             /** Format: uuid */
             id: string;
@@ -37158,6 +37385,11 @@ export type components = {
                     channels?: number;
                     /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                     charset?: string;
+                    /**
+                     * @description External text subtitles whose format declares no encoding of its own (SubRip, ASS, SSA, WebVTT, SAMI, MicroDVD): pending before the bounded inspection, undetermined when detection was not confident (only the original is offered, as is), utf8, or convertible when another charset was detected (G15.4). Absent for other tracks.
+                     * @enum {string}
+                     */
+                    charsetState?: "pending" | "undetermined" | "utf8" | "convertible";
                     /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                     codec?: string;
                     commentary: boolean;
@@ -37190,6 +37422,8 @@ export type components = {
                     title?: string;
                     /** @description Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only. */
                     url: string;
+                    /** @description With charsetState convertible and the subtitle cache enabled: /api/v1/sources/{id}/subtitles/{trackId}/utf8, a UTF-8 copy of the subtitle text in a rebuildable cache. url stays the default and the original. The copy is withheld (404) when conversion disproves the charset. Native sessions only. */
+                    utf8Url?: string;
                 }[];
                 /** Format: uuid */
                 id: string;

@@ -261,12 +261,14 @@ func TestCancelledWaiterDoesNotAffectOthers(t *testing.T) {
 
 func TestAbandonedFlightIsCancelledAndNotCached(t *testing.T) {
 	c := testMovieClient(t)
+	fetching := make(chan struct{})
 	fetchCancelled := make(chan struct{})
 	var calls atomic.Int32
 	c.fetch = func(ctx context.Context, _ string, _ int64) (outbound.Response, error) {
 		if calls.Add(1) > 1 {
 			return outbound.Response{Status: 200, Body: []byte(movieBody)}, nil
 		}
+		close(fetching)
 		<-ctx.Done()
 		close(fetchCancelled)
 		return outbound.Response{}, ctx.Err()
@@ -277,6 +279,9 @@ func TestAbandonedFlightIsCancelledAndNotCached(t *testing.T) {
 		go func() { _, err := c.Movie(ctx, 12, "en-US"); done <- err }()
 	}
 	waitFlightWaiters(t, &c.movieFlights, candidateKey{12, "en-US"}, 2)
+	// The flight's goroutine reaches the provider on its own schedule; a
+	// cancellation before that ends the flight with no request to cancel.
+	<-fetching
 	cancel()
 	for i := 0; i < 2; i++ {
 		if err := <-done; !errors.Is(err, context.Canceled) {

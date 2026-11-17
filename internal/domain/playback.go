@@ -297,8 +297,11 @@ type PlaybackExternalTrack struct {
 	Default    bool     `json:"default"`
 	Commentary bool     `json:"commentary"`
 	Charset    string   `json:"charset,omitempty"`
-	SizeBytes  int64    `json:"sizeBytes"`
-	ProbeState string   `json:"probeState"`
+	// CharsetState says whether a UTF-8 copy can be offered for a text
+	// subtitle (SidecarCharsetState); empty for every other track.
+	CharsetState string `json:"charsetState,omitempty"`
+	SizeBytes    int64  `json:"sizeBytes"`
+	ProbeState   string `json:"probeState"`
 	// Probe facts of an audio file (and the duration of a probed subtitle).
 	Profile        string `json:"profile,omitempty"`
 	Channels       int    `json:"channels,omitempty"`
@@ -311,6 +314,10 @@ type PlaybackExternalTrack struct {
 	// URL is the direct delivery route of the original file. The HTTP
 	// adapter fills it; this layer does not know routes.
 	URL string `json:"url,omitempty"`
+	// UTF8URL is the route of the derived UTF-8 copy (G15.4), filled by the
+	// HTTP adapter only for CharsetState convertible when the derived
+	// subtitle cache is wired. URL stays the default.
+	UTF8URL string `json:"utf8Url,omitempty"`
 }
 
 // PlaybackDecision is the direct play verdict for one source. Reasons is
@@ -536,7 +543,8 @@ func playbackExternalTracks(sidecars []SidecarTrackRecord) []PlaybackExternalTra
 		t := sidecar.Track
 		track := PlaybackExternalTrack{ID: sidecar.ID, Kind: t.Kind, Format: t.Format, Language: t.Language, Languages: t.Languages,
 			Title: t.Title, Forced: t.Forced, SDH: t.SDH, Default: t.Default, Commentary: t.Commentary, Charset: sidecar.Charset, SizeBytes: sidecar.Size,
-			ProbeState: sidecar.Probe.State, PairedTrackID: sidecar.PairedTrackID}
+			ProbeState: sidecar.Probe.State, PairedTrackID: sidecar.PairedTrackID,
+			CharsetState: SidecarCharsetState(t.Kind, t.Format, sidecar.SubtitleKind, sidecar.Charset, sidecar.Inspected || sidecar.Fingerprint != nil)}
 		if track.ProbeState == "" {
 			track.ProbeState = InitialSidecarProbeState(t.Kind, t.Format)
 		}

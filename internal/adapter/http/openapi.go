@@ -38,6 +38,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 			paths[route] = map[string]any{"get": op, "head": op}
 		}
 		if cfg.Matroska.EnableExtraction {
+			utf8Specification(paths)
 			extractedSpecification(paths)
 			if cfg.SubtitleOCR.Enable {
 				ocrSpecification(paths)

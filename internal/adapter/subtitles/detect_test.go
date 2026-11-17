@@ -443,3 +443,40 @@ func TestWindows1252RejectsDoubleByteRuns(t *testing.T) {
 		t.Errorf("Western text scores only %.3f", western.score)
 	}
 }
+
+// Code units one by one: a surrogate pair and a truncated trailing high
+// surrogate are text, an unpaired surrogate, a noncharacter or a control
+// character is not, and four bad units in the sample are proof enough.
+func TestUTF16PlausibilityCodeUnits(t *testing.T) {
+	units := func(little bool, values ...uint16) []byte {
+		out := make([]byte, 0, 2*len(values))
+		for _, u := range values {
+			if little {
+				out = append(out, byte(u), byte(u>>8))
+			} else {
+				out = append(out, byte(u>>8), byte(u))
+			}
+		}
+		return out
+	}
+	for _, tc := range []struct {
+		name   string
+		data   []byte
+		little bool
+		want   float64
+	}{
+		{"empty", nil, true, 0},
+		{"odd byte", []byte{'a'}, false, 0},
+		{"ascii", units(true, 'h', 'i', '\t', '\r', '\n'), true, 1},
+		{"pair", units(false, 0xd83d, 0xde00, 'a'), false, 1},
+		{"truncated pair", units(true, 'a', 0xd83d), true, 1},
+		{"high then letter", units(true, 0xd83d, 'a'), true, 0},
+		{"lone low", units(false, 'a', 0xdc00, 'b', 'c'), false, 0},
+		{"noncharacter", units(true, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 0xfffe), true, 0.5},
+		{"control", units(false, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 0x01), false, 0.5},
+	} {
+		if got := utf16Plausibility(tc.data, tc.little); got != tc.want {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

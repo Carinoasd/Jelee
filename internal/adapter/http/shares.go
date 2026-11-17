@@ -45,6 +45,8 @@ var guestRoutes = map[string]bool{
 	"HEAD " + subtitleTrackRoute:             false,
 	"GET " + audioTrackRoute:                 false,
 	"HEAD " + audioTrackRoute:                false,
+	"GET " + utf8SubtitleRoute:               false,
+	"HEAD " + utf8SubtitleRoute:              false,
 	"GET " + embeddedSubtitleRoute:           false,
 	"HEAD " + embeddedSubtitleRoute:          false,
 	"GET " + vobSubIndexRoute:                false,

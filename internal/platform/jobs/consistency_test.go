@@ -137,16 +137,21 @@ func TestConsistencyJobLocalCancellationPersistsTheReport(t *testing.T) {
 		defer close(done)
 		r.run(context.Background(), consistencyLease())
 	}()
+	// Cancel only once the run is started: a cancellation that lands
+	// before StartConsistencyRun ends the job with no report to persist.
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		r.cancellationMu.Lock()
 		_, registered := r.runningCancellations[consistencyJobID]
 		r.cancellationMu.Unlock()
-		if registered {
+		store.mu.Lock()
+		started := len(store.started)
+		store.mu.Unlock()
+		if registered && started == 1 {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("job never registered for cancellation")
+			t.Fatalf("job never started under a registered cancellation: registered=%v started=%d", registered, started)
 		}
 		time.Sleep(time.Millisecond)
 	}

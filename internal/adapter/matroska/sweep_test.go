@@ -91,6 +91,9 @@ func TestSweeperRemovesOnlyOwnStaleEntries(t *testing.T) {
 	if n, err := s.CountSources(ctx); err != nil || n != 2 {
 		t.Fatal("count", n, err)
 	}
+	if !s.HasSource(sweepLive) || s.HasSource("not-a-source") || s.HasSource("55555555-5555-4555-8555-555555555555") {
+		t.Fatal("HasSource")
+	}
 	if names, err := s.ListSources(ctx, "", 1); err != nil || !slices.Equal(names, []string{sweepLive}) {
 		t.Fatal("first page", names, err)
 	}

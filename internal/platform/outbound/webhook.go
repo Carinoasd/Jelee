@@ -122,6 +122,14 @@ func (c *Client) Post(ctx context.Context, rawURL string, headers map[string]str
 	r.Header.Set("User-Agent", "Jelee-Webhook")
 	client := &http.Client{Transport: c.transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	response, err := client.Do(r)
+	if err == nil && attempt.Err() != nil {
+		// The response raced the cancellation or the deadline: closing the
+		// connection sends the TLS close_notify first, and the endpoint can
+		// answer before the socket is gone. The caller gave up; it is not
+		// delivered.
+		_ = response.Body.Close()
+		err = attempt.Err()
+	}
 	if err != nil {
 		return PostResult{}, postError(ctx, attempt, err)
 	}
