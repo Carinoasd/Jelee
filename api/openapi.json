@@ -1880,6 +1880,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "isFavorite": {
+            "description": "The caller marked the item as a favourite (G24.2); see PUT /api/v1/items/{id}/favorite.",
+            "type": "boolean"
+          },
           "kind": {
             "enum": [
               "Movie",
@@ -1980,7 +1984,8 @@
           "kind",
           "genres",
           "externalIds",
-          "nfo"
+          "nfo",
+          "isFavorite"
         ],
         "type": "object"
       },
@@ -4133,6 +4138,61 @@
         },
         "required": [
           "confirm"
+        ],
+        "type": "object"
+      },
+      "FavoriteItem": {
+        "additionalProperties": false,
+        "properties": {
+          "favoritedAt": {
+            "description": "When the caller marked the item.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "Movie",
+              "HomeVideo",
+              "Series",
+              "Season",
+              "Episode"
+            ],
+            "type": "string"
+          },
+          "libraryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "parentId": {
+            "description": "Present for an explicitly linked season or episode in the same library.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "premiereDate": {
+            "description": "Release date, absent when unknown.",
+            "format": "date",
+            "type": "string"
+          },
+          "productionYear": {
+            "description": "Release year, absent when unknown.",
+            "maximum": 9999,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "libraryId",
+          "title",
+          "kind",
+          "favoritedAt"
         ],
         "type": "object"
       },
@@ -14462,6 +14522,10 @@
       "UserItemData": {
         "additionalProperties": false,
         "properties": {
+          "isFavorite": {
+            "description": "The caller marked the item as a favourite (G24.2).",
+            "type": "boolean"
+          },
           "itemId": {
             "format": "uuid",
             "type": "string"
@@ -14488,7 +14552,8 @@
           "itemId",
           "resumeTicks",
           "played",
-          "playCount"
+          "playCount",
+          "isFavorite"
         ],
         "type": "object"
       },
@@ -26879,6 +26944,347 @@
           }
         ],
         "summary": "Read the display metadata of a visible item"
+      }
+    },
+    "/api/v1/items/{id}/favorite": {
+      "delete": {
+        "description": "Removes a visible item from the caller's favourites and answers the caller's data of the item; an item that is not a favourite is answered the same way. No body. A share guest is refused.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserItemData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Remove an item from the favourites"
+      },
+      "put": {
+        "description": "Marks a visible item of any kind as a favourite of the caller (G24.2) and answers the caller's data of the item. Marking again keeps the first time. Favourites belong to the logical item, so every version shares one. The body must be an empty JSON object. A share guest is refused.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserItemData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "body_too_large": {
+                    "$ref": "#/components/examples/error_body_too_large"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 413"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "$ref": "#/components/examples/error_unsupported_media_type"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 415"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Mark an item as a favourite"
       }
     },
     "/api/v1/items/{id}/identity": {
@@ -61119,6 +61525,273 @@
           }
         ],
         "summary": "Create an application password for a device or client that cannot ask for a second factor (native login, compatibility layer). The password is returned once; at most 20 per user (409 conflict); audited. Requires a web session (403 forbidden for native sessions, including those an application password issued)."
+      }
+    },
+    "/api/v1/users/me/favorites": {
+      "get": {
+        "description": "The caller's own favourites, most recently marked first. Items the caller can no longer see are never listed or counted (G48.3); their marks are kept and come back with access. A share guest is refused.",
+        "parameters": [
+          {
+            "description": "Only favourites of this library. A library the caller cannot see yields an empty page, exactly like one that does not exist.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated item kinds to include; default every kind.",
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "pattern": "^(Movie|HomeVideo|Series|Season|Episode)(,(Movie|HomeVideo|Series|Season|Episode)){0,4}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "pattern": "^o\\.(0|[1-9][0-9]{0,6})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip from the start. Not combinable with cursor.",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sort key. This list is read in storage order, so the whitelist holds only that key.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "favoritedAt",
+              "enum": [
+                "favoritedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direction of sort.",
+            "in": "query",
+            "name": "order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma separated row members to return: favoritedAt, id, kind, libraryId, parentId, premiereDate, productionYear, title. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent.",
+            "in": "query",
+            "name": "fields",
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/FavoriteItem"
+                          },
+                          "maxItems": 500,
+                          "type": "array"
+                        },
+                        "limit": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "nextCursor": {
+                          "description": "Pass as cursor for the next page; empty on the last page.",
+                          "type": "string"
+                        },
+                        "offset": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "total",
+                        "offset",
+                        "limit",
+                        "nextCursor"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "HTTP 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List the caller's favourites",
+        "x-jelee-list": {
+          "fields": [
+            "favoritedAt",
+            "id",
+            "kind",
+            "libraryId",
+            "parentId",
+            "premiereDate",
+            "productionYear",
+            "title"
+          ],
+          "filters": [
+            "libraryId",
+            "type"
+          ],
+          "maxLimit": 500,
+          "offsetMax": 1000000,
+          "order": [
+            "desc"
+          ],
+          "paging": "offset",
+          "sort": [
+            "favoritedAt"
+          ]
+        }
       }
     },
     "/api/v1/users/me/password": {

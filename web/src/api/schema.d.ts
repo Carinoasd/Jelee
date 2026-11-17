@@ -6808,6 +6808,224 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark an item as a favourite
+         * @description Marks a visible item of any kind as a favourite of the caller (G24.2) and answers the caller's data of the item. Marking again keeps the first time. Favourites belong to the logical item, so every version shares one. The body must be an empty JSON object. A share guest is refused.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserItemData"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Remove an item from the favourites
+         * @description Removes a visible item from the caller's favourites and answers the caller's data of the item; an item that is not a favourite is answered the same way. No body. A share guest is refused.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserItemData"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the caller; both are answered alike (403 forbidden when hidden content is configured as 403). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/identity": {
         parameters: {
             query?: never;
@@ -31082,6 +31300,125 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's favourites
+         * @description The caller's own favourites, most recently marked first. Items the caller can no longer see are never listed or counted (G48.3); their marks are kept and come back with access. A share guest is refused.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Opaque cursor: nextCursor of the previous page (it encodes a position). Not combinable with offset. */
+                    cursor?: string;
+                    /** @description Comma separated row members to return: favoritedAt, id, kind, libraryId, parentId, premiereDate, productionYear, title. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    /** @description Only favourites of this library. A library the caller cannot see yields an empty page, exactly like one that does not exist. */
+                    libraryId?: string;
+                    /** @description Page size. */
+                    limit?: number;
+                    /** @description Rows to skip from the start. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "desc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "favoritedAt";
+                    /** @description Comma separated item kinds to include; default every kind. */
+                    type?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                items: components["schemas"]["FavoriteItem"][];
+                                limit: number;
+                                /** @description Pass as cursor for the next page; empty on the last page. */
+                                nextCursor: string;
+                                offset: number;
+                                total: number;
+                            };
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/password": {
         parameters: {
             query?: never;
@@ -35292,6 +35629,8 @@ export type components = {
             genres: string[];
             /** Format: uuid */
             id: string;
+            /** @description The caller marked the item as a favourite (G24.2); see PUT /api/v1/items/{id}/favorite. */
+            isFavorite: boolean;
             /** @enum {string} */
             kind: "Movie" | "HomeVideo" | "Series" | "Season" | "Episode";
             /** Format: uuid */
@@ -35882,6 +36221,32 @@ export type components = {
              * @enum {string}
              */
             priority: "manual" | "background";
+        };
+        FavoriteItem: {
+            /**
+             * Format: date-time
+             * @description When the caller marked the item.
+             */
+            favoritedAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "Movie" | "HomeVideo" | "Series" | "Season" | "Episode";
+            /** Format: uuid */
+            libraryId: string;
+            /**
+             * Format: uuid
+             * @description Present for an explicitly linked season or episode in the same library.
+             */
+            parentId?: string;
+            /**
+             * Format: date
+             * @description Release date, absent when unknown.
+             */
+            premiereDate?: string;
+            /** @description Release year, absent when unknown. */
+            productionYear?: number;
+            title: string;
         };
         GuestShare: {
             allowPlayback: boolean;
@@ -38782,6 +39147,8 @@ export type components = {
             type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserItemData: {
+            /** @description The caller marked the item as a favourite (G24.2). */
+            isFavorite: boolean;
             /** Format: uuid */
             itemId: string;
             /** Format: date-time */

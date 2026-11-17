@@ -48,6 +48,9 @@ type ItemDetails struct {
 	Genres        []string
 	ExternalIDs   []ItemExternalID
 	NFO           ItemDetailsNFO
+	// IsFavorite reports that the reading user marked the item as a
+	// favourite (G24.2).
+	IsFavorite bool
 }
 
 // ItemDetailsRecord is what storage returns before the facts are decoded.
@@ -63,13 +66,14 @@ type ItemDetailsRecord struct {
 	Observation *LastConfirmedNFOObservation
 	Revision    int64
 	NFOFields   []string
+	IsFavorite  bool
 }
 
 // BuildItemDetails decodes a storage record. A fact that no longer passes
 // validation is left out instead of failing the whole view, and an
 // observation that does not validate is reported as unread.
 func BuildItemDetails(r ItemDetailsRecord) ItemDetails {
-	d := ItemDetails{BrowseItem: r.Item, OriginalTitle: r.OriginalTitle, Tagline: r.Tagline,
+	d := ItemDetails{BrowseItem: r.Item, OriginalTitle: r.OriginalTitle, Tagline: r.Tagline, IsFavorite: r.IsFavorite,
 		Genres: []string{}, ExternalIDs: []ItemExternalID{}, NFO: ItemDetailsNFO{Status: ItemDetailsNFOUnread, Fields: []string{}}}
 	if r.Genres != nil && ValidItemMetadataFactValue("genres", r.Genres) {
 		var genres []string

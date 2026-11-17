@@ -16,6 +16,7 @@ import { useGuestShareStore } from "@/stores/guestShare";
 import { useItemDetailStore } from "@/stores/itemDetail";
 import { useLayoutStore } from "@/stores/layout";
 import { useLibrariesStore } from "@/stores/libraries";
+import FavoriteButton from "@/features/favorites/FavoriteButton.vue";
 import type { ItemDetails, MediaSourceInfo } from "./api";
 import { codecsOf, formatBitrate, formatBytes, formatDuration, resolutionOf } from "./files";
 import ItemPoster from "./ItemPoster.vue";
@@ -149,6 +150,7 @@ function language(value: string | undefined): string {
               <UiBadge v-if="nfoFields.has('originalTitle')" tone="accent">{{ t("items.detail.nfoBadge") }}</UiBadge>
             </p>
             <p v-if="data.item.tagline" class="jl-detail__tagline">{{ data.item.tagline }}</p>
+            <FavoriteButton v-if="!auth.isGuest" :key="'f' + data.item.id" :item-id="data.item.id" :favorite="data.item.isFavorite" class="jl-detail__favorite" />
             <PluginItemActions :item="pluginItem(data.item)" />
 
             <template v-for="panel in panels" :key="panel">
@@ -307,6 +309,10 @@ function language(value: string | undefined): string {
   gap: var(--jl-space-3);
   margin: 0 0 var(--jl-space-4);
   color: var(--jl-color-text-muted);
+}
+
+.jl-detail__favorite {
+  margin: 0 0 var(--jl-space-4);
 }
 
 .jl-detail__original,

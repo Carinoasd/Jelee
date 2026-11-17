@@ -8,6 +8,7 @@
 - 網路限制與分享：`internal/adapter/postgres/network_rules.go`、`shares.go`、`internal/app/shares.go`、`internal/adapter/http/shares.go`（含訪客閘門）；契約 `internal/domain/share.go`。
 - 批量授權、模板與變更預覽（G48.7）：`internal/adapter/postgres/access_bulk.go`、`internal/app/access_admin.go`、`internal/adapter/http/content_access.go`；契約 `internal/domain/access_admin.go`。前端授權矩陣頁 `web/src/features/access/`。
 - 合集與播放清單（G02.1）的成員也只經此過濾器讀出，見[合集與播放清單](collections-playlists.md)。
+- 收藏（G24.2）的標記、取消、列表與各讀取的 `isFavorite` 也在同一個 SQL 內經此過濾器綁定條目：看不到的條目不能標記、不列出也不報告為收藏，見[播放會話與進度](playback-progress.md#收藏g242)。
 - 遷移：`000069_content_access`、`000079_share_network_access`（`library_network_rules`、`share_links`、`users.share_id`、`client_rules.libraries`）、`000084_access_controls`（`user_blocked_keywords`、`user_access_windows`、`access_templates`、`access_template_libraries`）。
 - 驗收測試：`content_access_test.go`（權限矩陣、管理 API、遷移 up/down/up）、`access_controls_test.go`／`access_controls_plan_test.go`（關鍵字與時段矩陣、時段 SQL 對照、分級代碼表、批量與模板、遷移、EXPLAIN）、`content_access_plan_test.go`（EXPLAIN 與單請求 SQL 次數）、`share_access_test.go`／`share_access_plan_test.go`／`share_http_test.go`（網路與分享的矩陣、EXPLAIN、SQL 次數、撤銷斷流、遷移）、`internal/adapter/http/access_leak_test.go`（全路由遍歷）。
 

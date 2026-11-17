@@ -61,6 +61,10 @@
         "create": "Create playlist",
         "save": "Save"
       }
+    },
+    "favorites": {
+      "title": "Favorites",
+      "empty": "No favorites yet."
     }
   }
 }

@@ -45,6 +45,9 @@ var versionSnapshotTables = []versionRowTable{
 	{"item_images", `item_id=$1::uuid`, `DELETE FROM vr WHERE vr.root_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM library_roots r WHERE r.id=vr.root_id)`},
 	{"user_item_data", `item_id=$1::uuid`, versionUserGone + `;
  UPDATE vr SET last_source_id=NULL WHERE NOT EXISTS(SELECT 1 FROM media_sources m WHERE m.id=vr.last_source_id)`},
+	// Favourites (G24.2) come back with the item; the merge also marks the
+	// receiving item, and undo removes the marks it added there.
+	{"user_favorites", `item_id=$1::uuid`, versionUserGone},
 	{"user_item_access_rules", `item_id=$1::uuid`, versionUserGone},
 	{"watch_stats_daily", `item_id=$1::uuid`, versionUserGone},
 	{"watch_stats_history", `item_id=$1::uuid`, versionUserGone},
@@ -133,6 +136,9 @@ type versionTransfer struct {
 	UserDataPrior json.RawMessage `json:"userDataPrior"`
 	Rules         []ruleTransfer  `json:"rules"`
 	Preferences   []string        `json:"preferences"`
+	// Favorites are the users whose favourite mark the transfer added to
+	// the receiving item.
+	Favorites []string `json:"favorites"`
 }
 
 type ruleTransfer struct {
@@ -149,7 +155,8 @@ type ruleTransfer struct {
 //   - access rules: a hide on either item hides the result, else allow;
 //   - watch statistics add up per user and day;
 //   - item-level track preferences are copied where the receiving item has
-//     none.
+//     none;
+//   - a favourite of either item is a favourite of the result.
 //
 // The giving item's own rows stay until it is removed.
 func transferItemData(ctx context.Context, tx pgx.Tx, from, to string) (versionTransfer, error) {
@@ -223,6 +230,15 @@ func transferItemData(ctx context.Context, tx pgx.Tx, from, to string) (versionT
 	if out.Preferences, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
 		return out, storageError(err)
 	}
+	rows, err = tx.Query(ctx, `INSERT INTO user_favorites(user_id,item_id,library_id,created_at)
+ SELECT f.user_id,t.id,t.library_id,f.created_at FROM user_favorites f JOIN items t ON t.id=$2::uuid WHERE f.item_id=$1::uuid
+ ON CONFLICT(user_id,item_id) DO NOTHING RETURNING user_id::text`, from, to)
+	if err != nil {
+		return out, storageError(err)
+	}
+	if out.Favorites, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+		return out, storageError(err)
+	}
 	return out, nil
 }
 
@@ -286,6 +302,11 @@ func undoTransfer(ctx context.Context, tx pgx.Tx, to, from string, t versionTran
 	}
 	if len(t.Preferences) > 0 {
 		if _, err := tx.Exec(ctx, `DELETE FROM user_track_preferences WHERE id=ANY($1::uuid[]) AND updated_at=$2`, t.Preferences, t.At); err != nil {
+			return storageError(err)
+		}
+	}
+	if len(t.Favorites) > 0 {
+		if _, err := tx.Exec(ctx, `DELETE FROM user_favorites WHERE item_id=$1::uuid AND user_id=ANY($2::uuid[])`, to, t.Favorites); err != nil {
 			return storageError(err)
 		}
 	}

@@ -1,6 +1,6 @@
 # 存储布局
 
-本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；2026-10-30 已把迁移 070–110 新增的表补进下面的迁移表，当前 `SchemaVersion` 为 110；逐表细节见各功能文档与[领域模型](domain-model.md)），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
+本文以当前代码为准（主体于 schema 000069 时整理，2026-10-04；2026-10-30 已把迁移 070–111 新增的表补进下面的迁移表，当前 `SchemaVersion` 为 111；逐表细节见各功能文档与[领域模型](domain-model.md)），列出 Jelee 在本机会读写的全部资产：每一项写明由谁建立、由谁清理、能否删除后重建。G09.1 要求媒体、字幕、音轨、NFO、图片、封面、章节、探测缓存都位于本地卷；本文是这份目录结构的定义。
 
 总原则：
 
@@ -31,7 +31,7 @@
 | 诊断包 | `jelee-cli diag export --out` 指定的 `.zip`（0600，不覆盖已有文件） | 运维 | 运维 | 可删；内容已脱敏，分享前仍应检查，见[故障排查](troubleshooting.md#diag-export) |
 | 开发产物 | `.tools/`、`.cache/`、`.bin/`、`.testfixtures/`、`.testdata/` | 开发脚本 | 手动 | 可删可重建，都已被 Git 忽略 |
 
-## 数据库（schema 1–110）
+## 数据库（schema 1–111）
 
 每个二进制只接受一个确切的 clean schema（`SchemaVersion`，见 [ADR 0006](adr/0006-migration-version-policy.md)）；版本较低、较高或 `dirty` 都会拒绝启动，要先执行 `jelee-migrate up`。所有迁移都没有 DROP TABLE。依功能分组：
 
@@ -100,6 +100,7 @@
 | 108 | 无新表：`tool_versions.platform` 的 CHECK 放宽为 `linux-amd64`／`windows-amd64`（ffprobe 的 Windows 探测身份，见 [ADR 0011](adr/0011-windows-media-tool-confinement.md)）；降级时若有非 Linux 的身份列会被拒绝；`tool_versions` 仍不导出（可重建的衍生状态） |
 | 109 | 无新表：`media_sidecar_tracks` 加外挂轨按需探测栏位（`probe_state`、`codec`、`profile`、`channels`、`channel_layout`、`sample_rate`、`bit_rate`、`duration_micros`、`probed_size`／`probed_modified_unix_nano`）、`.sub` 内容类别 `subtitle_kind`、`.idx` 指向同名 `.sub` 的自参照外键 `paired_track_id`（同来源，`ON DELETE SET NULL`）与待探测部分索引；全部由扫描与探测重建，降级时直接丢弃这些栏位（外挂轨列保留）；随外挂轨不导出（可重建的衍生状态）；见[目录同步](catalog-sync.md) |
 | 110 | 容器布局：`media_source_layouts`（目录同步按扫描戳读取 MP4 `moov`／Matroska Cues 位置，文件戳或判定器版本变了就重读，随来源删除而清除；不导出：可重建的衍生状态；降级直接删表）；只读文件头，不改动媒体文件；见[原资源直投](direct-delivery.md#容器布局提示与-faststart-建议g106g1010) |
+| 111 | 收藏（G24.2）：`user_favorites`（每个用户对逻辑条目的收藏，`(item_id, library_id)` 复合外键；随用户或条目删除，软删除用户时一并删除；随元数据备份导出为 `user_favorite`，分享访客的不导出；降级时有收藏即拒绝）；`legacy_import_map` 的种类检查加入 `favorite`（降级时删除这些帐本列）；见[播放会话与进度](playback-progress.md#收藏g242) |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
 

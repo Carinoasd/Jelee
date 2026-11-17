@@ -23,7 +23,9 @@ const (
 	// MetadataBackupFormatVersion is written by this release. Version 2
 	// added collections, playlists, user interface preferences, the site
 	// settings and the audit retention; a version 1 document is a version 2
-	// document without those kinds and is still read.
+	// document without those kinds and is still read. Later kinds of the
+	// same version (version preferences, favourites) are simply absent from
+	// documents written before them.
 	MetadataBackupFormatVersion = 2
 	// MetadataBackupMinFormatVersion is the oldest format readers accept.
 	MetadataBackupMinFormatVersion = 1
@@ -53,7 +55,7 @@ var MetadataBackupKinds = []string{
 	"catalog_scan_item", "catalog_scan_source", "catalog_scan_item_alias", "item_version_exclusion", "item_primary_version",
 	"item_identity_correction",
 	"item_metadata_state", "item_metadata_field", "item_metadata_fact", "item_nfo_field_lock", "item_image",
-	"user_item_data", "user_track_preference",
+	"user_item_data", "user_favorite", "user_track_preference",
 	"access_policy", "parental_rating", "user_item_access_rule", "user_blocked_tag",
 	"user_blocked_keyword", "user_access_window", "access_template",
 	"client_control_policy", "client_rule", "library_network_rule",

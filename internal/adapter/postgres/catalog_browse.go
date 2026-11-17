@@ -105,7 +105,13 @@ func (s *Store) BrowseItems(ctx context.Context, userID string, q domain.BrowseQ
 		return domain.BrowsePage{}, domain.ErrInvalid
 	}
 	args := pgx.NamedArgs{"user": userID, "rq": requestScopeArg(ctx), "parent": q.ParentID, "library": q.LibraryID, "kinds": append([]string{}, q.Kinds...), "search": "",
-		"overview": q.WithOverview, "limit": q.Limit, "offset": q.Offset}
+		"overview": q.WithOverview, "limit": q.Limit, "offset": q.Offset, "favorite": ""}
+	if q.Favorite != nil {
+		args["favorite"] = "no"
+		if *q.Favorite {
+			args["favorite"] = "yes"
+		}
+	}
 	if q.SearchTerm != "" {
 		args["search"] = "%" + escapeLike(q.SearchTerm) + "%"
 	}
@@ -142,6 +148,7 @@ LIMIT 1`, args).Scan(&kind)
   AND (@library::text='' OR i.library_id=NULLIF(@library::text,'')::uuid)
   AND (cardinality(@kinds::text[])=0 OR i.kind=ANY(@kinds::text[]))
   AND (@search::text='' OR i.title ILIKE @search::text ESCAPE '\')
+  AND (@favorite::text='' OR ` + favoriteSQL("i.id") + `=(@favorite::text='yes'))
 )`
 	var order strings.Builder
 	sorts := q.Sort
@@ -213,11 +220,12 @@ SELECT i.id::text,i.library_id::text,COALESCE(p.parent_id,i.library_id)::text,i.
  (SELECT o.observation FROM item_nfo_observations o WHERE o.item_id=i.id),
  COALESCE((SELECT m.revision FROM item_metadata_state m WHERE m.item_id=i.id),1),
  ARRAY(SELECT f.field FROM item_metadata_fields f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'' AND f.field=ANY(@public::text[])
-  UNION SELECT f.field FROM item_metadata_facts f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'null'::jsonb AND f.field=ANY(@public::text[]))
+  UNION SELECT f.field FROM item_metadata_facts f WHERE f.item_id=i.id AND f.source='nfo' AND f.value<>'null'::jsonb AND f.field=ANY(@public::text[])),
+ `+favoriteSQL("i.id")+`
  FROM principal u JOIN items i ON i.id=@id::uuid`+browseMetadataSQL+`
  WHERE `+itemVisibleSQL("@rq", "i.library_id", "i.id"), pgx.NamedArgs{"user": userID, "id": id, "public": domain.ItemDetailsNFOFieldNames(), "rq": requestScopeArg(ctx)}).Scan(
 		&item.ID, &item.LibraryID, &item.ParentID, &item.Kind, &item.Title, &item.SortTitle, &item.Overview, &item.PremiereDate, &item.Year,
-		&r.OriginalTitle, &r.Tagline, &r.Genres, &r.UniqueIDs, &observation, &r.Revision, &r.NFOFields)
+		&r.OriginalTitle, &r.Tagline, &r.Genres, &r.UniqueIDs, &observation, &r.Revision, &r.NFOFields, &r.IsFavorite)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.ItemDetailsRecord{}, domain.ErrNotFound
 	}

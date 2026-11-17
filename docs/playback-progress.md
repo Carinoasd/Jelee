@@ -95,6 +95,26 @@
 
 相容層路由見 [`compat-matrix.md` 的「播放狀態模組」](compat-matrix.md#播放狀態模組g242g232g483)。
 
+## 收藏（G24.2）
+
+需求 G24.2 要求相容層覆蓋「收藏」；自有 API、網頁端與相容層共用同一份資料。
+
+**資料（遷移 000111）**：`user_favorites`，一列＝一個使用者收藏一個**邏輯條目**（主鍵 `(user_id, item_id)`），同一條目的所有版本共用；`library_id` 與 `item_id` 組成複合外鍵引用 `items(id, library_id)`，收藏列一定在條目所屬的媒體庫；`created_at` 是收藏時間。使用者或條目刪除時級聯刪除；軟刪除使用者在同一交易裡刪除其收藏（與播放清單相同，還原不帶回）。降級時表內有收藏就拒絕（`55000`），需操作者先清除。另外放寬 `legacy_import_map` 的種類檢查，加入舊庫匯入的 `favorite` 帳本列。
+
+| 路由 | 身分 | 說明 |
+| --- | --- | --- |
+| `PUT /api/v1/items/{id}/favorite` | 任何工作階段（分享訪客除外） | 加入收藏，主體 `{}`；回 `UserItemData`（`isFavorite`=true）。重複加入保留第一次的時間 |
+| `DELETE /api/v1/items/{id}/favorite` | 同上 | 移出收藏，無主體；不在收藏中也回 200（`isFavorite`=false） |
+| `GET /api/v1/users/me/favorites` | 同上 | 自己的收藏，最近加入的在前。統一列表契約（G08.2）：`limit` 1–500（預設 50）、`offset` 或不透明 `cursor`（`nextCursor`，最後一頁為空）、`fields` 投影；過濾白名單只有 `libraryId` 與 `type`（逗號分隔的條目類型），其他參數 400；排序只有 `favoritedAt` 降冪。每列 `id`、`libraryId`、`kind`、`title`、`parentId`、`premiereDate`、`productionYear`、`favoritedAt` |
+
+條目讀取也帶收藏狀態：`UserItemData` 多了必填的 `isFavorite`（`user-data`、`played` 標記、續播清單、觀看統計的 `userData`），`GET /api/v1/items/{id}/details` 多了 `isFavorite`。
+
+**可見性（G48.3）**：每個讀寫都在同一個 SQL 內以 `itemVisibleSQL` 把條目綁到讀取身分。看不到與不存在的條目標記、取消一律回隱藏狀態（預設 404）且不寫入；收藏列表與 `isFavorite` 只計看得到的條目，總數也不含看不到的。收回授權、條目規則隱藏、分級或標籤擋下都一樣；收藏列本身保留，恢復後回來。分享訪客的工作階段在路由閘門就被拒絕（`share_forbidden`）。這些路由都登記在存取外洩遍歷表（`leakRouteTable`），反向驗證：拿掉列表的可見性條件，遍歷測試立刻報出隱藏條目的標題與 ID。
+
+**其他路徑**：版本合併時任一邊的收藏成為合併結果的收藏，撤銷時移除合併加上的收藏並還原被吸收條目的收藏（見[多版本](item-versions.md)）；個人資料匯出多一種紀錄 `favorite`（只列目前看得到的條目，見[使用者資料權利](user-data-rights.md)）；元資料備份匯出 `user_favorite`（分享訪客的除外），匯入時目標沒有的補上、兩邊都有時保留較早的時間，不刪除目標的收藏（見[備份與還原](backup-restore.md)）；舊庫匯入讀上游 `UserData.IsFavorite`（見[舊庫遷移](legacy-import.md)）；清除播放歷史不動收藏。沒有收藏的 Webhook 事件。
+
+相容層見 [`compat-matrix.md` 的「收藏」](compat-matrix.md#收藏g242)。
+
 ## 多版本的人工決定（G20.3、G20.4）
 
 合併時被吸收條目的播放工作階段移到目標，使用者資料依「任一已播放、次數相加、續播點取較晚播放」合併；拆分時播放紀錄留在原條目，指向被拆出版本的 `last_source_id` 與工作階段由一致性檢查視為正常；主版本是未指定 `sourceId` 的進度回報所用的版本。音軌／字幕偏好按使用者、條目、版本三層保存。見[多版本](item-versions.md)。
@@ -109,6 +129,7 @@
 - 領域與設定：`internal/domain/progress_test.go`、`internal/platform/config/playback_test.go`。
 - 真 PG（`internal/adapter/postgres/progress_test.go`）：起播 → 進度 → flush → 停止 → 續播點、會話列、樣本、重複停止、續播清單、播完標記已播放、標記／取消、web 工作階段與他條目版本被拒；兩裝置合併；收回授權後隱藏、恢復後回來；清除歷史（含審計與緩衝）、軟刪除使用者（緩衝中的會話不寫回、還原不帶回）、硬刪除級聯；逾時、接回、遺留會話關閉、保留期清除、管理員列表；資料庫約束；遷移 up/down（保留資料時拒絕）/up。
 - 真 PG HTTP（`internal/adapter/http/progress_test.go`、`progress_load_test.go`）與存取外洩表（新增 9 條自有路由與 12 條相容路由）。
+- 收藏：真 PG `TestFavoritesVisibilityPostgres`（標記、重複標記、分頁與總數、類型與媒體庫過濾、各讀取的 `isFavorite`、瀏覽篩選、隱藏與恢復、個人資料匯出、級聯）、`TestFavoritesFollowVersionMergePostgres`、`TestFavoritesMigrationRoundTrip`；HTTP `TestFavoritesHTTPPostgres`（自有路由與列表契約、相容層路由與 `IsFavorite`／`Filters` 篩選）；外洩遍歷新增 3 條自有路由與 4 條相容路由。
 
 ## 需要長時間或真實環境驗證
 

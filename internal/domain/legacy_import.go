@@ -61,8 +61,10 @@ func LegacyImportPhases() []string {
 	return []string{LegacyPhaseUsers, LegacyPhaseLibraries, LegacyPhaseAccess, LegacyPhaseItems, LegacyPhaseUserData}
 }
 
-// Report categories. Every category except library_access counts rows of a
-// source table; library_access counts grants derived from them.
+// Report categories. Every category except library_access and favorites
+// counts rows of a source table; library_access counts grants derived from
+// them and favorites the user data rows (merged per user and item) that
+// carry a favourite.
 const (
 	LegacyCatUsers         = "users"
 	LegacyCatPermissions   = "permissions"
@@ -72,12 +74,19 @@ const (
 	LegacyCatLibraryAccess = "library_access"
 	LegacyCatItems         = "items"
 	LegacyCatUserData      = "user_data"
+	LegacyCatFavorites     = "favorites"
 )
 
 // LegacyImportCategories returns the report categories in display order.
 func LegacyImportCategories() []string {
 	return []string{LegacyCatUsers, LegacyCatPermissions, LegacyCatPreferences, LegacyCatLibraries, LegacyCatLibraryRoots,
-		LegacyCatLibraryAccess, LegacyCatItems, LegacyCatUserData}
+		LegacyCatLibraryAccess, LegacyCatItems, LegacyCatUserData, LegacyCatFavorites}
+}
+
+// LegacyDerivedCategories are the categories whose source count is derived
+// while importing instead of read from a source table.
+func LegacyDerivedCategories() []string {
+	return []string{LegacyCatLibraryAccess, LegacyCatFavorites}
 }
 
 // Outcome reasons. Skipped rows are left out on purpose, conflicts disagree
@@ -114,7 +123,7 @@ const (
 	LegacyReasonItemNotMapped     = "item_not_mapped"
 	LegacyReasonItemPending       = "item_pending"
 	LegacyReasonEmpty             = "empty"
-	LegacyReasonFavoriteOnly      = "favorite_unsupported"
+	LegacyReasonFavoriteOnly      = "favorite_only"    // user data row without playback state; its favourite is counted under favorites
 	LegacyReasonMergedDuplicate   = "merged_duplicate" // further rows of one user and item (CustomDataKey)
 	LegacyReasonMergedVersion     = "merged_version"   // another source item became the same Jelee item
 	LegacyReasonDuplicateLocation = "duplicate_location"

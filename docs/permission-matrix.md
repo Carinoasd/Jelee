@@ -63,6 +63,7 @@
 | P33 | 兼容层公开接口 | ✓ | ✓ | ✓ | ✓ | — | 无变化 | 服务器公开信息、Ping、空的公开用户列表、用户名密码登录 |
 | P34 | 兼容层（已登录） | ✗ | ✓ | ✗ | ✓ | 原生 | 无变化 | 比上游严格，见 [ADR 0004](adr/0004-compat-stricter-than-upstream.md) 与[兼容矩阵](compat-matrix.md)；`/compat/Playlists` 的写入只限清单拥有者（管理员也不例外），与 P18 相同 |
 | P35 | 日志级别与日志、审计保留期 | ✗ | ✗ | ✗ | ✓ | 任意 | 无变化 | 审计与安全日志不能调低或关闭（409 `log_component_mandatory`，记安全审计）；生产环境的 DEBUG 必须有到期时间，见[日志](logging.md) |
+| P36 | 收藏（G24.2） | ✗ | ✓（只限本人） | ✗ | ✓（只限本人） | 任意 | 同 P10 | 标记、取消与本人收藏列表；看不到的条目视同不存在，也不列出，见[播放会话与进度](playback-progress.md#收藏g242) |
 
 ## 路由归属
 
@@ -123,6 +124,8 @@ P14 POST /api/v1/playback/stop
 P14 PUT,DELETE /api/v1/items/{id}/played
 P14 GET /api/v1/items/{id}/user-data
 P14 GET /api/v1/users/me/resume
+P36 PUT,DELETE /api/v1/items/{id}/favorite
+P36 GET /api/v1/users/me/favorites
 P15 GET /api/v1/playback/sessions
 P16 GET,PUT /api/v1/items/{id}/track-preferences
 P16 GET,PUT /api/v1/users/me/track-preferences

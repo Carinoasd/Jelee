@@ -93,6 +93,7 @@ export const itemDetails: Schemas["CatalogItemDetails"] = {
     { type: "imdb", value: "tt0424242", default: false },
   ],
   nfo: { status: "valid", fields: ["title", "overview", "genres", "year"], readAt: day(-3) },
+  isFavorite: true,
 };
 
 export const itemSources: Schemas["MediaSourceInfo"][] = [

@@ -58,6 +58,7 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 		watchStatsSpecification(paths, schemas)
 		versionsSpecification(paths, schemas)
 		collectionsSpecification(paths, schemas)
+		favoritesSpecification(paths, schemas)
 	}
 	if cfg.EnableAccounts {
 		itemMetadataSpecification(paths, schemas)

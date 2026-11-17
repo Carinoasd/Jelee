@@ -103,6 +103,11 @@ export const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: "/favorites",
+    name: "favorites",
+    component: lazyView("collections", () => import("@/features/favorites/FavoritesView.vue")),
+  },
+  {
     path: "/account",
     name: "account",
     component: () => import("@/features/account/AccountView.vue"),

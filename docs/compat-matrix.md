@@ -27,7 +27,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 ## 第三方客戶端相容層（`/compat`，G24.1～G24.4、G10.4）
 
-目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）、播放模組（播放資訊含 DeviceProfile 完整評估、原檔直投串流、外掛字幕與 Jelee 擴充路由上的外掛音軌原樣直投、擷取的內嵌字幕與字型、OCR 衍生字幕；不提供 Remux，見 [ADR 0013](adr/0013-no-remux-no-keyframe-table.md)）、播放狀態模組、圖片模組（條目海報／背景圖與列表圖片 tag）與合集／播放清單模組；收藏等模組尚未提供，下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
+目前有骨架、系統模組、使用者／登入模組、媒體庫瀏覽模組（只讀）、播放模組（播放資訊含 DeviceProfile 完整評估、原檔直投串流、外掛字幕與 Jelee 擴充路由上的外掛音軌原樣直投、擷取的內嵌字幕與字型、OCR 衍生字幕；不提供 Remux，見 [ADR 0013](adr/0013-no-remux-no-keyframe-table.md)）、播放狀態模組（含收藏）、圖片模組（條目海報／背景圖與列表圖片 tag）與合集／播放清單模組；下表以外的路由一律回 404。尚未做真實客戶端驗收（G24.5），不能宣稱任何客戶端已可使用。
 
 ### 掛載與開關
 
@@ -78,6 +78,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `POST /compat/Sessions/Playing`、`…/Playing/Progress`、`…/Playing/Stopped` | native 工作階段（目錄開啟時才掛載） | 播放開始／進度／停止回報，一律 204 空主體（見「播放狀態模組」） |
 | `POST /compat/Sessions/Playing/Ping?playSessionId=` | 同上 | 讓播放工作階段保持活著；204 |
 | `POST`、`DELETE /compat/UserPlayedItems/{itemId}`、`/compat/Users/{userId}/PlayedItems/{itemId}` | 同上；自己或管理員 | 標記已播放／未播放，回 `UserItemDataDto` |
+| `POST`、`DELETE /compat/UserFavoriteItems/{itemId}`、`/compat/Users/{userId}/FavoriteItems/{itemId}` | 同上；自己或管理員 | 加入／移出收藏（G24.2），回 `UserItemDataDto` |
 | `GET /compat/UserItems/{itemId}/UserData`、`/compat/Users/{userId}/Items/{itemId}/UserData` | 同上；自己或管理員 | `UserItemDataDto` |
 | `GET /compat/UserItems/Resume`、`/compat/Users/{userId}/Items/Resume` | 同上；自己或管理員 | 繼續觀看的 `QueryResult<BaseItemDto>` |
 | `GET`、`HEAD /compat/Items/{itemId}/Images/{imageType}`、`…/{imageType}/{imageIndex}` | native 工作階段（目錄與圖片功能都開啟時才掛載；上游允許匿名，見「圖片模組」） | 經 `/images` 同一條管線產生的 JPEG 或 WebP；隱藏狀態同其他條目路由 |
@@ -153,6 +154,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 | `SearchTerm` | 標題不分大小寫的子字串比對，`%`、`_`、`\` 按字面比對；最多 128 字元，否則 400 |
 | `Fields` | `Overview`、`SortName`、`ParentId` 依上游只在要求時輸出；其他值忽略。列表不輸出 `MediaSources` |
 | `Ids` | 最多 100 個；只回可見者（依要求順序，仍套用類型過濾），不存在與無權限者同樣略過；合集與播放清單的 ID 也可查（受 `BoxSet`／`Playlist` 類型過濾） |
+| `IsFavorite`、`Filters` | 收藏篩選（G24.2）：`IsFavorite=true` 或 `Filters` 含 `IsFavorite`／`IsFavoriteOrLikes`（Jelee 沒有「喜歡」，兩者相同）只列讀取身分的收藏；`IsFavorite=false` 只列非收藏；兩者矛盾（`IsFavorite=false` 加 `Filters=IsFavorite`）回空結果。`IsFavorite` 只接受 `true`／`false`，其他值 400。媒體庫資料夾、合集與播放清單不會是收藏，所以要求收藏時不列它們；篩選同樣套用到 `Ids` 查詢與合集／清單的成員。`Filters` 的其他值（`IsPlayed`、`IsResumable`…）仍忽略 |
 
 回應 `QueryResult`：`Items`、`TotalRecordCount`（符合條件的總數，不受分頁影響）、`StartIndex`。
 
@@ -160,7 +162,7 @@ G05仍部分完成：舊C#的直播與Channel控制器已刪除並提供[明確�
 
 **`MediaSources`（只限直投）**：只有可播放條目（電影、單集、家庭影片）才有，來源與自有 API 播放資訊相同（`PlaybackSources`，同樣要求 native 工作階段與授權，最佳版本在前）。`Protocol`=`File`、`Type`=`Default`、`Id`、`Container`、`Size`、`Bitrate`、`RunTimeTicks`、`DefaultAudioStreamIndex`（使用者音軌偏好選到的內嵌音軌，否則預設音軌，否則第一條）、`DefaultSubtitleStreamIndex`（偏好選到的字幕：內嵌索引或外掛字幕的上游編號，-1 為不顯示；見[多版本與偏好](item-versions.md)）、`MediaStreams`（已探測的內嵌影像／音訊／字幕軌；直投開啟時另列外掛字幕，見「播放模組」）。**`SupportsTranscoding` 一律 false**；`SupportsDirectStream` 一律 false（上游客戶端以 DirectStream 要求重新封裝容器，Jelee 不做）；`SupportsDirectPlay` 等於伺服器是否開啟直投（`enableDirect`）。不輸出 `Path`、檔名與任何轉碼欄位（`TranscodingUrl`、`TranscodingContainer`、`TranscodingSubProtocol`、`TranscodeReasons`；結構體根本沒有這些欄位）。
 
-**`UserData`** 是讀取身分（自己，或管理員指定的使用者）對該條目的真實進度：`PlaybackPositionTicks`（續播點）、`PlayCount`、`Played`、`LastPlayedDate`（有播放過才有）、`PlayedPercentage`（續播點／`RunTimeTicks`，兩者皆有才有）、`IsFavorite`=false（尚未記錄收藏）、`Key`／`ItemId`=條目 ID。列表一頁只多一次批次查詢；影集與季沒有位置，維持未播放。看不到的條目沒有 UserData（列表本來就不含它）。見[播放進度](playback-progress.md)。
+**`UserData`** 是讀取身分（自己，或管理員指定的使用者）對該條目的真實進度：`PlaybackPositionTicks`（續播點）、`PlayCount`、`Played`、`LastPlayedDate`（有播放過才有）、`PlayedPercentage`（續播點／`RunTimeTicks`，兩者皆有才有）、`IsFavorite`（讀取身分是否收藏了它，見「收藏」）、`Key`／`ItemId`=條目 ID。列表一頁只多一次批次查詢；影集與季沒有位置，維持未播放，但同樣帶 `IsFavorite`。看不到的條目沒有 UserData（列表本來就不含它）。見[播放進度](playback-progress.md)。
 
 **圖片欄位**：`ImageTags`、`BackdropImageTags`、`PrimaryImageAspectRatio`（`Fields` 要求時；單一條目一律），見「圖片模組」。圖片功能未開啟時 `ImageTags` 為空物件、`BackdropImageTags` 為空陣列。
 
@@ -286,8 +288,19 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - **`POST /Sessions/Playing/Ping?playSessionId=`**：更新最後回報時間，避免逾時關閉；缺 `playSessionId` 400，未知工作階段 204 不動作。
 - **`POST`／`DELETE /UserPlayedItems/{itemId}`**（及舊式 `/Users/{userId}/PlayedItems/{itemId}`）：比照上游：標記已播放＝播放次數 +1、清除續播點、`LastPlayedDate`＝`datePlayed`（ISO 8601 或舊式 `yyyyMMddHHmmss`，UTC）或現在；標記未播放＝播放次數歸零、清除續播點。`userId` 規則同媒體庫模組（自己，或管理員代他人）。看不到或不存在回隱藏狀態。
 - **`GET /UserItems/{itemId}/UserData`**（及 `/Users/{userId}/Items/{itemId}/UserData`）：單一條目的 `UserItemDataDto`；看不到回隱藏狀態。
+- **收藏**：見下節。
 - **`GET /UserItems/Resume`**（及 `/Users/{userId}/Items/Resume`）：有續播點且未播完的電影、劇集、家庭影片，最近播放的在前；支援 `StartIndex`、`Limit`（上限 500）、`IncludeItemTypes`／`ExcludeItemTypes`、`Fields`；`ParentId`、`MediaTypes`、`SearchTerm` 等其他篩選目前忽略。`RunTimeTicks` 取該使用者最近一次播放版本的時長（未探測則省略），`UserData.PlayedPercentage` 據此計算。**收回媒體庫授權後該條目立刻不再出現**（SQL 內套用授權，G48.3），恢復授權後續播點仍在。
 - 播放中的進度最多延遲一個 flush 間隔才寫入資料庫；同一實例上的 `UserData` 讀取會疊加尚未 flush 的位置（只疊加到 SQL 判定可見的條目上），繼續觀看清單則在下次 flush 後更新。
+
+#### 收藏（G24.2）
+
+隨播放狀態模組掛載，與自有 API 的收藏（`PUT`／`DELETE /api/v1/items/{id}/favorite`、`GET /api/v1/users/me/favorites`，見[播放進度](playback-progress.md#收藏g242)）是同一份資料：網頁端收藏的條目在相容客戶端也顯示為收藏，反之亦然。
+
+- **`POST`／`DELETE /UserFavoriteItems/{itemId}`**（及舊式 `/Users/{userId}/FavoriteItems/{itemId}`）：加入或移出收藏，回該條目的 `UserItemDataDto`（`IsFavorite` 為新狀態）。重複加入保留第一次的時間，移出不在收藏中的條目照樣回 200。任何條目類型（電影、劇集、季、單集、家庭影片）都可收藏；合集與播放清單不是目錄條目，回隱藏狀態。`userId` 規則同媒體庫模組。**看不到或不存在的條目回隱藏狀態且不寫入**，無法用來探測條目是否存在。
+- 收藏屬於邏輯條目，所有版本共用；版本合併時任一邊的收藏都會成為合併結果的收藏，撤銷合併時還原。
+- `UserData.IsFavorite` 出現在單一條目、列表、`Ids` 查詢、合集／清單成員與繼續觀看清單中。
+- 收藏篩選見「媒體庫瀏覽模組」的 `IsFavorite`、`Filters`。**收回授權或隱藏條目後，收藏立刻不再出現在任何列表、也不再被報告為收藏**（SQL 內套用統一權限過濾），收藏列本身保留，恢復授權後回來。
+- 沒有收藏的 Webhook 事件。
 
 ### 圖片模組（G24.2、G40.8、G48.3）
 
@@ -338,5 +351,7 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 圖片同樣尚未用真實客戶端驗證：各客戶端取圖時是否帶驗證標頭或 `api_key`（不帶就會 401、海報空白，這是要求驗證的主要風險）；是否接受 64 位 hex 的 tag 與 JPEG 回應（即使要求 `Format=Webp`）；`Logo`／`Thumb` 回退後的顯示；以位置取背景圖是否正確；`PrimaryImageAspectRatio` 缺少時的版面；`private` 長快取在客戶端的實際命中；以及只有「媒體檔旁海報」、尚未寫入 `item_images` 的條目在客戶端沒有海報的情況。
 
 播放狀態同樣尚未用真實客戶端驗證：各客戶端是否帶 `PlaySessionId`／`ItemId`、回報頻率、停止後客戶端畫面上的續播點與「已播放」是否立即更新、「繼續觀看」列是否出現且進度條正確（`PlayedPercentage` 依賴已探測的時長）、斷線後重連是否接回同一工作階段、Seek 後的進度是否正確。
+
+收藏同樣尚未用真實客戶端驗證（[D46](owner-verification-queue.md)）：各客戶端用新式或舊式路由、「我的最愛」頁的查詢參數（常帶 `SortBy=DateCreated`，Jelee 忽略而改依名稱排序）、愛心狀態是否立即更新。
 
 合集與播放清單同樣尚未用真實客戶端驗證：各客戶端是否以 `IncludeItemTypes=BoxSet`、`ParentId=虛擬資料夾` 或 `/UserViews` 的 `boxsets`／`playlists` 資料夾找合集與清單；沒有海報時的顯示；清單畫面是否依 `PlaylistItemId` 移除與排序（部分客戶端可能送條目 ID，已兼容）；建立清單時是否依賴 `IsPublic` 預設公開或 `Users` 分享；加入影集時上游會展開為單集而這裡回 400 的呈現；`ChildCount` 與實際可見數一致時客戶端的計數顯示。

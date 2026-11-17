@@ -398,7 +398,8 @@ func (s *Store) WatchStatsReport(parent context.Context, actor domain.Actor, q d
 
 	userData, userDataJoin := ``, ``
 	if subject {
-		userData = `,ud.item_id IS NOT NULL,COALESCE(ud.resume_ticks,0),COALESCE(ud.played,false),COALESCE(ud.play_count,0),ud.last_played_at`
+		userData = `,ud.item_id IS NOT NULL,COALESCE(ud.resume_ticks,0),COALESCE(ud.played,false),COALESCE(ud.play_count,0),ud.last_played_at,
+ EXISTS(SELECT 1 FROM user_favorites uf WHERE uf.user_id=@subject::uuid AND uf.item_id=t.item_id)`
 		userDataJoin = ` LEFT JOIN user_item_data ud ON ud.user_id=@subject::uuid AND ud.item_id=t.item_id`
 	}
 	if err = collectWatchStats(ctx, tx, `SELECT t.item_id::text,i.library_id::text,i.kind,i.title,t.eff,t.ses,t.vw,t.fp,t.rw,t.comps,t.cm`+userData+` FROM (
@@ -411,7 +412,7 @@ func (s *Store) WatchStatsReport(parent context.Context, actor domain.Actor, q d
 			var has bool
 			var d domain.UserItemData
 			if subject {
-				dest = append(dest, &has, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt)
+				dest = append(dest, &has, &d.ResumeTicks, &d.Played, &d.PlayCount, &d.LastPlayedAt, &d.IsFavorite)
 			}
 			if err := row.Scan(dest...); err != nil {
 				return err

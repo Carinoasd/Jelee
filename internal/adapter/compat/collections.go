@@ -391,6 +391,18 @@ func (rt *router) containerChildren(w http.ResponseWriter, r *http.Request, prin
 			matched = append(matched, m)
 		}
 	}
+	if req.favorite != nil || req.nothing {
+		ids := make([]string, 0, len(matched))
+		for _, m := range matched {
+			ids = append(ids, m.item.ID)
+		}
+		favorites, err := rt.favoriteSet(r.Context(), userID, ids)
+		if err != nil {
+			rt.writeLibraryError(w, err)
+			return true
+		}
+		matched = slices.DeleteFunc(matched, func(m member) bool { return !req.keepFavorite(favorites[m.item.ID]) })
+	}
 	if c.kind == itemTypeBoxSet && req.nameDescending {
 		slices.Reverse(matched)
 	}
