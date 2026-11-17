@@ -21,7 +21,7 @@ func TestMediaSourceCarriesChaptersAndVideoRange(t *testing.T) {
 		Audio: []domain.PlaybackAudioTrack{{Index: 1, Codec: "truehd", Features: []string{"dolby_atmos"}}},
 	}
 	rt := &router{opts: Options{Library: &LibraryOptions{}}}
-	info, err := rt.mediaSource("0197a1f0-0000-7000-8000-000000000002", source, "Movie")
+	info, err := rt.mediaSource("0197a1f0-0000-7000-8000-000000000002", source, "Movie", "en-US")
 	if err != nil {
 		t.Fatal(err)
 	}

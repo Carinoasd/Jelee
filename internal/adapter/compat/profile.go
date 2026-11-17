@@ -272,6 +272,54 @@ func (rt *router) logSubtitleProfiles(ctx context.Context, req playbackRequest, 
 	}
 }
 
+// logExternalAudioProfiles evaluates each probed external audio file the
+// way the declaration's direct play and codec profiles would judge it as
+// the source's audio (domain.DeviceProfileReasons on the source with that
+// file as its only audio stream) and records, at info level, the files the
+// client declared it cannot decode (audio_codec_unsupported). Like a
+// subtitle, the file stays listed with its DeliveryUrl: it never decides
+// whether the source is offered, and nothing is converted for it. An
+// unprobed file's codec is unknown and is not judged.
+func (rt *router) logExternalAudioProfiles(ctx context.Context, req playbackRequest, source domain.PlaybackSource) {
+	logger := rt.opts.Library.Logger
+	if logger == nil || req.profile == nil || rt.opts.Library.Delivery == nil {
+		return
+	}
+	var indexes []int
+	for _, e := range domain.UpstreamExternalAudio(source) {
+		t := e.Track
+		if t.ProbeState != domain.SidecarProbeReady || t.Codec == "" {
+			continue
+		}
+		single := source
+		single.Parts, single.DefaultTracks = nil, nil
+		audio := domain.PlaybackAudioTrack{Index: e.Index, Codec: t.Codec, Profile: t.Profile, Language: t.Language, ChannelLayout: t.ChannelLayout, Default: true}
+		if t.Channels > 0 {
+			channels := int64(t.Channels)
+			audio.Channels = &channels
+		}
+		if t.SampleRate > 0 {
+			rate := int64(t.SampleRate)
+			audio.SampleRate = &rate
+		}
+		if t.BitRate > 0 {
+			bitRate := t.BitRate
+			audio.BitRate = &bitRate
+		}
+		single.Audio = []domain.PlaybackAudioTrack{audio}
+		for _, reason := range domain.DeviceProfileReasons(req.profile, 0, single) {
+			if reason == domain.PlaybackReasonAudioCodec || strings.HasPrefix(reason, domain.PlaybackReasonCodecCondition+":Audio") {
+				indexes = append(indexes, e.Index)
+				break
+			}
+		}
+	}
+	if len(indexes) > 0 {
+		logger.InfoContext(ctx, "external audio unsupported by client", "component", "compat", "sourceId", source.ID,
+			"reason", domain.PlaybackReasonAudioCodec, "streams", indexes)
+	}
+}
+
 // logUnsupported records, at info level, why each source was left out of
 // a NoCompatibleStream answer (G10.5): only source IDs and fixed codes.
 func logUnsupported(ctx context.Context, logger *slog.Logger, sources []string, excluded [][]string) {

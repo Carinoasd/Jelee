@@ -26,6 +26,8 @@ const (
 	testOtherToken = "otherotherotherotherotherotherotherotherotw"
 	testAssTrackID = "f1000000-0000-4000-8000-000000000001"
 	testSrtTrackID = "f1000000-0000-4000-8000-000000000002"
+	// testAudioTrackID is the movie's external Japanese AC-3 file.
+	testAudioTrackID = "f1000000-0000-4000-8000-000000000003"
 )
 
 func wire(id string) string { return strings.ReplaceAll(id, "-", "") }
@@ -123,7 +125,7 @@ func (f *fakeCatalog) PlaybackSources(_ context.Context, actor domain.Actor, ite
 		External: []domain.PlaybackExternalTrack{
 			{ID: testAssTrackID, Kind: "subtitle", Format: "ass", Codec: "ass", Language: "zho", Title: "Signs", Default: true, SizeBytes: 10},
 			{ID: testSrtTrackID, Kind: "subtitle", Format: "srt", Codec: "srt", Language: "eng", SDH: true, SizeBytes: 10},
-			{ID: "f1000000-0000-4000-8000-000000000003", Kind: "audio", Format: "ac3", Codec: "ac3", Language: "jpn", SizeBytes: 10},
+			{ID: testAudioTrackID, Kind: "audio", Format: "ac3", Codec: "ac3", Language: "jpn", SizeBytes: 10},
 		},
 	}}, nil
 }

@@ -58,7 +58,9 @@ func TestSelectDefaultTracks(t *testing.T) {
 		{"always, region implies script", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("zh-TW")}, "e:1", "x:2"},
 		{"always prefers SDH when asked", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("en"), SubtitleSDH: ptr(true)}, "e:1", "x:1"},
 		{"always avoids SDH otherwise", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("en")}, "e:1", "x:5"},
-		{"always without language", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways)}, "e:1", "e:4"},
+		// No language: the first full subtitle, an external file before an
+		// embedded stream.
+		{"always without language", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways)}, "e:1", "x:1"},
 		{"always with no match", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("ko")}, "e:1", "none"},
 		{"auto, foreign audio", TrackPreference{AudioLanguage: ptr("ja"), SubtitleLanguage: ptr("de")}, "e:2", "e:4"},
 		{"auto, same language", TrackPreference{SubtitleLanguage: ptr("en")}, "e:1", "e:3"},
@@ -203,5 +205,46 @@ func TestSelectDefaultTracksUsesEmbeddedLabels(t *testing.T) {
 	always.SubtitleSDH = ptr(true)
 	if got := subtitle(always); got != "e:3" {
 		t.Fatalf("SDH wanted, got %s", got)
+	}
+}
+
+// TestSelectDefaultTracksPrefersExternalSubtitles: on otherwise equal
+// terms an external subtitle file wins over an embedded subtitle stream,
+// while every stronger rule (language, SDH, forced, default flag) still
+// decides first; for audio the embedded stream keeps winning a tie.
+func TestSelectDefaultTracksPrefersExternalSubtitles(t *testing.T) {
+	source := PlaybackSource{
+		Audio:     []PlaybackAudioTrack{{Index: 1, Language: "eng"}},
+		Subtitles: []PlaybackSubtitleTrack{{Index: 2, Language: "eng"}, {Index: 3, Language: "jpn", Default: true}},
+		External: []PlaybackExternalTrack{
+			{ID: "e0000000-0000-4000-8000-000000000001", Kind: SidecarKindSubtitle, Language: "en"},
+			{ID: "e0000000-0000-4000-8000-000000000002", Kind: SidecarKindSubtitle, Language: "ja"},
+			{ID: "e0000000-0000-4000-8000-000000000003", Kind: SidecarKindAudio, Language: "en"},
+		},
+	}
+	pick := func(p TrackPreference) (string, string) {
+		got := SelectDefaultTracks(source, p, TrackBasisUser)
+		return describeSelection(got.Audio), describeSelection(got.Subtitle)
+	}
+	for _, c := range []struct {
+		name            string
+		p               TrackPreference
+		audio, subtitle string
+	}{
+		{"same language: external", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("en")}, "e:1", "x:1"},
+		{"default flag still first", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("ja")}, "e:1", "e:3"},
+		{"language still first", TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("ja"), AudioLanguage: ptr("en")}, "e:1", "e:3"},
+		{"named embedded track", TrackPreference{SubtitleTrack: ptr("e:2"), SubtitleMode: ptr(SubtitleModeAlways)}, "e:1", "e:2"},
+		{"audio tie keeps embedded", TrackPreference{AudioLanguage: ptr("en")}, "e:1", "e:3"},
+	} {
+		audio, subtitle := pick(c.p)
+		if audio != c.audio || subtitle != c.subtitle {
+			t.Fatalf("%s: %s %s, want %s %s", c.name, audio, subtitle, c.audio, c.subtitle)
+		}
+	}
+	// Without a default flag on either side, the external file wins the tie.
+	source.Subtitles[1].Default = false
+	if _, subtitle := pick(TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("ja")}); subtitle != "x:2" {
+		t.Fatalf("external Japanese subtitle, got %s", subtitle)
 	}
 }

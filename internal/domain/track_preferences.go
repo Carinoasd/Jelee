@@ -236,8 +236,10 @@ func embeddedSelection(index int) TrackSelection {
 }
 
 // SelectDefaultTracks picks the default audio and subtitle of one source
-// for an effective preference. Embedded streams come before external files
-// on equal terms; within each, the listed order decides.
+// for an effective preference. On equal terms an embedded audio stream comes
+// before an external audio file, while an external subtitle file comes
+// before an embedded subtitle stream (bestSubtitle); within each, the listed
+// order decides.
 func SelectDefaultTracks(source PlaybackSource, p TrackPreference, basis string) DefaultTracks {
 	var audio, subtitles []trackCandidate
 	for _, a := range source.Audio {
@@ -392,7 +394,7 @@ func pickSubtitle(candidates []trackCandidate, p TrackPreference, audioLanguages
 	}
 	wantSDH := p.SubtitleSDH != nil && *p.SubtitleSDH
 	full := func(language string) *trackCandidate {
-		return best(candidates, func(c trackCandidate) int {
+		return bestSubtitle(candidates, func(c trackCandidate) int {
 			score := languageScore(language, c.languages)
 			if score == 0 || c.forced {
 				// Forced tracks only cover foreign parts; a full subtitle is
@@ -403,7 +405,7 @@ func pickSubtitle(candidates []trackCandidate, p TrackPreference, audioLanguages
 		})
 	}
 	forced := func(languages []string) *trackCandidate {
-		return best(candidates, func(c trackCandidate) int {
+		return bestSubtitle(candidates, func(c trackCandidate) int {
 			if !c.forced {
 				return -1
 			}
@@ -424,7 +426,7 @@ func pickSubtitle(candidates []trackCandidate, p TrackPreference, audioLanguages
 		if p.SubtitleLanguage != nil {
 			return full(*p.SubtitleLanguage)
 		}
-		return best(candidates, func(c trackCandidate) int { return boolScore(!c.forced)*10 + boolScore(c.isDefault) })
+		return bestSubtitle(candidates, func(c trackCandidate) int { return boolScore(!c.forced)*10 + boolScore(c.isDefault) })
 	}
 	// Auto: subtitles in the subtitle language when the audio is in
 	// another language; otherwise forced subtitles for the audio language,
@@ -440,11 +442,25 @@ func pickSubtitle(candidates []trackCandidate, p TrackPreference, audioLanguages
 	if chosen := forced(audioLanguages); chosen != nil {
 		return chosen
 	}
-	return best(candidates, func(c trackCandidate) int {
+	return bestSubtitle(candidates, func(c trackCandidate) int {
 		if !c.isDefault {
 			return -1
 		}
 		return boolScore(c.forced)
+	})
+}
+
+// bestSubtitle is best with one last tie-break: on otherwise equal terms an
+// external subtitle file wins over an embedded stream, because a sidecar is
+// usually placed next to the video on purpose. The listed order (embedded
+// streams by index, then external files) decides what is still equal.
+func bestSubtitle(candidates []trackCandidate, score func(trackCandidate) int) *trackCandidate {
+	return best(candidates, func(c trackCandidate) int {
+		s := score(c)
+		if s < 0 {
+			return s
+		}
+		return s*2 + boolScore(c.sel.Kind == TrackExternal)
 	})
 }
 

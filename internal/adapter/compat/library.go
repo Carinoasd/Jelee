@@ -165,8 +165,9 @@ type mediaSourceInfo struct {
 	SupportsProbing       bool          `json:"SupportsProbing"`
 	MediaStreams          []mediaStream `json:"MediaStreams"`
 	Bitrate               *int64        `json:"Bitrate,omitempty"`
-	// DefaultAudioStreamIndex is the embedded audio stream the user's track
-	// preferences pick (G16.5), else the default one, else the first one.
+	// DefaultAudioStreamIndex is the audio stream the user's track
+	// preferences pick (G16.5), embedded or, with direct delivery, external;
+	// else the default embedded one, else the first one.
 	DefaultAudioStreamIndex *int `json:"DefaultAudioStreamIndex,omitempty"`
 	// DefaultSubtitleStreamIndex is the subtitle stream the preferences
 	// pick, embedded or external, and -1 for none; absent without
@@ -215,12 +216,20 @@ type mediaAttachment struct {
 }
 
 // mediaStream is one embedded stream of a probed source or, with direct
-// delivery, one external subtitle file. External audio files are not
-// listed: upstream has no route that delivers them.
+// delivery, one external subtitle or audio file. Upstream itself can only
+// merge an external audio file through its encoder; here it is listed with
+// a DeliveryUrl that serves the file as it is (see externalAudioURL), and a
+// client that picks it plays and synchronizes it on its own.
 type mediaStream struct {
-	Codec      string `json:"Codec,omitempty"`
-	Language   string `json:"Language,omitempty"`
-	BitRate    *int64 `json:"BitRate,omitempty"`
+	Codec string `json:"Codec,omitempty"`
+	// DisplayTitle is the menu label clients show (see displayTitle).
+	DisplayTitle  string `json:"DisplayTitle,omitempty"`
+	Language      string `json:"Language,omitempty"`
+	ChannelLayout string `json:"ChannelLayout,omitempty"`
+	BitRate       *int64 `json:"BitRate,omitempty"`
+	// BitDepth is the audio probe's bits per sample, or the video bit depth
+	// the profile or HDR format implies (domain.VideoBitDepth).
+	BitDepth   *int64 `json:"BitDepth,omitempty"`
 	Channels   *int64 `json:"Channels,omitempty"`
 	SampleRate *int64 `json:"SampleRate,omitempty"`
 	IsDefault  bool   `json:"IsDefault"`
@@ -231,6 +240,13 @@ type mediaStream struct {
 	Type       string `json:"Type"`
 	Index      int    `json:"Index"`
 	IsExternal bool   `json:"IsExternal"`
+	// Video members the probe records: the codec level as the probe reports
+	// it and the frame rates (avg_frame_rate, r_frame_rate). The probe does
+	// not record interlacing, pixel format or display aspect ratio, so
+	// IsInterlaced, PixelFormat and AspectRatio are never sent.
+	Level            *int64   `json:"Level,omitempty"`
+	AverageFrameRate *float64 `json:"AverageFrameRate,omitempty"`
+	RealFrameRate    *float64 `json:"RealFrameRate,omitempty"`
 	// Video range members (VideoRangeType is SDR-less: absent when the
 	// probe named no HDR format) and the audio spatial format.
 	VideoRange         string `json:"VideoRange,omitempty"`
@@ -240,13 +256,18 @@ type mediaStream struct {
 	AudioSpatialFormat string `json:"AudioSpatialFormat,omitempty"`
 	// Subtitle members, set only with direct delivery. DeliveryMethod is
 	// Embed for a track inside the original file and External for a
-	// sidecar file, whose DeliveryUrl serves it as it is.
+	// sidecar file, whose DeliveryUrl serves it as it is. An external audio
+	// file has IsExternal, SupportsExternalStream and DeliveryUrl but no
+	// DeliveryMethod, which upstream only defines for subtitles.
 	Title                  string `json:"Title,omitempty"`
 	IsHearingImpaired      bool   `json:"IsHearingImpaired,omitempty"`
 	IsTextSubtitleStream   bool   `json:"IsTextSubtitleStream,omitempty"`
 	SupportsExternalStream bool   `json:"SupportsExternalStream,omitempty"`
 	DeliveryMethod         string `json:"DeliveryMethod,omitempty"`
 	DeliveryURL            string `json:"DeliveryUrl,omitempty"`
+	// commentary marks a commentary audio track for DisplayTitle only;
+	// upstream has no member for it.
+	commentary bool
 }
 
 func (rt *router) libraryRoutes() {
@@ -835,7 +856,7 @@ func (rt *router) itemByID(w http.ResponseWriter, r *http.Request) {
 		}
 		dto.MediaSources = make([]mediaSourceInfo, 0, len(sources))
 		for _, source := range sources {
-			info, err := rt.mediaSource(dto.ID, source, item.Title)
+			info, err := rt.mediaSource(dto.ID, source, item.Title, requestLocale(r))
 			if err != nil {
 				writeError(w, http.StatusInternalServerError)
 				return
@@ -953,7 +974,7 @@ func (rt *router) baseDto(id, name string) baseItemDto {
 }
 
 // mediaSource describes one source of the item with wire identifier itemID.
-func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name string) (mediaSourceInfo, error) {
+func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name, locale string) (mediaSourceInfo, error) {
 	id, err := FormatID(source.ID)
 	if err != nil {
 		return mediaSourceInfo{}, err
@@ -973,17 +994,17 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 	}
 	for _, v := range source.Video {
 		stream := mediaStream{Codec: v.Codec, BitRate: v.BitRate, IsDefault: v.Default, Height: v.Height, Width: v.Width, Profile: v.Profile, Type: mediaStreamVideo, Index: v.Index,
-			DvProfile: v.DolbyVisionProfile, DvLevel: v.DolbyVisionLevel}
+			DvProfile: v.DolbyVisionProfile, DvLevel: v.DolbyVisionLevel, Level: v.Level, BitDepth: domain.VideoBitDepth(v),
+			AverageFrameRate: frameRate(v.AverageFrameRate), RealFrameRate: frameRate(v.RealFrameRate)}
 		stream.VideoRange, stream.VideoRangeType = videoRange(v.HDR)
 		info.MediaStreams = append(info.MediaStreams, stream)
 	}
 	for _, a := range source.Audio {
-		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, SampleRate: a.SampleRate, Title: a.Title, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index, AudioSpatialFormat: spatialFormat(a.Features)})
+		info.MediaStreams = append(info.MediaStreams, mediaStream{Codec: a.Codec, Language: a.Language, BitRate: a.BitRate, Channels: a.Channels, ChannelLayout: a.ChannelLayout,
+			BitDepth: a.BitDepth, SampleRate: a.SampleRate, Title: a.Title, IsDefault: a.Default, IsForced: a.Forced, Profile: a.Profile, Type: mediaStreamAudio, Index: a.Index,
+			AudioSpatialFormat: spatialFormat(a.Features), commentary: a.Commentary})
 	}
-	if audio, ok := domain.DefaultAudioTrack(source); ok {
-		index := audio.Index
-		info.DefaultAudioStreamIndex = &index
-	}
+	info.DefaultAudioStreamIndex = defaultAudioIndex(source, delivery)
 	extracted := delivery && rt.extractionAvailable()
 	for _, s := range source.Subtitles {
 		stream := mediaStream{Codec: s.Format, Language: s.Language, Title: s.Title, IsDefault: s.Default, IsForced: s.Forced, IsHearingImpaired: s.SDH, Type: mediaStreamSubtitle, Index: s.Index}
@@ -1015,19 +1036,68 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name 
 	}
 	info.DefaultSubtitleStreamIndex = defaultSubtitleIndex(source, delivery)
 	info.Chapters = chapterInfos(source)
-	if !delivery {
-		return info, nil
+	if delivery {
+		for _, sub := range externalSubtitles(source) {
+			t := sub.track
+			info.MediaStreams = append(info.MediaStreams, mediaStream{
+				Codec: t.Format, Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, IsHearingImpaired: t.SDH,
+				Type: mediaStreamSubtitle, Index: sub.index, IsExternal: true, IsTextSubtitleStream: textSubtitleFormats[t.Codec],
+				SupportsExternalStream: true, DeliveryMethod: subtitleDeliveryExternal,
+				DeliveryURL: subtitleURL(itemID, id, sub.index, t.Format),
+			})
+		}
+		for _, e := range domain.UpstreamExternalAudio(source) {
+			info.MediaStreams = append(info.MediaStreams, externalAudioStream(itemID, id, e))
+		}
 	}
-	for _, sub := range externalSubtitles(source) {
-		t := sub.track
-		info.MediaStreams = append(info.MediaStreams, mediaStream{
-			Codec: t.Format, Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, IsHearingImpaired: t.SDH,
-			Type: mediaStreamSubtitle, Index: sub.index, IsExternal: true, IsTextSubtitleStream: textSubtitleFormats[t.Codec],
-			SupportsExternalStream: true, DeliveryMethod: subtitleDeliveryExternal,
-			DeliveryURL: subtitleURL(itemID, id, sub.index, t.Format),
-		})
-	}
+	setDisplayTitles(&info, locale)
 	return info, nil
+}
+
+// externalAudioStream describes an external audio file (G16.4): the codec
+// and audio facts come from its on-demand probe when it is ready, else the
+// codec is the file's format and the facts are absent.
+func externalAudioStream(itemID, sourceID string, e domain.UpstreamExternal) mediaStream {
+	t := e.Track
+	stream := mediaStream{
+		Codec: t.Codec, Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, Profile: t.Profile, ChannelLayout: t.ChannelLayout,
+		Type: mediaStreamAudio, Index: e.Index, IsExternal: true, SupportsExternalStream: true, commentary: t.Commentary,
+		DeliveryURL: externalAudioURL(itemID, sourceID, e.Index, t.Format),
+	}
+	if stream.Codec == "" {
+		stream.Codec = t.Format
+	}
+	positive := func(v int64) *int64 {
+		if v <= 0 {
+			return nil
+		}
+		return &v
+	}
+	stream.Channels, stream.SampleRate, stream.BitRate = positive(int64(t.Channels)), positive(int64(t.SampleRate)), positive(t.BitRate)
+	if t.Atmos {
+		stream.AudioSpatialFormat = "DolbyAtmos"
+	}
+	return stream
+}
+
+// defaultAudioIndex maps the preferred audio to its stream index: an
+// external audio file the preferences pick by its upstream number when
+// direct delivery lists it, else the embedded stream domain.DefaultAudioTrack
+// names (the preferred, the default, else the first one).
+func defaultAudioIndex(source domain.PlaybackSource, delivery bool) *int {
+	if tracks := source.DefaultTracks; delivery && tracks != nil && tracks.Audio != nil && tracks.Audio.Kind == domain.TrackExternal {
+		for _, e := range domain.UpstreamExternalAudio(source) {
+			if e.Track.ID == tracks.Audio.ID {
+				index := e.Index
+				return &index
+			}
+		}
+	}
+	if audio, ok := domain.DefaultAudioTrack(source); ok {
+		index := audio.Index
+		return &index
+	}
+	return nil
 }
 
 // defaultSubtitleIndex maps the preferred subtitle to its stream index: an
