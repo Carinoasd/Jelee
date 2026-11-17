@@ -261,6 +261,19 @@ type PlaybackFlush struct {
 	SourceID string
 	End      *PlaybackEnding
 	Samples  []PlaybackSample
+	// Pause, when set, raises playback.paused (G12.1): the session paused
+	// since the previous flush, at this time and position (the last pause
+	// when it paused several times).
+	Pause *PlaybackPause
+	// Progress raises playback.progress (G12.1) for this flush. The buffer
+	// sets it at most once per progress event interval of a playing session.
+	Progress bool
+}
+
+// PlaybackPause is the last pause of a session between two flushes.
+type PlaybackPause struct {
+	At            time.Time
+	PositionTicks int64
 }
 
 // PlaybackFlushResult counts what one flush wrote.

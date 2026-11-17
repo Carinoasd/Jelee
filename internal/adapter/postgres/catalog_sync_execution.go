@@ -371,7 +371,7 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 				return false, storageError(err)
 			}
 			r.updated++
-			return true, nil
+			return true, w.mediaUpdated(ctx, *c.trackedItem, *c.trackedSource, mediaSourceRestored)
 		}
 		protected, err := w.refreshTracked(ctx, c)
 		if err != nil {
@@ -381,7 +381,12 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 			r.protected++
 		}
 		r.updated++
-		return true, nil
+		// A parser change alone re-plans every file; only a changed file
+		// updates its item.
+		if *c.trackedSize == c.size && *c.trackedModified == c.modified {
+			return true, nil
+		}
+		return true, w.mediaUpdated(ctx, *c.trackedItem, *c.trackedSource, mediaSourceChanged)
 	case c.external:
 		// Explicitly imported sources belong to their importer.
 		if c.pendingSize != nil {
@@ -580,10 +585,11 @@ func (w catalogWriter) applyScanTitle(ctx context.Context, item, title string) (
 
 func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.CatalogScanPlan) (string, error) {
 	var item string
+	var created bool
 	var err error
 	switch plan.Kind {
 	case "Movie":
-		item, err = w.groupItem(ctx, c, "Movie", domain.CatalogGroupDigest("movie", c.root, plan.Directory, domain.NormalizeCatalogTitle(plan.Title), strconv.Itoa(plan.Year)), scanItem{title: plan.Title, year: plan.Year, naming: plannedScanNumbers(plan)})
+		item, created, err = w.groupItem(ctx, c, "Movie", domain.CatalogGroupDigest("movie", c.root, plan.Directory, domain.NormalizeCatalogTitle(plan.Title), strconv.Itoa(plan.Year)), scanItem{title: plan.Title, year: plan.Year, naming: plannedScanNumbers(plan)})
 	case "Episode":
 		var season string
 		season, err = w.season(ctx, c, plan)
@@ -595,7 +601,7 @@ func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.Cat
 			// A cross-season file is never a version of a same-season range.
 			parts = append(parts, "season-end", strconv.Itoa(plan.SeasonEnd))
 		}
-		item, err = w.groupItem(ctx, c, "Episode", domain.CatalogGroupDigest(parts...), scanItem{title: plan.Title, season: &plan.Season, episode: &plan.Episode, episodeEnd: &plan.EpisodeEnd, naming: plannedScanNumbers(plan), parent: season, parentKind: "Season", childRoot: c.root, childPath: c.path})
+		item, created, err = w.groupItem(ctx, c, "Episode", domain.CatalogGroupDigest(parts...), scanItem{title: plan.Title, season: &plan.Season, episode: &plan.Episode, episodeEnd: &plan.EpisodeEnd, naming: plannedScanNumbers(plan), parent: season, parentKind: "Season", childRoot: c.root, childPath: c.path})
 	default:
 		return "", errCatalogConflict
 	}
@@ -609,8 +615,36 @@ func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.Cat
 	if _, err = w.tx.Exec(ctx, `INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8)`, source, w.library, item, c.root, c.path, c.size, c.modified, w.version); err != nil {
 		return "", storageError(err)
 	}
-	_, err = w.tx.Exec(ctx, `DELETE FROM catalog_scan_pending WHERE root_id=$1::uuid AND relative_path=$2`, c.root, c.path)
-	return source, storageError(err)
+	if _, err = w.tx.Exec(ctx, `DELETE FROM catalog_scan_pending WHERE root_id=$1::uuid AND relative_path=$2`, c.root, c.path); err != nil {
+		return "", storageError(err)
+	}
+	// A new item raised media.added; a version joining an existing item
+	// updates it.
+	if !created {
+		if err = w.mediaUpdated(ctx, item, source, mediaSourceAdded); err != nil {
+			return "", err
+		}
+	}
+	return source, nil
+}
+
+// media.updated reasons (G12.1) raised by catalog synchronisation.
+const (
+	mediaSourceAdded    = "source_added"
+	mediaSourceChanged  = "source_changed"
+	mediaSourceMissing  = "source_missing"
+	mediaSourceRestored = "source_restored"
+)
+
+// mediaUpdated raises media.updated for an item whose media sources the
+// synchronisation changed, inside the savepoint or transaction of the change.
+func (w catalogWriter) mediaUpdated(ctx context.Context, item, source, reason string) error {
+	return appendMediaUpdated(ctx, w.tx, w.events, w.library, item, source, reason)
+}
+
+func appendMediaUpdated(ctx context.Context, tx pgx.Tx, events bool, library, item, source, reason string) error {
+	return appendWebhook(ctx, tx, events, domain.WebhookMediaUpdated, time.Now(), domain.WebhookSubject{Kind: domain.WebhookSubjectItem, ID: item},
+		map[string]any{"libraryId": library, "sourceId": source, "reason": reason})
 }
 
 type scanItem struct {
@@ -635,46 +669,46 @@ type scanItem struct {
 // a file is not merged into an episode whose NFO numbers name another
 // episode than the file name does (G21.2). A manual exclusion keeps a file
 // out of the item the same way.
-func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind string, digest []byte, spec scanItem) (string, error) {
+func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind string, digest []byte, spec scanItem) (string, bool, error) {
 	item, err := w.findScanItem(ctx, kind, digest)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	reason := ""
 	if item != "" {
 		separate, err := w.nfoIdentityConflict(ctx, item, c)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 		if !separate {
 			// An administrator split this file off the item and excluded it
 			// (G20.3): it is kept apart like a file with its own identity.
 			if separate, err = versionExcluded(ctx, w.tx, item, c.root, c.path); err != nil {
-				return "", err
+				return "", false, err
 			}
 		}
 		if !separate && spec.season != nil && spec.episode != nil {
 			if separate, err = w.nfoNumbersDisagree(ctx, item, *spec.season, *spec.episode); err != nil {
-				return "", err
+				return "", false, err
 			}
 			if separate {
 				reason = domain.VersionGroupingNFONumbersDiffer
 			}
 		}
 		if !separate {
-			return item, nil
+			return item, false, nil
 		}
 		digest = domain.CatalogGroupDigest(kind+"-file", c.root, c.path)
 		if item, err = w.findScanItem(ctx, kind, digest); err != nil || item != "" {
-			return item, err
+			return item, false, err
 		}
 	}
 	if item, err = w.createScanItem(ctx, kind, digest, spec); err != nil || reason == "" {
-		return item, err
+		return item, err == nil, err
 	}
 	// Recorded on the new item so the reason it stands apart is kept.
 	_, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET grouping_reason=$2 WHERE item_id=$1::uuid`, item, reason)
-	return item, storageError(err)
+	return item, true, storageError(err)
 }
 
 // nfoNumbersDisagree reports an episode whose NFO season or episode number
@@ -902,6 +936,9 @@ func syncCatalogMissingBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 					return storageError(err)
 				}
 				r.markedMissing++
+				if err = appendMediaUpdated(ctx, tx, events, r.library, t.item, t.source, mediaSourceMissing); err != nil {
+					return err
+				}
 				// The video's folder no longer yields it, so no file can be
 				// paired with it either. Accepted removals cascade instead.
 				if withTracks[t.source] {

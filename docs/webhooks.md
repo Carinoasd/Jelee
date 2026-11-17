@@ -50,27 +50,51 @@ webhook 停用時（或主鑰未設定時），產生端完全不寫 outbox，�
 
 ### 清單與接線狀態
 
-| 類型 | subject | data | 狀態 |
+| 類型 | subject | data | 觸發時機 |
 | --- | --- | --- | --- |
-| `media.added` | item | `libraryId`、`kind`（Movie／Episode／Season／Series）、`title` | 已接：目錄同步（catalog_sync）自動建立條目時，與條目同一個 savepoint 內寫入 |
-| `media.updated` | item | — | 未接 |
-| `media.deleted` | item | `libraryId` | 已接：接受缺失檔案後的目錄同步刪除掃描建立的條目時 |
-| `scan.started` | library | — | 未接 |
-| `scan.completed` | library | `jobId`、`missing`、`reviewRequired` | 已接：庫存掃描在 `FinishJob` 成功結束、以及 ignore 發布路徑結束時 |
-| `scan.failed` | library | `jobId`、`errorCode` | 已接：`FinishJob` 以失敗結束時。租約逾時後因嘗試次數用盡而失敗的路徑**未接** |
-| `playback.started` | session | `userId`、`itemId`、`sourceId`（有時）、`positionTicks`、`paused` | 已接：開始回報**新建**播放會話時（接回既有會話不發），與 INSERT 同一個語句 |
-| `playback.paused` | session | — | 未接 |
-| `playback.progress` | session | — | 未接（進度上報經記憶體緩衝批次寫入，逐筆事件會造成寫放大） |
-| `playback.stopped` | session | `userId`、`itemId`、`state`（stopped／failed／timed_out）、`positionTicks`、`completed` | 已接：批次 flush 實際把會話從 active 結束時，與 flush 同一個語句；重複的停止不會再發 |
-| `user.login` | user | `clientKind`（web／native） | 已接：密碼登入成功（自有 API 與相容層共用） |
-| `user.login_failed` | user | `failedLogins` | 已接：已存在的帳號密碼錯誤；不存在的帳號名沒有 user 可指，不發 |
-| `user.locked` | user | `failedLogins`、`lockedUntil` | 已接：造成鎖定的那次失敗；鎖定期間的嘗試會在計數前被拒，不重複發 |
-| `session.created` / `session.ended` | session | — | 未接 |
-| `nfo.written` | item | `jobId`、`libraryId` | 已接：NFO 寫回工作成功結束時，每個條目一個事件。由恢復租約補完的工作**未接** |
-| `images.fetched` | item | — | 未接 |
-| `system.alert` | system | — | 只用於管理 API 的測試送出（`data` 為 `{"test": true, "message": …}`） |
+| `media.added` | item | `libraryId`、`kind`（Movie／Episode／Season／Series）、`title` | 目錄同步（catalog_sync）自動建立條目時，與條目同一個 savepoint 內寫入 |
+| `media.updated` | item | `libraryId`、`sourceId`、`reason` | 目錄同步改動既有條目的媒體來源時，與改動同一個 savepoint／交易：`source_added`（新檔案以新版本併入既有條目；新建條目只發 `media.added`）、`source_changed`（已追蹤檔案的大小或修改時間變了；只換解析器版本的重新規劃不發）、`source_missing`（未經接受的缺失檔案被標記缺失）、`source_restored`（標記缺失的檔案再次出現）。管理員的元資料編輯、刮削、NFO 套用**不發** |
+| `media.deleted` | item | `libraryId` | 接受缺失檔案後的目錄同步刪除掃描建立的條目時 |
+| `scan.started` | library | `jobId`、`priority`（manual／background） | 庫存掃描（`inventory_scan`）**第一次**被領取時，與領取同一個交易。以工作的 `generation`（每次領取 +1、永不倒退）判定，所以暫停後續跑、租約逾時後重試都不再發 |
+| `scan.completed` | library | `jobId`、`missing`、`reviewRequired` | 庫存掃描在 `FinishJob` 成功結束、以及 ignore 發布路徑結束時 |
+| `scan.failed` | library | `jobId`、`errorCode` | `FinishJob` 以失敗結束時。租約逾時後因嘗試次數用盡而失敗的路徑**未接** |
+| `playback.started` | session | `userId`、`itemId`、`sourceId`（有時）、`positionTicks`、`paused` | 開始回報**新建**播放會話時（接回既有會話不發），與 INSERT 同一個語句 |
+| `playback.paused` | session | `userId`、`itemId`、`positionTicks`（暫停時的位置） | 回報從播放轉為暫停（自有 API 與相容層共用同一個進度緩衝）。在下一次批次 flush 與會話狀態同一個語句寫入；同一個 flush 週期內多次暫停合併為一個事件，取最後一次暫停的時間與位置。flush 失敗時保留到下一次 flush |
+| `playback.progress` | session | `userId`、`itemId`、`positionTicks`、`paused`（一定是 false） | **節流**：播放中（未暫停）的會話每 60 秒最多一個（`ProgressOptions.ProgressEventInterval`，預設 `app.DefaultProgressEventInterval`＝1 分鐘），在間隔到期後的第一次 flush（預設每 10 秒）寫入，`occurredAt` 是該 flush 帶的最後回報時間。間隔從會話開啟時起算；暫停中不發；結束的那次 flush 不發（位置由 `playback.stopped` 帶）。flush 失敗時下一次 flush 立刻補發 |
+| `playback.stopped` | session | `userId`、`itemId`、`state`（stopped／failed／timed_out）、`positionTicks`、`completed` | 批次 flush 實際把會話從 active 結束時，與 flush 同一個語句；重複的停止不會再發 |
+| `user.login` | user | `clientKind`（web／native） | 密碼登入成功（自有 API 與相容層共用） |
+| `user.login_failed` | user | `failedLogins` | 已存在的帳號密碼錯誤；不存在的帳號名沒有 user 可指，不發 |
+| `user.locked` | user | `failedLogins`、`lockedUntil` | 造成鎖定的那次失敗；鎖定期間的嘗試會在計數前被拒，不重複發 |
+| `session.created` | session | `userId`、`clientKind`、`expiresAt`、`reason` | 與建立會話同一個交易：`login`（密碼登入與兩步驟驗證第二步完成，自有 API 與相容層共用）、`rotated`（會話輪換產生的新會話）、`share`（兌換分享連結的訪客會話） |
+| `session.ended` | session | `userId`、`clientKind`、`reason` | 撤銷時與撤銷同一個語句，只對**尚未到期**的會話發：`logout`（撤銷自己的目前會話）、`revoked`（撤銷別的會話或全部會話）、`rotated`、`password_changed`、`password_reset`（資料庫操作員的本機重設）、`user_changed`（停用帳號或變更管理員身分）、`user_deleted`（軟刪除帳號）、`native_access_removed`、`two_factor_enabled`（啟用兩步驟驗證時撤銷其他會話）、`app_password_revoked`、`share_revoked`、`client_rule`（force_relogin 規則）、`client_kicked`。到期：`reason` 為 `expired`，`occurredAt` 是到期時間，由背景掃描每分鐘發一次（見下） |
+| `nfo.written` | item | `jobId`、`libraryId` | NFO 寫回工作成功結束時，每個條目一個事件。由恢復租約補完的工作**未接** |
+| `images.fetched` | item | `libraryId`、`jobId`、`images`（本批抓到內容的圖片數） | 圖片刷新任務（`image_refresh`）把遠端圖片內容寫入時，與該批結果同一個交易；每個條目每批一個事件，圖片跨批的條目每批各一個。抓取失敗、延後、被鎖定或手動值搶先而略過的不算 |
+| `system.alert` | system | `code`、`component`（有時）、`severity`（warning／error） | 程序以下列固定 `code` 記錄 WARN 以上的日誌時（見「系統告警」）；管理 API 的測試送出也用這個類型，`data` 為 `{"test": true, "message": …}` |
 
-「已接」的事件都在產生變更的同一個 PostgreSQL 交易（或同一個語句）內寫入 `webhook_outbox`：變更提交才有事件，變更回滾事件也一起消失。另外，只有在有**啟用中的端點訂閱該類型**時才會寫入，避免沒人訂閱的事件佔空間。
+除 `system.alert` 與到期的 `session.ended` 之外，事件都在產生變更的同一個 PostgreSQL 交易（或同一個語句）內寫入 `webhook_outbox`：變更提交才有事件，變更回滾事件也一起消失。另外，只有在有**啟用中的端點訂閱該類型**時才會寫入，避免沒人訂閱的事件佔空間。
+
+### 會話到期
+
+到期不改任何資料列，所以 `session.ended`（`reason: expired`）由背景掃描產生：webhook 投遞器執行時，每分鐘依 `(expires_at, id)` 順序找出水位之後已到期的會話（撤銷時間晚於到期時間的也算，因為它先到期），每個語句最多 500 個並在同一個交易推進水位（遷移 000112 的單列表 `session_expiry_watermark`，以列鎖讓多個實例不重複發）。升級時水位設在遷移當下，之前已到期的會話不補發；webhook 停用超過 24 小時期間到期的會話也不補發（只回補 24 小時內）。在到期前已撤銷的會話只會有撤銷那一次 `session.ended`。
+
+### 系統告警
+
+`system.alert` 來自程序日誌：執行期把日誌處理器包一層，凡是 WARN 或 ERROR 且帶有下列 `code` 的紀錄（不論設定的日誌等級是否輸出它）就收一筆告警。載荷只放 `code`、`component`（固定標籤才放）與 `severity`，**不放訊息文字或其他屬性**，所以不會帶出路徑或位址。
+
+| code | 情境 |
+| --- | --- |
+| `probe_runtime_unavailable` | 媒體探測已開啟但隔離執行環境不可用（啟動時）或探測暫存清理失敗 |
+| `matroska_*` | Matroska 擷取不可用（工具缺席、暫存不可用、平台不支援等固定原因）或其暫存清理失敗 |
+| `subtitle_ocr_*` | 字幕 OCR 已開啟但不可用 |
+| `embedded_cover_*`、`chapter_image_*` | 內嵌封面／章節圖擷取已開啟但缺少探測執行環境或圖片存放區 |
+| `subtitle_utf8_cache_unavailable` | 衍生 UTF-8 字幕快取不可用 |
+| `two_factor_key_invalid` | 主鑰無效導致兩步驟驗證不可用 |
+| `probe_maintenance_failed`、`nfo_maintenance_failed` | 探測／NFO 快取的背景維護失敗 |
+| `schedule_dispatch_failed` | 任務排程派送失敗 |
+| `watch_unavailable` | 目錄監看停止 |
+| `log_prune_failed` | 過期日誌檔無法刪除 |
+
+同一個 `code` 每小時最多一個告警（`app.DefaultSystemAlertInterval`），待寫入的告警最多 64 筆；啟動期間（投遞器開始前）的告警會先保留，投遞器開始後寫入 outbox。webhook 停用時不寫入。資料庫或請求層級的錯誤（例如 `scan_unavailable`、`db_slow_query`、開發者模式的 `devmode_*`、客戶端控制）**不**發告警。
 
 ### 載荷脫敏（G12.4）
 
@@ -226,8 +250,11 @@ export function verify(secret, headers, rawBody, windowSeconds = 300) {
 
 降級：仍有設定的端點時 000068 的 down 拒絕執行（`55000`），需要先刪除端點；佇列中的事件與投遞日誌屬暫存資料，隨表刪除。
 
+遷移 000112新增單列表 `session_expiry_watermark`（到期掃描的水位）與索引 `sessions_expiry_idx(expires_at,id)`；水位只決定事件，不導出備份，降級直接刪除。
+
 ## 測試
 
 - 單元：`internal/domain/webhook_test.go`（簽章、退避、脫敏）、`internal/app/webhook_dispatcher_test.go`（假時鐘下的重試排程、死信、取消後重送、主鑰不符時等待、優雅停止）、`internal/app/webhook_admin_test.go`、`internal/platform/secretbox`、`internal/platform/config/webhooks_test.go`、`internal/platform/outbound/webhook_test.go`、`internal/adapter/events`。
 - 真 PostgreSQL：`internal/adapter/postgres/webhooks_test.go`（同交易 outbox 與回滾、租約與崩潰後重送同 `eventId`、死信與重放、密鑰封存、播放／掃描／媒體事件、遷移 up/down/up）、`internal/adapter/http/webhooks_test.go`（管理 API 與稽核）。
+- 第 11 階段接線：`internal/app/progress_webhook_test.go`（暫停合併、progress 節流、flush 失敗後補發）、`internal/app/webhook_producers_test.go`（告警白名單、每 code 節流、佇列上限、寫入失敗重試、到期掃描分頁）、`internal/platform/runtime/webhook_alerts_test.go`（日誌處理器只取 code／component）、`internal/adapter/postgres/webhook_wiring_test.go`（真 PostgreSQL：`TestWebhookWired*` 涵蓋 media.updated、scan.started、playback.paused／progress、session.created／ended 與到期、images.fetched、system.alert）。
 - 端到端：`internal/platform/outbound/webhook_integration_test.go`，以 httptest HTTPS 消費端驗證簽章與去重，含解析到私網位址被拒的情境與輪換期間的雙簽章。

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
@@ -198,6 +199,10 @@ func (s *Store) RecordImageRefresh(ctx context.Context, lease domain.JobLease, r
 		return storageError(err)
 	}
 	var counts domain.ImageRefreshCounts
+	// fetched counts the images each item gained, in result order, for
+	// images.fetched (G12.1).
+	var fetchedItems []string
+	fetchedImages := map[string]int{}
 	for _, r := range results {
 		if r.Deferred {
 			counts.Deferred++
@@ -211,6 +216,10 @@ func (s *Store) RecordImageRefresh(ctx context.Context, lease domain.JobLease, r
 			counts.Skipped++
 		case r.Content != nil:
 			counts.Fetched++
+			if fetchedImages[r.Candidate.ItemID] == 0 {
+				fetchedItems = append(fetchedItems, r.Candidate.ItemID)
+			}
+			fetchedImages[r.Candidate.ItemID]++
 		default:
 			counts.Failed++
 		}
@@ -228,6 +237,16 @@ func (s *Store) RecordImageRefresh(ctx context.Context, lease domain.JobLease, r
 	}
 	if err = guardedJobUpdate(ctx, tx, lease, `UPDATE jobs SET files=$2,skipped=$3 WHERE id=$1::uuid`, lease.Job.ID, fetched, failed+deferred+skipped); err != nil {
 		return err
+	}
+	// One images.fetched per item that gained content in this batch, in the
+	// transaction that stores it; an item whose images span batches raises
+	// one per batch.
+	events, now := s.webhooksOn(), time.Now()
+	for _, item := range fetchedItems {
+		if err = appendWebhook(ctx, tx, events, domain.WebhookImagesFetched, now, domain.WebhookSubject{Kind: domain.WebhookSubjectItem, ID: item},
+			map[string]any{"libraryId": library, "jobId": lease.Job.ID, "images": fetchedImages[item]}); err != nil {
+			return err
+		}
 	}
 	return storageError(tx.Commit(ctx))
 }

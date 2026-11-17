@@ -135,6 +135,9 @@ func (s *Store) issueLoginSession(ctx context.Context, tx pgx.Tx, userID, kind, 
 	if err = auditAccount(ctx, tx, actor, "session.created", session.ID, nil, session); err != nil {
 		return domain.SessionGrant{}, err
 	}
+	if err = appendSessionCreated(ctx, tx, s.webhooksOn(), session, sessionCreatedLogin); err != nil {
+		return domain.SessionGrant{}, err
+	}
 	if appPassword != "" {
 		if _, err = tx.Exec(ctx, `UPDATE app_passwords SET last_used_at=clock_timestamp() WHERE id=$1::uuid`, appPassword); err != nil {
 			return domain.SessionGrant{}, storageError(err)
@@ -259,9 +262,11 @@ func (s *Store) CommitLogin(ctx context.Context, in domain.LoginInput) (domain.S
 	return grant, nil
 }
 
-func revokeAll(ctx context.Context, tx pgx.Tx, userID string) error {
-	_, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1::uuid AND revoked_at IS NULL`, userID)
-	return storageError(err)
+// revokeAll revokes every session of a user and raises session.ended for
+// the live ones with reason.
+func revokeAll(ctx context.Context, tx pgx.Tx, events bool, userID, reason string) error {
+	_, err := endSessions(ctx, tx, events, reason, `s.user_id=$1::uuid`, userID)
+	return err
 }
 
 func (s *Store) ReplacePassword(ctx context.Context, actor domain.Actor, userID string, expected domain.Credentials, newHash string) error {
@@ -292,7 +297,7 @@ func (s *Store) ReplacePassword(ctx context.Context, actor domain.Actor, userID 
 	if _, err = tx.Exec(ctx, `UPDATE users SET password_hash=$2,auth_version=auth_version+1,failed_login=0,locked_until=NULL WHERE id=$1::uuid`, userID, newHash); err != nil {
 		return storageError(err)
 	}
-	if err = revokeAll(ctx, tx, userID); err != nil {
+	if err = revokeAll(ctx, tx, s.webhooksOn(), userID, sessionEndPasswordChanged); err != nil {
 		return err
 	}
 	if err = auditAccount(ctx, tx, actor, "user.password_changed", userID, nil, map[string]bool{"passwordChanged": true, "sessionsRevoked": true}); err != nil {
@@ -319,7 +324,7 @@ func (s *Store) SetLocalPassword(ctx context.Context, name, newHash string) (dom
 	if _, err = tx.Exec(ctx, `UPDATE users SET password_hash=$2,auth_version=auth_version+1,failed_login=0,locked_until=NULL WHERE id=$1::uuid`, u.ID, newHash); err != nil {
 		return domain.User{}, storageError(err)
 	}
-	if err = revokeAll(ctx, tx, u.ID); err != nil {
+	if err = revokeAll(ctx, tx, s.webhooksOn(), u.ID, sessionEndPasswordReset); err != nil {
 		return domain.User{}, err
 	}
 	if err = auditAccount(ctx, tx, domain.Actor{}, "user.password_reset_local", u.ID, nil, map[string]bool{"passwordChanged": true, "sessionsRevoked": true}); err != nil {
@@ -373,8 +378,12 @@ func (s *Store) RevokeSession(ctx context.Context, actor domain.Actor, userID, s
 	if revoked != nil {
 		return storageError(tx.Commit(ctx))
 	}
-	if _, err = tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE id=$1::uuid`, sessionID); err != nil {
-		return storageError(err)
+	reason := sessionEndRevoked
+	if sessionID == actor.SessionID {
+		reason = sessionEndLogout
+	}
+	if _, err = endSessions(ctx, tx, s.webhooksOn(), reason, `s.id=$1::uuid`, sessionID); err != nil {
+		return err
 	}
 	if err = auditAccount(ctx, tx, actor, "session.revoked", sessionID, nil, map[string]bool{"revoked": true}); err != nil {
 		return err
@@ -394,7 +403,7 @@ func (s *Store) RevokeSessions(ctx context.Context, actor domain.Actor, userID s
 	if _, err = userInTransaction(ctx, tx, userID); err != nil {
 		return err
 	}
-	if err = revokeAll(ctx, tx, userID); err != nil {
+	if err = revokeAll(ctx, tx, s.webhooksOn(), userID, sessionEndRevoked); err != nil {
 		return err
 	}
 	if err = auditAccount(ctx, tx, actor, "sessions.revoked", userID, nil, map[string]bool{"allSessionsRevoked": true}); err != nil {
@@ -430,6 +439,14 @@ func (s *Store) RotateSession(ctx context.Context, actor domain.Actor, device st
 	}
 	session, token, err := newSession(ctx, tx, actor.UserID, old.ClientKind, device, client, ttl, appPassword)
 	if err != nil {
+		return domain.SessionGrant{}, err
+	}
+	// The replaced session was live: the actor authenticated with it.
+	events := s.webhooksOn()
+	if err = appendSessionEnded(ctx, tx, events, old.ID, old.UserID, old.ClientKind, sessionEndRotated); err != nil {
+		return domain.SessionGrant{}, err
+	}
+	if err = appendSessionCreated(ctx, tx, events, session, sessionCreatedRotated); err != nil {
 		return domain.SessionGrant{}, err
 	}
 	u, err := userInTransaction(ctx, tx, actor.UserID)
@@ -509,11 +526,11 @@ func (s *Store) SetNativeAccess(ctx context.Context, actor domain.Actor, userID 
 	}
 	var revoked int64
 	if !allow {
-		tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1::uuid AND client_kind='native' AND revoked_at IS NULL`, userID)
+		ended, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndNativeAccess, `s.user_id=$1::uuid AND s.client_kind='native'`, userID)
 		if err != nil {
-			return domain.User{}, storageError(err)
+			return domain.User{}, err
 		}
-		revoked = tag.RowsAffected()
+		revoked = int64(len(ended))
 	}
 	if err = auditAccount(ctx, tx, actor, "user.native_access_changed", userID, map[string]bool{"allowNative": old.AllowNative}, map[string]any{"allowNative": u.AllowNative, "nativeSessionsRevoked": revoked}); err != nil {
 		return domain.User{}, err

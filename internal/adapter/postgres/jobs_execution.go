@@ -118,6 +118,15 @@ func (s *Store) ClaimJobWithCapabilities(ctx context.Context, owner string, pref
 	if err != nil {
 		return l, err
 	}
+	// scan.started (G12.1) belongs to the first claim of an inventory scan:
+	// the generation counts claims and never goes back, so a retry after an
+	// expired lease or a resumed pause raises nothing again.
+	if l.Job.Kind == domain.JobInventoryScan && l.Generation == 1 {
+		if err = appendWebhook(ctx, tx, s.webhooksOn(), domain.WebhookScanStarted, time.Now(), domain.WebhookSubject{Kind: domain.WebhookSubjectLibrary, ID: l.Job.LibraryID},
+			map[string]any{"jobId": l.Job.ID, "priority": l.Job.Priority}); err != nil {
+			return domain.JobLease{}, err
+		}
+	}
 	if err = trimJobs(ctx, tx, l.Policy.HistoryLimit); err != nil {
 		return l, err
 	}

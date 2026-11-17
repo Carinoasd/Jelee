@@ -173,15 +173,15 @@ func (s *Store) ConfirmTOTP(ctx context.Context, actor domain.Actor, verify doma
 	if err = replaceRecoveryCodes(ctx, tx, actor.UserID, recovery); err != nil {
 		return err
 	}
-	tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1::uuid AND id<>$2::uuid AND revoked_at IS NULL`, actor.UserID, actor.SessionID)
+	others, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndTwoFactor, `s.user_id=$1::uuid AND s.id<>$2::uuid`, actor.UserID, actor.SessionID)
 	if err != nil {
-		return storageError(err)
+		return err
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM login_challenges WHERE user_id=$1::uuid`, actor.UserID); err != nil {
 		return storageError(err)
 	}
 	if err = auditAccount(ctx, tx, actor, "user.two_factor_enabled", actor.UserID, map[string]bool{"enabled": false},
-		map[string]any{"enabled": true, "recoveryCodes": len(recovery), "otherSessionsRevoked": tag.RowsAffected()}); err != nil {
+		map[string]any{"enabled": true, "recoveryCodes": len(recovery), "otherSessionsRevoked": len(others)}); err != nil {
 		return err
 	}
 	return storageError(tx.Commit(ctx))
@@ -560,14 +560,14 @@ func (s *Store) DeleteAppPassword(ctx context.Context, actor domain.Actor, userI
 	if err = tx.QueryRow(ctx, `SELECT name FROM app_passwords WHERE id=$1::uuid AND user_id=$2::uuid FOR UPDATE`, id, userID).Scan(&name); err != nil {
 		return storageError(err)
 	}
-	tag, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE app_password_id=$1::uuid AND revoked_at IS NULL`, id)
+	ended, err := endSessions(ctx, tx, s.webhooksOn(), sessionEndAppPassword, `s.app_password_id=$1::uuid`, id)
 	if err != nil {
-		return storageError(err)
+		return err
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM app_passwords WHERE id=$1::uuid`, id); err != nil {
 		return storageError(err)
 	}
-	if err = auditAccount(ctx, tx, actor, "user.app_password_revoked", userID, map[string]string{"appPasswordId": id, "name": name}, map[string]int64{"sessionsRevoked": tag.RowsAffected()}); err != nil {
+	if err = auditAccount(ctx, tx, actor, "user.app_password_revoked", userID, map[string]string{"appPasswordId": id, "name": name}, map[string]int64{"sessionsRevoked": int64(len(ended))}); err != nil {
 		return err
 	}
 	return storageError(tx.Commit(ctx))
