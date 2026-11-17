@@ -71,14 +71,14 @@ func TestExtractorCachesTextSubtitlesAndFontsOnce(t *testing.T) {
 		t.Fatal("cached subtitle differs from the extracted bytes")
 	}
 	plan := env.output.plans[0]
-	if len(plan.Tracks) != 2 || plan.Tracks[0] != 1 || plan.Tracks[1] != 2 || len(plan.Attachments) != 2 || plan.Attachments[0] != 1 || plan.Attachments[1] != 3 {
-		t.Fatalf("plan %+v: only text tracks and fonts are extracted", plan)
+	if len(plan.Tracks) != 3 || plan.Tracks[0] != 1 || plan.Tracks[1] != 2 || plan.Tracks[2] != 3 || len(plan.Attachments) != 2 || plan.Attachments[0] != 1 || plan.Attachments[1] != 3 {
+		t.Fatalf("plan %+v: only text and bitmap subtitle tracks and fonts are extracted", plan)
 	}
 	for _, query := range []struct {
 		kind   Kind
 		index  int
 		format string
-	}{{KindSubtitle, 2, "ass"}, {KindAttachment, 1, "ttf"}, {KindAttachment, 3, "otf"}, {KindAttachmentStream, 5, "ttf"}, {KindAttachmentStream, 7, "otf"}} {
+	}{{KindSubtitle, 2, "ass"}, {KindSubtitle, 3, "sup"}, {KindAttachment, 1, "ttf"}, {KindAttachment, 3, "otf"}, {KindAttachmentStream, 5, "ttf"}, {KindAttachmentStream, 7, "otf"}} {
 		item, err := env.extractor.Locate(ctx, testSource, env.source, query.kind, query.index)
 		if err != nil || item.Format != query.format {
 			t.Fatalf("locate %+v: %v %+v", query, err, item)
@@ -87,7 +87,7 @@ func TestExtractorCachesTextSubtitlesAndFontsOnce(t *testing.T) {
 	for _, query := range []struct {
 		kind  Kind
 		index int
-	}{{KindSubtitle, 0}, {KindSubtitle, 3}, {KindSubtitle, 4}, {KindAttachment, 2}, {KindAttachmentStream, 6}, {KindAttachmentStream, 0}} {
+	}{{KindSubtitle, 0}, {KindSubtitle, 4}, {KindVobSubIndex, 3}, {KindVobSubData, 1}, {KindAttachment, 2}, {KindAttachmentStream, 6}, {KindAttachmentStream, 0}} {
 		if _, err := env.extractor.Locate(ctx, testSource, env.source, query.kind, query.index); err != ErrNotFound {
 			t.Fatalf("locate %+v: %v", query, err)
 		}
@@ -125,7 +125,7 @@ func TestExtractorRefusesBadInputsAndMapsToolErrors(t *testing.T) {
 		id    string
 		kind  Kind
 		index int
-	}{{"not-an-id", KindSubtitle, 1}, {testSource, 0, 1}, {testSource, KindSubtitle, -1}} {
+	}{{"not-an-id", KindSubtitle, 1}, {testSource, 0, 1}, {testSource, KindVobSubData + 1, 1}, {testSource, KindSubtitle, -1}} {
 		if _, err := env.extractor.Locate(ctx, call.id, env.source, call.kind, call.index); err != ErrNotFound {
 			t.Fatalf("%+v accepted", call)
 		}

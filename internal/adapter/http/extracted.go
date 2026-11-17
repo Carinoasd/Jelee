@@ -18,7 +18,12 @@ import (
 // of the external track routes. Web sessions never receive the bytes.
 const (
 	embeddedSubtitleRoute = "/api/v1/sources/{id}/embedded-subtitles/{index}"
-	attachmentRoute       = "/api/v1/sources/{id}/attachments/{attachmentId}"
+	// The two halves of an embedded VobSub track keep the file names
+	// players expect next to each other: they open the .idx and derive the
+	// .sub by replacing the extension.
+	vobSubIndexRoute = "/api/v1/sources/{id}/embedded-subtitles/{index}.idx"
+	vobSubDataRoute  = "/api/v1/sources/{id}/embedded-subtitles/{index}.sub"
+	attachmentRoute  = "/api/v1/sources/{id}/attachments/{attachmentId}"
 	// ocrSubtitleRoute serves the SRT derived by subtitle OCR from a bitmap
 	// subtitle (G15.6); it exists only when OCR is enabled as well.
 	ocrSubtitleRoute = "/api/v1/sources/{id}/ocr-subtitles/{index}"
@@ -134,14 +139,20 @@ func (h hiddenExtracted) ResolveExtracted(ctx context.Context, p access.Principa
 }
 
 // decorateExtracted adds the delivery URLs of extractable embedded text
-// subtitles and font attachments when extraction is wired.
+// and bitmap subtitles and font attachments when extraction is wired. A
+// VobSub track gets its .idx as url and its .sub as dataUrl.
 func (s *Server) decorateExtracted(source *domain.PlaybackSource) {
 	if !extractionAvailable(s.extracted) {
 		return
 	}
 	for i := range source.Subtitles {
-		if track := &source.Subtitles[i]; track.Extractable {
-			track.URL = embeddedSubtitleURL(source.ID, track.Index)
+		track := &source.Subtitles[i]
+		if !track.Extractable {
+			continue
+		}
+		track.URL = embeddedSubtitleURL(source.ID, track.Index)
+		if domain.ExtractableBitmapSubtitleCodecs[track.Codec] == "idx" {
+			track.URL, track.DataURL = track.URL+".idx", track.URL+".sub"
 		}
 	}
 	for i := range source.Attachments {
@@ -184,8 +195,12 @@ func ocrSpecification(paths map[string]any) {
 // extractedSpecification documents the embedded item routes.
 func extractedSpecification(paths map[string]any) {
 	for route, item := range map[string]struct{ summary, param, description string }{
-		embeddedSubtitleRoute: {"Read an embedded text subtitle copied out of a Matroska source", "index",
-			"The probe stream index of an embedded SubRip, ASS, SSA or WebVTT (S_TEXT/WEBVTT) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles. Bitmap subtitles and D_WEBVTT tracks are not extracted."},
+		embeddedSubtitleRoute: {"Read an embedded text or PGS subtitle copied out of a Matroska source", "index",
+			"The probe stream index of an embedded SubRip, ASS, SSA, WebVTT (S_TEXT/WEBVTT) or PGS (S_HDMV/PGS) subtitle listed with extractable true and a url under subtitleTracks of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the track, unconverted, into a rebuildable cache (G15.5); Content-Type is the format's fixed type with charset=UTF-8, as Matroska stores text subtitles, or application/x-pgs for the raw PGS stream (.sup). A VobSub track is served only as its two halves (.idx and .sub routes). DVB bitmaps (S_DVBSUB) and D_WEBVTT tracks are not extracted and stay inside the original file."},
+		vobSubIndexRoute: {"Read the index of an embedded VobSub subtitle copied out of a Matroska source", "index",
+			"The probe stream index of an embedded VobSub (S_VOBSUB) subtitle listed with extractable true under subtitleTracks of GET /api/v1/items/{id}/playback, whose url names this route. On first use the isolated mkvextract writes the .idx index and the .sub MPEG program stream of the track, unconverted, into a rebuildable cache (G15.5). Content-Type is text/plain. Players that open the .idx find the .sub at the same name with the .sub extension."},
+		vobSubDataRoute: {"Read the program stream of an embedded VobSub subtitle copied out of a Matroska source", "index",
+			"The .sub half of an embedded VobSub track (the dataUrl of the subtitle track): the MPEG program stream of its pictures as mkvextract writes it next to the .idx, unconverted (G15.5). Content-Type is application/octet-stream."},
 		attachmentRoute: {"Read a font attachment copied out of a Matroska source", "attachmentId",
 			"The 1-based Matroska attachment ID of a font listed with a url under attachments of GET /api/v1/items/{id}/playback. On first use the isolated mkvextract copies the font, unconverted, into a rebuildable cache (G15.7); clients use it to render ASS subtitles themselves. Content-Type comes from a fixed table keyed by the font extension."},
 	} {

@@ -62,7 +62,8 @@ func (m *matroskaService) ResolveExtracted(ctx context.Context, principal access
 	if kind == media.ExtractedOCRSubtitle {
 		return m.resolveOCR(ctx, sourceID, source, index)
 	}
-	kinds := map[media.ExtractedKind]matroska.Kind{media.ExtractedSubtitle: matroska.KindSubtitle, media.ExtractedAttachment: matroska.KindAttachment, media.ExtractedAttachmentStream: matroska.KindAttachmentStream}
+	kinds := map[media.ExtractedKind]matroska.Kind{media.ExtractedSubtitle: matroska.KindSubtitle, media.ExtractedAttachment: matroska.KindAttachment, media.ExtractedAttachmentStream: matroska.KindAttachmentStream,
+		media.ExtractedVobSubIndex: matroska.KindVobSubIndex, media.ExtractedVobSubData: matroska.KindVobSubData}
 	selected, ok := kinds[kind]
 	if !ok {
 		return media.Source{}, media.ErrNotFound

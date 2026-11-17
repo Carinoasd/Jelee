@@ -378,6 +378,10 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 				if cfg.Matroska.EnableExtraction {
 					r.Get(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
 					r.Head(embeddedSubtitleRoute, s.extractedRoute(media.ExtractedSubtitle, "index"))
+					r.Get(vobSubIndexRoute, s.extractedRoute(media.ExtractedVobSubIndex, "index"))
+					r.Head(vobSubIndexRoute, s.extractedRoute(media.ExtractedVobSubIndex, "index"))
+					r.Get(vobSubDataRoute, s.extractedRoute(media.ExtractedVobSubData, "index"))
+					r.Head(vobSubDataRoute, s.extractedRoute(media.ExtractedVobSubData, "index"))
 					r.Get(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
 					r.Head(attachmentRoute, s.extractedRoute(media.ExtractedAttachment, "attachmentId"))
 					if cfg.SubtitleOCR.Enable {

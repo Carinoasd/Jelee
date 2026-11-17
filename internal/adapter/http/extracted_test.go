@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,12 @@ func (f *fakeExtracted) ResolveExtracted(_ context.Context, p access.Principal, 
 		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/t2.ass", ContentType: "text/html", ETag: `"ignored"`}, nil
 	case kind == media.ExtractedAttachment && index == 1:
 		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/a1.ttf"}, nil
+	case kind == media.ExtractedSubtitle && index == 6:
+		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/t6.sup", ContentType: "text/html"}, nil
+	case kind == media.ExtractedVobSubIndex && index == 7:
+		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/t7.idx"}, nil
+	case kind == media.ExtractedVobSubData && index == 7:
+		return media.Source{Root: f.root, RelativePath: sourceID + "/rev/t7.sub"}, nil
 	case kind == media.ExtractedOCRSubtitle && index == 5:
 		return media.Source{Root: f.root, RelativePath: sourceID + "/ocr/s5.srt", ContentType: "text/html"}, nil
 	}
@@ -154,7 +161,8 @@ func TestExtractedRoutesFollowConfiguration(t *testing.T) {
 }
 
 func TestPlaybackDecoratesOnlyAvailableExtraction(t *testing.T) {
-	source := domain.PlaybackSource{ID: sourceID, Subtitles: []domain.PlaybackSubtitleTrack{{Index: 2, Extractable: true}, {Index: 3}},
+	source := domain.PlaybackSource{ID: sourceID, Subtitles: []domain.PlaybackSubtitleTrack{{Index: 2, Extractable: true}, {Index: 3}, {Index: 6, Codec: "hdmv_pgs_subtitle", Extractable: true},
+		{Index: 7, Codec: "dvd_subtitle", Extractable: true}, {Index: 8, Codec: "dvb_subtitle"}},
 		Attachments: []domain.PlaybackAttachment{{ID: 1, Font: true}, {ID: 2}}}
 	s := &Server{extracted: &fakeExtracted{available: false}}
 	unavailable := source
@@ -166,7 +174,10 @@ func TestPlaybackDecoratesOnlyAvailableExtraction(t *testing.T) {
 	s.extracted = &fakeExtracted{available: true}
 	s.decorateExtracted(&source)
 	if source.Subtitles[0].URL != "/api/v1/sources/"+sourceID+"/embedded-subtitles/2" || source.Subtitles[1].URL != "" ||
-		source.Attachments[0].URL != "/api/v1/sources/"+sourceID+"/attachments/1" || source.Attachments[1].URL != "" {
+		source.Attachments[0].URL != "/api/v1/sources/"+sourceID+"/attachments/1" || source.Attachments[1].URL != "" ||
+		source.Subtitles[2].URL != "/api/v1/sources/"+sourceID+"/embedded-subtitles/6" || source.Subtitles[2].DataURL != "" ||
+		source.Subtitles[3].URL != "/api/v1/sources/"+sourceID+"/embedded-subtitles/7.idx" || source.Subtitles[3].DataURL != "/api/v1/sources/"+sourceID+"/embedded-subtitles/7.sub" ||
+		source.Subtitles[4].URL != "" || source.Subtitles[0].DataURL != "" {
 		t.Fatalf("decorated %+v", source)
 	}
 	if !(hiddenExtracted{&fakeExtracted{available: true}}).Available() || (hiddenExtracted{unavailableExtracted{}}).Available() {
@@ -260,5 +271,73 @@ func TestPlaybackListsOCRTracksOnlyWhenTheirTextExists(t *testing.T) {
 	}
 	if domain.OCRTrackTitle(domain.PlaybackSubtitleTrack{}) != "OCR" || domain.OCRTrackTitle(domain.PlaybackSubtitleTrack{Language: "jpn"}) != "jpn (OCR)" {
 		t.Fatal("titles")
+	}
+}
+
+// G15.5: PGS is served as its raw .sup stream and VobSub as its .idx and
+// .sub halves, unconverted and to native sessions only.
+func TestExtractedBitmapSubtitleRoutes(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, sourceID, "rev")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][]byte{"t6.sup": []byte("PG\x00\x01<html>raw</html>"), "t7.idx": []byte("# VobSub index file, v7\nid: en, index: 0\n"), "t7.sub": []byte("\x00\x00\x01\xba\x44 program stream")}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(directory, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	extracted := &fakeExtracted{root: root, available: true}
+	f := extractedFixture(t, true, extracted)
+	native := strings.Repeat("n", 43)
+	base := "/api/v1/sources/" + sourceID + "/embedded-subtitles/"
+	for _, tc := range []struct {
+		path, file, contentType string
+		kind                    media.ExtractedKind
+	}{
+		{base + "6", "t6.sup", "application/x-pgs", media.ExtractedSubtitle},
+		{base + "7.idx", "t7.idx", "text/plain", media.ExtractedVobSubIndex},
+		{base + "7.sub", "t7.sub", "application/octet-stream", media.ExtractedVobSubData},
+	} {
+		extracted.kinds = nil
+		w := f.request(http.MethodGet, tc.path, native)
+		h := w.Header()
+		if w.Code != 200 || w.Body.String() != string(files[tc.file]) || h.Get("Content-Type") != tc.contentType || h.Get("X-Content-Type-Options") != "nosniff" ||
+			len(extracted.kinds) != 1 || extracted.kinds[0] != tc.kind {
+			t.Fatalf("%s: %d %q %v %v", tc.path, w.Code, w.Body.String(), h, extracted.kinds)
+		}
+		r := httptest.NewRequest(http.MethodGet, "http://localhost"+tc.path, nil)
+		r.Header.Set("Authorization", "Bearer "+native)
+		r.Header.Set("Range", "bytes=1-3")
+		ranged := httptest.NewRecorder()
+		f.handler.ServeHTTP(ranged, r)
+		if ranged.Code != 206 || ranged.Body.String() != string(files[tc.file][1:4]) {
+			t.Fatalf("%s range: %d %q", tc.path, ranged.Code, ranged.Body.String())
+		}
+		if head := f.request(http.MethodHead, tc.path, native); head.Code != 200 || head.Body.Len() != 0 {
+			t.Fatalf("%s HEAD: %d", tc.path, head.Code)
+		}
+		calls := extracted.calls
+		assertProblem(t, f.request(http.MethodGet, tc.path, webToken), 403, "web_playback_disabled")
+		assertProblem(t, f.request(http.MethodGet, tc.path+"?subtitleCodec=srt", native), 409, "transcode_disabled")
+		if extracted.calls != calls {
+			t.Fatal("a refused request reached the extraction resolver")
+		}
+	}
+	calls := extracted.calls
+	for _, path := range []string{base + "07.idx", base + "7.idx.sub", base + "7.IDX", base + "7.sup", base + ".sub", base + "4097.sub"} {
+		assertProblem(t, f.request(http.MethodGet, path, native), 404, "not_found")
+	}
+	if extracted.calls != calls {
+		t.Fatal("a malformed path reached the extraction resolver")
+	}
+	// A VobSub track has no single-file form, and a PGS track no halves.
+	assertProblem(t, f.request(http.MethodGet, base+"7", native), 404, "not_found")
+	assertProblem(t, f.request(http.MethodGet, base+"6.idx", native), 404, "not_found")
+	for name, data := range files {
+		if after, err := os.ReadFile(filepath.Join(directory, name)); err != nil || string(after) != string(data) {
+			t.Fatal("delivery changed the cached copy")
+		}
 	}
 }

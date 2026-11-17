@@ -414,7 +414,7 @@ func cacheSource(t *testing.T, root, source string, revisions map[string]time.Ti
 			t.Fatal(err)
 		}
 		entry := filepath.Join(directory, "entry.json")
-		if err := os.WriteFile(entry, []byte(`{"version":1,"tracks":1,"subtitles":[{"id":1,"format":"srt","file":"t1.srt"}],"attachments":[],"bytes":5}`), 0o600); err != nil {
+		if err := os.WriteFile(entry, []byte(`{"version":2,"tracks":1,"subtitles":[{"id":1,"format":"srt","file":"t1.srt"}],"attachments":[],"bytes":5}`), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(filepath.Join(directory, "t1.srt"), []byte("hello"), 0o600); err != nil {

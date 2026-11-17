@@ -37,7 +37,7 @@ const (
 	MaxFontBytes         = 32 << 20
 	maxFontTotal         = 128 << 20
 	entryFile            = "entry.json"
-	entryVersion         = 1
+	entryVersion         = 2
 	stagingPrefix        = ".staging-"
 	staleStaging         = time.Hour
 )
@@ -61,6 +61,11 @@ const (
 	KindAttachment
 	// KindAttachmentStream selects a font by probe stream index.
 	KindAttachmentStream
+	// KindVobSubIndex selects the .idx half of a VobSub track by probe
+	// stream index; KindSubtitle never returns either half (G15.5).
+	KindVobSubIndex
+	// KindVobSubData selects the .sub (MPEG program stream) half.
+	KindVobSubData
 )
 
 // Item is one cached file. RelativePath is below CacheRoot and uses slash
@@ -79,10 +84,33 @@ type entry struct {
 	Bytes       int64        `json:"bytes"`
 }
 
+// entryTrack is one extracted subtitle track. Format is the extension of
+// File: a text format, "sup" for PGS or "idx" for VobSub, whose MPEG
+// program stream half is Data.
 type entryTrack struct {
 	ID     int    `json:"id"`
 	Format string `json:"format"`
 	File   string `json:"file"`
+	Data   string `json:"data,omitempty"`
+}
+
+// Extracted file formats of bitmap subtitle tracks.
+const (
+	formatPGS         = "sup"
+	formatVobSubIndex = "idx"
+	formatVobSubData  = "sub"
+)
+
+func (t entryTrack) bitmap() bool { return t.Format == formatPGS || t.Format == formatVobSubIndex }
+
+// outputs maps what mkvextract writes into its private directory for the
+// track to the names kept in the revision directory (bitmapOutputs).
+func (t entryTrack) outputs() [][2]string {
+	name := sandbox.ExtractTrackName(t.ID)
+	if t.Data != "" {
+		return [][2]string{{name + "." + formatVobSubIndex, t.File}, {name + "." + formatVobSubData, t.Data}}
+	}
+	return [][2]string{{name, t.File}}
 }
 
 type entryFont struct {
@@ -133,7 +161,7 @@ func New(identify, extract Runner, config Config) (*Extractor, error) {
 // extracting the source first when its current revision is not cached. The
 // caller has already authorized sourceID and resolved source from it.
 func (e *Extractor) Locate(ctx context.Context, sourceID string, source domain.ProbeSource, kind Kind, index int) (Item, error) {
-	if e == nil || ctx == nil || !domain.ValidID(sourceID) || index < 0 || kind < KindSubtitle || kind > KindAttachmentStream {
+	if e == nil || ctx == nil || !domain.ValidID(sourceID) || index < 0 || kind < KindSubtitle || kind > KindVobSubData {
 		return Item{}, ErrNotFound
 	}
 	input, err := probe.Open(ctx, source)
@@ -159,7 +187,8 @@ func (e *Extractor) Locate(ctx context.Context, sourceID string, source domain.P
 // modification time is a new revision; the previous one is removed.
 func revision(sourceID string, metadata probe.Metadata) string {
 	hash := sha256.New()
-	_, _ = hash.Write([]byte("jelee-matroska-cache-v1\x00" + sourceID + "\x00"))
+	// v2 added bitmap subtitle tracks; a v1 revision is replaced on use.
+	_, _ = hash.Write([]byte("jelee-matroska-cache-v2\x00" + sourceID + "\x00"))
 	var number [8]byte
 	binary.BigEndian.PutUint64(number[:], uint64(metadata.Size)) //nolint:gosec // G115: sizes are non-negative
 	_, _ = hash.Write(number[:])
@@ -214,9 +243,19 @@ func (v entry) find(directory string, kind Kind, index int) (Item, error) {
 	switch kind {
 	case KindSubtitle:
 		for _, track := range v.Subtitles {
-			if track.ID == index {
+			if track.ID == index && track.Data == "" {
 				return Item{RelativePath: directory + "/" + track.File, Format: track.Format}, nil
 			}
+		}
+	case KindVobSubIndex, KindVobSubData:
+		for _, track := range v.Subtitles {
+			if track.ID != index || track.Data == "" {
+				continue
+			}
+			if kind == KindVobSubData {
+				return Item{RelativePath: directory + "/" + track.Data, Format: formatVobSubData}, nil
+			}
+			return Item{RelativePath: directory + "/" + track.File, Format: track.Format}, nil
 		}
 	case KindAttachmentStream:
 		// Probes list every track before the attachments, in file order.
@@ -291,24 +330,7 @@ func (e *Extractor) build(ctx context.Context, sourceID, stamp string, source do
 	if err != nil {
 		container = Container{}
 	}
-	value := entry{Version: entryVersion, Tracks: len(container.Tracks), Subtitles: []entryTrack{}, Attachments: []entryFont{}}
-	var plan sandbox.Extraction
-	for _, track := range container.Tracks {
-		if format, ok := track.TextFormat(); ok && len(plan.Tracks) < sandbox.MaxExtractTracks && track.ID <= sandbox.MaxExtractTrackID {
-			plan.Tracks = append(plan.Tracks, track.ID)
-			value.Subtitles = append(value.Subtitles, entryTrack{ID: track.ID, Format: format, File: "t" + strconv.Itoa(track.ID) + "." + format})
-		}
-	}
-	var fonts int64
-	for _, attachment := range container.Attachments {
-		if !attachment.Font() || attachment.Size < 1 || attachment.Size > MaxFontBytes || fonts+attachment.Size > maxFontTotal ||
-			len(plan.Attachments) >= sandbox.MaxExtractAttachments || attachment.ID > sandbox.MaxExtractAttachment {
-			continue
-		}
-		fonts += attachment.Size
-		plan.Attachments = append(plan.Attachments, attachment.ID)
-		value.Attachments = append(value.Attachments, entryFont{ID: attachment.ID, FileName: attachment.FileName, File: "a" + strconv.Itoa(attachment.ID) + "." + fontExtension(attachment)})
-	}
+	value, plan := extractionPlan(container, true)
 	root, err := e.root()
 	if err != nil {
 		return entry{}, err
@@ -327,14 +349,20 @@ func (e *Extractor) build(ctx context.Context, sourceID, stamp string, source do
 			_ = root.RemoveAll(filepath.FromSlash(staging))
 		}
 	}()
-	if len(plan.Tracks)+len(plan.Attachments) > 0 {
-		collect := func(directory string) error { return e.collect(root, staging, directory, &value) }
-		if _, err := e.extract.Run(ctx, process.ToolRequest{Stdin: input.Stdin(), Extraction: plan, Collect: collect}); err != nil {
-			if errors.Is(err, ErrTooLarge) {
-				return entry{}, ErrTooLarge
-			}
-			return entry{}, toolError(err)
+	bitmaps := slices.ContainsFunc(value.Subtitles, entryTrack.bitmap)
+	err = e.run(ctx, root, staging, input, plan, &value)
+	if err != nil && bitmaps && (errors.Is(err, ErrTooLarge) || errors.Is(err, ErrNotFound)) {
+		// A bitmap track larger than the sandbox's per-file limit stops
+		// mkvextract (RLIMIT_FSIZE). Text tracks and fonts are extracted
+		// again without bitmap tracks rather than lost with them.
+		if root.RemoveAll(filepath.FromSlash(staging)) != nil || root.Mkdir(filepath.FromSlash(staging), 0o700) != nil {
+			return entry{}, ErrUnavailable
 		}
+		value, plan = extractionPlan(container, false)
+		err = e.run(ctx, root, staging, input, plan, &value)
+	}
+	if err != nil {
+		return entry{}, err
 	}
 	if err := unchanged(ctx, source, input); err != nil {
 		return entry{}, err
@@ -360,6 +388,63 @@ func (e *Extractor) build(ctx context.Context, sourceID, stamp string, source do
 	return value, nil
 }
 
+// extractionPlan selects the text subtitle tracks and fonts of one source
+// and, with bitmaps, its PGS and VobSub tracks (G15.5). Text tracks are
+// chosen before bitmap tracks when the sandbox's track count runs out.
+func extractionPlan(container Container, bitmaps bool) (entry, sandbox.Extraction) {
+	value := entry{Version: entryVersion, Tracks: len(container.Tracks), Subtitles: []entryTrack{}, Attachments: []entryFont{}}
+	var plan sandbox.Extraction
+	for _, pass := range []bool{false, true} {
+		for _, track := range container.Tracks {
+			if len(plan.Tracks) >= sandbox.MaxExtractTracks || track.ID > sandbox.MaxExtractTrackID {
+				continue
+			}
+			name := sandbox.ExtractTrackName(track.ID)
+			selected := entryTrack{ID: track.ID}
+			if format, ok := track.TextFormat(); ok && !pass {
+				selected.Format, selected.File = format, name+"."+format
+			} else if format, ok := track.BitmapFormat(); ok && pass && bitmaps {
+				selected.Format, selected.File = formatPGS, name+"."+formatPGS
+				if format == BitmapVobSub {
+					selected.Format, selected.File, selected.Data = formatVobSubIndex, name+"."+formatVobSubIndex, name+"."+formatVobSubData
+				}
+			} else {
+				continue
+			}
+			plan.Tracks = append(plan.Tracks, track.ID)
+			value.Subtitles = append(value.Subtitles, selected)
+		}
+	}
+	slices.Sort(plan.Tracks)
+	slices.SortFunc(value.Subtitles, func(a, b entryTrack) int { return a.ID - b.ID })
+	var fonts int64
+	for _, attachment := range container.Attachments {
+		if !attachment.Font() || attachment.Size < 1 || attachment.Size > MaxFontBytes || fonts+attachment.Size > maxFontTotal ||
+			len(plan.Attachments) >= sandbox.MaxExtractAttachments || attachment.ID > sandbox.MaxExtractAttachment {
+			continue
+		}
+		fonts += attachment.Size
+		plan.Attachments = append(plan.Attachments, attachment.ID)
+		value.Attachments = append(value.Attachments, entryFont{ID: attachment.ID, FileName: attachment.FileName, File: "a" + strconv.Itoa(attachment.ID) + "." + fontExtension(attachment)})
+	}
+	return value, plan
+}
+
+// run extracts a plan into staging; an empty plan runs nothing.
+func (e *Extractor) run(ctx context.Context, root *os.Root, staging string, input *probe.Input, plan sandbox.Extraction, value *entry) error {
+	if len(plan.Tracks)+len(plan.Attachments) == 0 {
+		return nil
+	}
+	collect := func(directory string) error { return e.collect(root, staging, directory, value) }
+	if _, err := e.extract.Run(ctx, process.ToolRequest{Stdin: input.Stdin(), Extraction: plan, Collect: collect}); err != nil {
+		if errors.Is(err, ErrTooLarge) {
+			return ErrTooLarge
+		}
+		return toolError(err)
+	}
+	return nil
+}
+
 func fontExtension(a Attachment) string {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(a.FileName), "."))
 	if domain.IsFontFileName(a.FileName) {
@@ -379,8 +464,10 @@ func fontExtension(a Attachment) string {
 }
 
 // collect copies the expected outputs from the runner's private directory
-// into staging. Missing tracks (an empty track writes nothing) are dropped;
-// any output larger than the entry budget fails the whole extraction.
+// into staging. Missing tracks (an empty track writes nothing) are dropped,
+// and so is a VobSub track without both halves. A text track or font that
+// does not fit the entry budget fails the whole extraction; a bitmap track
+// that does not fit is only left out, after every text track and font.
 func (e *Extractor) collect(root *os.Root, staging, directory string, value *entry) error {
 	output, err := os.OpenRoot(directory)
 	if err != nil {
@@ -388,56 +475,94 @@ func (e *Extractor) collect(root *os.Root, staging, directory string, value *ent
 	}
 	defer func() { _ = output.Close() }()
 	var total int64
-	copyOne := func(source, target string) (bool, error) {
+	// size is the size of one regular output file, -1 when it is missing.
+	size := func(source string) (int64, error) {
 		info, err := output.Lstat(source)
 		if errors.Is(err, fs.ErrNotExist) {
-			return false, nil
+			return -1, nil
 		}
 		if err != nil || !info.Mode().IsRegular() {
-			return false, ErrUnavailable
+			return 0, ErrUnavailable
 		}
-		total += info.Size()
-		if info.Size() > sandbox.ExtractFileLimit || total > e.config.MaxEntryBytes {
-			return false, ErrTooLarge
-		}
+		return info.Size(), nil
+	}
+	copyOne := func(source, target string, length int64) error {
 		in, err := output.Open(source)
 		if err != nil {
-			return false, ErrUnavailable
+			return ErrUnavailable
 		}
 		defer func() { _ = in.Close() }()
 		out, err := root.OpenFile(filepath.FromSlash(staging+"/"+target), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err != nil {
-			return false, ErrUnavailable
+			return ErrUnavailable
 		}
-		written, copyErr := io.Copy(out, io.LimitReader(in, info.Size()+1))
+		written, copyErr := io.Copy(out, io.LimitReader(in, length+1))
 		closeErr := out.Close()
-		if copyErr != nil || closeErr != nil || written != info.Size() {
-			return false, ErrUnavailable
+		if copyErr != nil || closeErr != nil || written != length {
+			return ErrUnavailable
 		}
+		return nil
+	}
+	// take copies every output of one item, or none when one is missing.
+	// An item over budget is ErrTooLarge and copies nothing.
+	take := func(outputs [][2]string) (bool, error) {
+		var lengths []int64
+		var sum int64
+		for _, pair := range outputs {
+			length, err := size(pair[0])
+			if err != nil {
+				return false, err
+			}
+			if length < 0 {
+				return false, nil
+			}
+			if length > sandbox.ExtractFileLimit {
+				return false, ErrTooLarge
+			}
+			lengths, sum = append(lengths, length), sum+length
+		}
+		if total+sum > e.config.MaxEntryBytes {
+			return false, ErrTooLarge
+		}
+		for i, pair := range outputs {
+			if err := copyOne(pair[0], pair[1], lengths[i]); err != nil {
+				return false, err
+			}
+		}
+		total += sum
 		return true, nil
 	}
-	tracks := value.Subtitles[:0]
-	for _, track := range value.Subtitles {
-		ok, err := copyOne(sandbox.ExtractTrackName(track.ID), track.File)
-		if err != nil {
-			return err
+	kept := map[int]bool{}
+	for _, bitmap := range []bool{false, true} {
+		for _, track := range value.Subtitles {
+			if track.bitmap() != bitmap {
+				continue
+			}
+			ok, err := take(track.outputs())
+			if errors.Is(err, ErrTooLarge) && bitmap {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			kept[track.ID] = ok
 		}
-		if ok {
-			tracks = append(tracks, track)
+		if bitmap {
+			break
 		}
+		fonts := value.Attachments[:0]
+		for _, font := range value.Attachments {
+			ok, err := take([][2]string{{sandbox.ExtractAttachmentName(font.ID), font.File}})
+			if err != nil {
+				return err
+			}
+			if ok {
+				fonts = append(fonts, font)
+			}
+		}
+		value.Attachments = fonts
 	}
-	value.Subtitles = tracks
-	fonts := value.Attachments[:0]
-	for _, font := range value.Attachments {
-		ok, err := copyOne(sandbox.ExtractAttachmentName(font.ID), font.File)
-		if err != nil {
-			return err
-		}
-		if ok {
-			fonts = append(fonts, font)
-		}
-	}
-	value.Attachments = fonts
+	value.Subtitles = slices.DeleteFunc(value.Subtitles, func(t entryTrack) bool { return !kept[t.ID] })
 	value.Bytes = total
 	return nil
 }

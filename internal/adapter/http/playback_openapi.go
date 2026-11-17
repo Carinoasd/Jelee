@@ -126,7 +126,7 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"sdh":         map[string]any{"type": "boolean", "description": "The hearing_impaired or captions disposition of the embedded track."},
 		"charset":     map[string]any{"type": "string", "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks."},
 		"title":       map[string]any{"type": "string", "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text."},
-		"extractable": map[string]any{"type": "boolean", "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5)."},
+		"extractable": map[string]any{"type": "boolean", "description": "A SubRip, ASS, SSA, WebVTT, PGS or VobSub track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). False for DVB bitmaps, MP4 mov_text and every track of another container: those are delivered only inside the original file. Bitmap tracks are copied as pictures; nothing is recognized, rendered or converted."},
 	}
 	attachment := map[string]any{
 		"id":          map[string]any{"type": "integer", "minimum": 1, "description": "1-based Matroska attachment ID."},
@@ -134,7 +134,8 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"fileName":    str, "font": boolean,
 	}
 	if withURL {
-		subtitleTrack["url"] = map[string]any{"type": "string", "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only."}
+		subtitleTrack["url"] = map[string]any{"type": "string", "description": "Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}, or /api/v1/sources/{id}/embedded-subtitles/{index}.idx for VobSub. Native sessions only."}
+		subtitleTrack["dataUrl"] = map[string]any{"type": "string", "description": "VobSub only, with url: /api/v1/sources/{id}/embedded-subtitles/{index}.sub, the program stream next to the .idx. Native sessions only."}
 		attachment["url"] = map[string]any{"type": "string", "description": "Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only."}
 		ocr := objectSchema(map[string]any{
 			"format": map[string]any{"type": "string", "enum": []string{"srt"}},
