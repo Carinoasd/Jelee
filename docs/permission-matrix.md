@@ -112,6 +112,7 @@ P11 GET /api/v1/items
 P11 GET /api/v1/items/{id}
 P11 GET /api/v1/items/{id}/details
 P11 GET /api/v1/items/{id}/sources
+P11 POST /api/v1/items/{id}/sources/check
 P12 GET,HEAD /images/{type}/{id}
 P13 GET /api/v1/items/{id}/playback
 P13 POST /api/v1/items/{id}/playback/check

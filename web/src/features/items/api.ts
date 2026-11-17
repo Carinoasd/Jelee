@@ -6,6 +6,8 @@ export type CatalogItem = components["schemas"]["CatalogItem"];
 export type ItemKind = CatalogItem["kind"];
 export type ItemDetails = components["schemas"]["CatalogItemDetails"];
 export type MediaSourceInfo = components["schemas"]["MediaSourceInfo"];
+export type ClientCapabilities = components["schemas"]["ClientCapabilities"];
+export type PlaybackDecision = components["schemas"]["PlaybackDecision"];
 
 /** Largest page GET /api/v1/items accepts. */
 export const itemsPageSize = 100;
@@ -49,6 +51,22 @@ export async function getItemDetails(client: ApiClient, id: string): Promise<Ite
 export async function getItemSources(client: ApiClient, id: string): Promise<readonly MediaSourceInfo[]> {
   const body = await call(client.GET("/api/v1/items/{id}/sources", { params: { path: { id } } }));
   return body.data.sources;
+}
+
+export interface SourcesCheck {
+  readonly directPlayable: boolean;
+  readonly decisions: readonly PlaybackDecision[];
+  readonly sources: readonly MediaSourceInfo[];
+}
+
+/**
+ * Asks why each version would or would not play as it is for a declared
+ * client (G10.5). Read only: the answer holds verdicts and reason codes, never
+ * a delivery route, and the server starts nothing.
+ */
+export async function checkItemSources(client: ApiClient, id: string, capabilities: ClientCapabilities): Promise<SourcesCheck> {
+  const body = await call(client.POST("/api/v1/items/{id}/sources/check", { params: { path: { id } }, body: capabilities }));
+  return body.data;
 }
 
 /**

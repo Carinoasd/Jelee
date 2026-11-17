@@ -35,6 +35,8 @@ const ItemVersionsPanel = defineAsyncComponent(async () => (await Promise.all([i
 // Adding to playlists and collections (G02.1) loads with its own chunk.
 const AddToListsPanel = defineAsyncComponent(async () => (await Promise.all([import("@/features/collections/AddToListsPanel.vue"), loadLazyMessages(i18nGlobal, "collections")]))[0]);
 const TrackPreferencesPanel = defineAsyncComponent(async () => (await Promise.all([import("./TrackPreferencesPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
+// The direct play check (G10.5) is a read-only explanation, not playback.
+const DirectCheckPanel = defineAsyncComponent(async () => (await Promise.all([import("./DirectCheckPanel.vue"), loadLazyMessages(i18nGlobal, "versions")]))[0]);
 const store = useItemDetailStore();
 const libraries = useLibrariesStore();
 const guest = useGuestShareStore();
@@ -246,6 +248,7 @@ function language(value: string | undefined): string {
                 <template v-if="data.sources && data.sources.length > 0">
                   <ItemVersionsPanel v-if="auth.isAdmin" :key="'v' + data.item.id" :item-id="data.item.id" :sources="data.sources" @changed="store.reload" />
                   <TrackPreferencesPanel :key="data.item.id" :item-id="data.item.id" :sources="data.sources" />
+                  <DirectCheckPanel :key="'c' + data.item.id" :item-id="data.item.id" :sources="data.sources" />
                 </template>
               </section>
               <div v-else-if="panel === 'pluginPanels'" class="jl-detail__plugins">

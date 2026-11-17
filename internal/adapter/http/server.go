@@ -372,6 +372,7 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 			r.Get("/api/v1/items/{id}", s.item)
 			r.Get("/api/v1/items/{id}/details", s.itemDetails)
 			r.Get("/api/v1/items/{id}/sources", s.itemSources)
+			r.Post("/api/v1/items/{id}/sources/check", s.itemSourcesCheck)
 			s.progressRoutes(r)
 			s.watchStatsRoutes(r)
 			s.versionRoutes(r)

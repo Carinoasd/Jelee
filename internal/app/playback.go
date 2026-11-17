@@ -103,3 +103,29 @@ func (c *Catalog) CheckPlaybackChoice(ctx context.Context, actor domain.Actor, i
 	}
 	return decisions, selection, nil
 }
+
+// CheckItemSources is CheckPlaybackChoice for a file information view that
+// any session kind may read: the same decisions (domain.CheckPlayback) and
+// version selection, with the sources they were made on, and nothing that
+// delivers. External track URLs stay empty. Reads only; it starts no
+// session, delivery or conversion.
+func (c *Catalog) CheckItemSources(ctx context.Context, actor domain.Actor, itemID string, caps domain.ClientCapabilities) ([]domain.PlaybackDecision, []domain.PlaybackSource, domain.VersionSelection, error) {
+	normalized, err := domain.NormalizeClientCapabilities(caps)
+	if err != nil {
+		return nil, nil, domain.VersionSelection{}, err
+	}
+	sources, err := c.ItemSources(ctx, actor, itemID)
+	if err != nil {
+		return nil, nil, domain.VersionSelection{}, err
+	}
+	preference, err := c.applyDefaultTracks(ctx, actor, itemID, sources)
+	if err != nil {
+		return nil, nil, domain.VersionSelection{}, err
+	}
+	selection := domain.SelectVersion(sources, preference, domain.DirectPlayExclusion(normalized))
+	decisions := make([]domain.PlaybackDecision, 0, len(sources))
+	for _, source := range sources {
+		decisions = append(decisions, domain.CheckPlayback(normalized, source))
+	}
+	return decisions, sources, selection, nil
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 
@@ -160,6 +161,59 @@ func TestPlaybackSelectionHTTPPostgres(t *testing.T) {
 	w = request("POST", "/api/v1/items/"+item+"/playback/check", `{"containers":["mkv"]}`)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"reason":"none_playable"`) {
 		t.Fatalf("unprobed versions are never confirmed: %d %s", w.Code, w.Body.String())
+	}
+
+	// The web check explains the same verdicts without any delivery route,
+	// for a web session of a user who may see the item, and not at all for
+	// one who may not.
+	webToken, err := store.Provision(ctx, "selection-web", access.ClientWeb, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outsiderToken, err := store.Provision(ctx, "selection-outsider", access.ClientWeb, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	webUser := compatInsert(t, ctx, store, `SELECT id::text FROM users WHERE name='selection-web'`)
+	compatInsert(t, ctx, store, `INSERT INTO library_acl(user_id,library_id) VALUES($1::uuid,$2::uuid) RETURNING user_id::text`, webUser, library)
+	checkAs := func(token, id string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "http://localhost/api/v1/items/"+id+"/sources/check", strings.NewReader(`{"containers":["mp4"],"videoCodecs":["h264"]}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	verdicts := func(raw []byte) string {
+		var got struct {
+			Data struct {
+				Decisions []struct {
+					SourceID   string   `json:"sourceId"`
+					DirectPlay bool     `json:"directPlay"`
+					Reasons    []string `json:"reasons"`
+				} `json:"decisions"`
+				Sources []struct {
+					ID string `json:"id"`
+				} `json:"sources"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(raw, &got); err != nil || len(got.Data.Decisions) != len(got.Data.Sources) {
+			t.Fatalf("check body %v %s", err, raw)
+		}
+		// The two callers have their own version preferences, hence orders.
+		sort.Slice(got.Data.Decisions, func(i, j int) bool { return got.Data.Decisions[i].SourceID < got.Data.Decisions[j].SourceID })
+		out, _ := json.Marshal(got.Data.Decisions)
+		return string(out)
+	}
+	web := checkAs(webToken, item)
+	if web.Code != 200 || strings.Contains(web.Body.String(), `"url"`) || strings.Contains(web.Body.String(), "/api/v1/sources/") {
+		t.Fatalf("web check: %d %s", web.Code, web.Body.String())
+	}
+	if want := verdicts(request("POST", "/api/v1/items/"+item+"/sources/check", `{"containers":["mp4"],"videoCodecs":["h264"]}`).Body.Bytes()); verdicts(web.Body.Bytes()) != want {
+		t.Fatalf("web and native checks differ: %s vs %s", web.Body.String(), want)
+	}
+	if w := checkAs(outsiderToken, item); w.Code != http.StatusNotFound || strings.Contains(w.Body.String(), "Selection Film") {
+		t.Fatalf("outsider check: %d %s", w.Code, w.Body.String())
 	}
 
 	// G20.4: a compat client switches to the Japanese subtitle.

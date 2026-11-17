@@ -70,7 +70,7 @@
 | 動作 | 自有 API | 相容層 | 備註 |
 | --- | --- | --- | --- |
 | `deny` | 403 `client_blocked` | 403（無內容） | |
-| `read_only` | 寫入方法（POST／PUT／PATCH／DELETE）回 403 `client_read_only` | 403 | 例外：登出、輪換工作階段、登入，以及讀取型 POST（`/api/v1/items/{id}/playback/check`、相容層 `PlaybackInfo`、`System/Ping`）。播放進度回報屬於寫入，會被擋 |
+| `read_only` | 寫入方法（POST／PUT／PATCH／DELETE）回 403 `client_read_only` | 403 | 例外：登出、輪換工作階段、登入，以及讀取型 POST（`/api/v1/items/{id}/playback/check`、`/api/v1/items/{id}/sources/check`、相容層 `PlaybackInfo`、`System/Ping`）。播放進度回報屬於寫入，會被擋 |
 | `rate_limit` | 429 `client_rate_limited`＋`Retry-After` | 429＋`Retry-After` | 以「使用者＋客戶端識別」為鍵的固定視窗，重用登入限速器（`LoginLimiter`）；每個不同的限額一個限速器，程序內計數、重啟歸零 |
 | `force_relogin` | 撤銷該工作階段並回 401 | 401 | 只撤銷**在規則最後修改之前**發出的工作階段，重新登入後的新工作階段不受影響（否則等同永久封鎖）；寫入安全稽核 `client_control.session_revoked` |
 | `observe` | 放行 | 放行 | 計入命中紀錄與統計，供評估影響；`POST /rules/{id}/enforce` 切成攔截 |

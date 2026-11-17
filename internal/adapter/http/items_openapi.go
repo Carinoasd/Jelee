@@ -88,4 +88,17 @@ func catalogSpecification(paths, schemas map[string]any) {
 		"itemId": uuid, "sources": map[string]any{"type": "array", "items": schemaRef("MediaSourceInfo")},
 	}, "itemId", "sources")}, "data"))
 	paths["/api/v1/items/{id}/sources"] = map[string]any{"get": sources}
+
+	check := operation("Check which versions of a visible item a declared client could direct play", "200", "400", "401", "403", "404", "408", "409", "413", "415", "503")
+	check["description"] = "Any session kind; read only. The same verdicts and reason codes as POST /api/v1/items/{id}/playback/check (G10.5), made on the file information of every version, so the web interface can show why a version would not play as it is: reasons, the container layout and its hints, the probe state of external tracks and the verdict per audio and subtitle track. The body is a ClientCapabilities declaration. The answer carries no delivery URL of any kind, starts no playback session, and delivers, converts and writes nothing; a transformation parameter in the query or body is 409 transcode_disabled."
+	hidden(check)
+	check["responses"].(map[string]any)["409"] = map[string]any{"description": "transcode_disabled: the query or body carries a transformation parameter (G10.3)."}
+	check["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": schemaRef("ClientCapabilities")}}}
+	content(check, objectSchema(map[string]any{"data": objectSchema(map[string]any{
+		"itemId": uuid, "directPlayable": map[string]any{"type": "boolean", "description": "True when at least one version is direct playable."},
+		"decisions": map[string]any{"type": "array", "items": schemaRef("PlaybackDecision"), "description": "One per source, in the caller's default version order; never carries a url."},
+		"sources":   map[string]any{"type": "array", "items": schemaRef("MediaSourceInfo"), "description": "The same sources in the same order; join by sourceId = id."},
+		"selection": schemaRef("VersionSelection"),
+	}, "itemId", "directPlayable", "decisions", "sources", "selection")}, "data"))
+	paths["/api/v1/items/{id}/sources/check"] = map[string]any{"post": check}
 }
