@@ -1,0 +1,58 @@
+direct play baseline (development machine, NOT an acceptance result)
+date: 2026-10-30  go: go1.27.1  linux/amd64  cpus: 16  file: 256 MiB  samples/row: 100
+client and server share one process over loopback TCP; first byte = request sent to first body byte received
+
+== first byte and seek latency (single stream)
+-- sendfile path: file on ext4
+   page cache residency of the file: 100% before drop, 0% after posix_fadvise(DONTNEED)
+sendfile full file              warm  n=100 p50=  0.363 p95=  0.668 p99=  0.984 max=  1.102 ms
+sendfile seek random            warm  n=100 p50=  0.593 p95=  0.806 p99=  1.025 max=  2.618 ms
+sendfile seek forward +16MiB    warm  n=100 p50=  0.392 p95=  0.672 p99=  0.799 max=  1.363 ms
+sendfile seek backward -16MiB   warm  n=100 p50=  0.343 p95=  0.617 p99=  0.850 max=  1.014 ms
+sendfile sequential 1MiB ranges warm  n=100 p50=  0.335 p95=  0.426 p99=  0.720 max=  0.775 ms
+sendfile full file              cold  n=100 p50=  0.367 p95=  0.592 p99=  0.765 max=  0.874 ms
+sendfile seek random            cold  n=100 p50=  0.592 p95=  0.919 p99=  1.204 max=  1.269 ms
+sendfile seek forward +16MiB    cold  n=100 p50=  0.577 p95=  0.687 p99=  0.853 max=  1.005 ms
+sendfile seek backward -16MiB   cold  n=100 p50=  0.577 p95=  0.811 p99=  0.901 max=  0.933 ms
+sendfile sequential 1MiB ranges cold  n=100 p50=  0.596 p95=  0.816 p99=  0.906 max=  0.970 ms
+-- buffered path: file on ext4
+   page cache residency of the file: 100% before drop, 0% after posix_fadvise(DONTNEED)
+buffered full file              warm  n=100 p50=  0.349 p95=  0.543 p99=  0.635 max=  0.978 ms
+buffered seek random            warm  n=100 p50=  0.564 p95=  0.788 p99=  0.863 max=  0.873 ms
+buffered seek forward +16MiB    warm  n=100 p50=  0.354 p95=  0.602 p99=  0.941 max=  0.950 ms
+buffered seek backward -16MiB   warm  n=100 p50=  0.340 p95=  0.487 p99=  0.623 max=  0.690 ms
+buffered sequential 1MiB ranges warm  n=100 p50=  0.527 p95=  0.768 p99=  1.049 max=  1.667 ms
+buffered full file              cold  n=100 p50=  0.602 p95=  0.874 p99=  0.921 max=  1.027 ms
+buffered seek random            cold  n=100 p50=  0.570 p95=  0.831 p99=  0.906 max=  0.973 ms
+buffered seek forward +16MiB    cold  n=100 p50=  0.567 p95=  0.828 p99=  0.901 max=  0.954 ms
+buffered seek backward -16MiB   cold  n=100 p50=  0.564 p95=  0.810 p99=  0.933 max=  1.051 ms
+buffered sequential 1MiB ranges cold  n=100 p50=  0.560 p95=  0.824 p99=  0.886 max=  1.005 ms
+
+== concurrent full downloads (32 MiB per stream, warm cache, median of 3 rounds)
+path     streams   total MB/s  cpu ms/stream   cpu ms per GiB
+sendfile       1         1957           22.0            703.5
+sendfile       4        12242           13.2            421.4
+sendfile      16        30071           12.4            396.7
+buffered       1         3123           16.8            537.4
+buffered       4        12186           16.4            525.4
+buffered      16        24892           18.6            595.7
+
+cpu figures are process user+system time and include the in-process client (same on both paths).
+cold rows run posix_fadvise(DONTNEED) before every request. Under WSL2 or any VM the host may still cache the virtual disk, so cold here only means 'not in the guest page cache'.
+
+second run (same machine, same command), single-stream rows that differ most:
+sendfile seek random            warm  n=100 p50=  0.647 p95=  1.646 p99=  1.807 max=  1.877 ms
+sendfile seek forward +16MiB    warm  n=100 p50=  0.375 p95=  1.383 p99=  1.500 max=  1.510 ms
+sendfile seek random            cold  n=100 p50=  0.687 p95=  1.613 p99=  1.787 max=  1.980 ms
+sendfile seek forward +16MiB    cold  n=100 p50=  0.760 p95=  1.764 p99=  1.961 max=  2.474 ms
+second run concurrency:
+path     streams   total MB/s  cpu ms/stream   cpu ms per GiB
+sendfile       1         1974           22.6            723.9
+sendfile       4        12061           11.9            380.7
+sendfile      16        29188           13.1            419.7
+buffered       1         3646           15.6            499.6
+buffered       4        12285           15.3            489.8
+buffered      16        26569           16.2            518.9
+
+command: JELEE_PERF_SAMPLES=100 JELEE_PERF_DIR=<ext4 dir> go test -tags perf -p 1 -count=1 -run '^TestDirectBaseline$' ./internal/adapter/media  (make bench-direct)
+kernel: 6.18.33.2-microsoft-standard-WSL2

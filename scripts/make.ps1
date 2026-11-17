@@ -1,6 +1,6 @@
 #requires -Version 7.2
 [CmdletBinding()]
-param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test','migration-lock','migration-lock-check','hooks','text-check','secret-scan','secret-scan-history')][string]$Target = 'test')
+param([ValidateSet('init','bootstrap','bootstrap-media','bootstrap-matroska','matroska-tools-verify','bootstrap-runtime','runtime-tools-verify','tools-verify','media-tools-verify','media-toolchain-test','ignore-oracle-test','tools-clean','fixtures','fixtures-test','build','test','test-race','test-integration','coverage','fmt','fmt-check','lint','toolchain-test','brand-scan','brand-scan-incremental','gitignore-check','openapi','openapi-check','migrate','doctor','bench','bench-check','bench-direct','benchgate-test','doc-check','dev','nfo','diag','golangci-lint','quality-gates-test','migration-lock','migration-lock-check','hooks','text-check','secret-scan','secret-scan-history')][string]$Target = 'test')
 . "$PSScriptRoot/toolchain-lib.ps1"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $root
@@ -68,6 +68,15 @@ try {
             if ($Target -eq 'bench-check') {
                 & "$PSScriptRoot/run-go.ps1" run ./tools/benchgate -base docs/evidence/bench-baseline.txt -current $current
             }
+        }
+        'bench-direct' {
+            # Local direct-delivery baseline (G10, B1); development numbers only, never gated.
+            $dir = Assert-LocalPath $root (Join-Path $root '.testdata/direct-bench')
+            $out = Assert-LocalPath $root (Join-Path $root '.testdata/direct-latency.txt')
+            [IO.Directory]::CreateDirectory((Split-Path -Parent $out)) | Out-Null
+            $env:JELEE_PERF_DIR = $dir; $env:JELEE_PERF_OUT = $out
+            try { & "$PSScriptRoot/run-go.ps1" test -tags perf -p 1 -count=1 -run '^TestDirectBaseline$' -v ./internal/adapter/media } finally { Remove-Item Env:JELEE_PERF_DIR, Env:JELEE_PERF_OUT -ErrorAction SilentlyContinue }
+            Write-Host "direct delivery baseline written to $out"
         }
         'benchgate-test' { & "$PSScriptRoot/run-go.ps1" test -count=1 ./tools/benchgate }
         'coverage' { & "$PSScriptRoot/run-go.ps1" test -count=1 -coverprofile=coverage.out ./... }

@@ -73,3 +73,11 @@ JPEG 標準庫的 encoder 型別未匯出，現有 `jpeg.Encode` 沒有 encoder 
 目前提交的基線是在開發機（Ryzen 7 9850X3D、WSL2、go1.27.1、同時有其他負載）上產生，只供參考。同機連跑兩次的 ns/op 中位數差距最多約 11%，已接近 15% 門檻，所以正式基線必須在固定且閒置的 CI 硬體上用 `make bench` 重產並替換，門禁才有判斷力。每個優化提交仍應附 benchstat 前後數據（G26.4）；本工具是回歸門禁，不取代 benchstat 的統計檢定。
 
 CI 不拿這份開發機基線比對：`bench-regression` job 以 `make bench-compare` 在同一台 runner 上交替執行基準提交（PR base 或前一次 push）與目前提交的同一組基準，再用 benchgate 判定（ns/op +25%、allocs/op +10%、B/op +20%）。做法、門檻取捨與反向驗證見 [質量門禁](quality-gates.md#基準回歸同機比較)。
+
+## 直投首字节与 Seek 本机基线（G10.1、G10.7、G29.5）
+
+`make bench-direct` 在真 TCP loopback 上量原媒体直投的首字节、Seek 与并发吞吐，sendfile 与缓冲两条路径各一份（`internal/adapter/media/latency_test.go`，build tag `perf`，不接 benchgate、不进 CI）。开发机（WSL2、ext4、go1.27.1，客户端与服务端同进程）上所有单路情境的首字节 P99 都在 3 毫秒以内：完整文件热缓存 P95 约 0.5～0.7 ms，随机／向前／向后／连续 Seek 的 P95 约 0.4～0.9 ms（热与冷缓存无可测量差距，因为 WSL2 的宿主仍缓存虚拟磁盘）。16 路并发总吞吐 sendfile 约 30 GB/s、缓冲约 25 GB/s，每 GiB 进程 CPU 约 400 ms 对 600 ms。
+
+**这是开发机基线，不是验收。** 它排除了鉴权、数据库、TLS、反向代理、真实磁盘与网络，只说明伺服器自己的处理没有额外延迟，不能宣称达到“首字节 P95 ≤ 500 ms、Seek P95 ≤ 1 s”；目标硬体验收是拥有者项目 C42，Windows 缓冲路径是 B24（见 [owner-verification-queue.md](owner-verification-queue.md)）。数据与读法见 [direct-delivery.md](direct-delivery.md#本机基线与断连泄漏回归g101g107g295) 与 [原始输出](evidence/direct-play-latency-linux.txt)。
+
+同一批改动新增断连泄漏回归 `TestDisconnectReleasesEveryResource`（默认 `go test` 执行）：客户端关闭、RST、会话撤销、停读逾 `WriteTimeout`、请求取消五种断开方式下，两条路径的文件描述符、看门狗与会话监视协程、播放名额、协程总数均回到基线。

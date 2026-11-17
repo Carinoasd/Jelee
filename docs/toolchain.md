@@ -139,6 +139,7 @@ Windows：`scripts/bootstrap-tools.ps1` 目前仍只安装 Go；清单已记录 
 | `lint-baseline-prune` | 仅 Linux：对 linux 与 windows（交叉检查）重跑并从基线移除已修复条目，从不新增 |
 | `coverage-check` | 仅 Linux：按 `tools/coverage-thresholds.json` 测量核心／关键包覆盖率，低于棘轮最低值失败 |
 | `coverage-ratchet` | 仅 Linux：补测试后把最低值提高到实测值（向下取整），从不降低 |
+| `bench-direct` | 本机直投基线（首字节、Seek、并发吞吐与 CPU，loopback TCP，build tag `perf`）；输出 `.testdata/direct-latency.txt`，不接门禁，开发机数字不是验收（见 `docs/direct-delivery.md`） |
 | `bench-compare` | 仅 Linux：`BENCH_BASE_REF=<提交>`，同机交替执行基准提交与工作树的热路径基准并以 benchgate 判定 |
 | `quality-gates-test` | lintgate、covergate、benchgate、gitignore-check、textcheck、secretscan、commitlint 单元测试（Linux 另含 bench-compare 与 release 脚本测试） |
 | `brand-scan` | 全仓库品牌门禁 |
