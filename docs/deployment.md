@@ -89,6 +89,16 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v3`（探測資料 schema 2，與 E4 的 MediaInfo 補充合併後的格式），升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
 
+## Windows 上的媒體探測（G09.6）
+
+Windows amd64 以「受限 token＋Job Object」直接執行已驗證的 `ffprobe.exe`，決定與理由見 [ADR 0011](adr/0011-windows-media-tool-confinement.md)，技術細節見[媒體 helper 隔離](media-sandbox.md#windows-amd64-confinement-g096)。
+
+- **工具位置。** 只用清單固定的 Gyan 靜態版：`scripts/make.ps1 bootstrap-media` 後位於 `<安裝根>\.tools\media\windows-amd64\gyan-9.0.2\ffmpeg-9.0.2-essentials_build\bin\ffprobe.exe`，安裝根是 `jelee.exe` 所在 `bin\` 的上一層（例如 `C:\Jelee\bin\jelee.exe` 對應 `C:\Jelee\.tools\…`）。工作目錄與環境變數不能改變它；雜湊不符、路徑經過 junction／符號連結、放在網路共用（UNC）都視為不可用。路徑總長仍受 260 字元限制（見[探測驗證](probe-verification.md)的長路徑紀錄），請用短的安裝根。
+- **執行身分。** 請以專用的標準使用者（非 Administrators、非 LocalSystem）執行服務，並只授予它媒體根目錄的讀取權。工具以低完整性（Low IL）執行：能讀服務使用者能讀的檔案，不能寫任何一般檔案或目錄，不能建立子程序，記憶體 2 GiB、CPU 30 秒，逾時或取消會終止整個 Job。不需要也不會改動媒體目錄的 ACL。
+- **更新工具。** 服務執行期間 `ffprobe.exe` 被以「不共用寫入／刪除」的方式開著，無法覆寫、刪除或改名其上層目錄；更新 `.tools` 前請先停服務。
+- **檢查。** `jelee-cli doctor probe`（或 `scripts/make.ps1 diag`）會實際以受限身分跑一次健康檢查，成功時 `reason` 為 `confined_process_verified`。
+- **目前的限制。** 目錄掃描的探測在 Windows 仍停用：探測身分與 `tool_versions` 只接受 `linux-amd64`，放寬需要另一個遷移。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查並記一筆 WARN（`code=probe_runtime_unavailable`，`reason=catalog_identity_unsupported` 表示沙箱可用但目錄探測未開放，`health_check_failed` 表示沙箱不可用），探測維持停用，沒有未隔離的備援。MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
+
 ## 媒體庫語言設定的升級
 
 第19／20版新增以下偏好；當前版本要求乾淨schema29，見[lock-only NFO](nfo-lock-only.md)。先執行資料庫遷移，再啟動新的服務；001–019保持原樣。第19版新增媒體庫文字語言及更新版本，第20版新增有序圖片語言清單。設定有更新時降版會拒絕丟失偏好；介面與回復限制見[媒體庫語言](tmdb-library-language.md)及[圖片語言](tmdb-image-preferences.md)。以下仍是首階段容器的歷史驗證。

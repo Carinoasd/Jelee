@@ -72,6 +72,11 @@ type Launcher struct {
 	descriptor  string
 	ffprobePath string
 	protected   bool
+	// direct marks a Windows launcher: executable is the verified tool
+	// itself, started under Confinement without a helper. image holds the
+	// tool open without write or delete sharing for the launcher's life.
+	direct bool
+	image  *os.File
 }
 
 // invocation is one decoded helper request: the verified profile and the
@@ -89,6 +94,9 @@ func New(ctx context.Context, profile Profile, policy Policy) (*Launcher, error)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if directBuild {
+		return newDirect(ctx, profile, policy)
 	}
 	if !supportedBuild {
 		return nil, ErrUnsupported
@@ -130,6 +138,50 @@ func (l *Launcher) CoverHelperArguments(stream int) []string {
 
 func (l *Launcher) ProtectedFilesRequired() bool { return l != nil && l.protected }
 
+// Direct reports a launcher whose Executable is the verified tool itself
+// (Windows). Its argv comes from DirectArguments/DirectCoverArguments and
+// it must run under Confinement; HelperArguments is then nil.
+func (l *Launcher) Direct() bool { return l != nil && l.direct }
+
+// DirectArguments returns a fresh copy of the fixed metadata argv of a
+// direct launcher, without the program name; nil otherwise.
+func (l *Launcher) DirectArguments() []string {
+	if !l.Direct() {
+		return nil
+	}
+	return metadataArguments()
+}
+
+// DirectCoverArguments returns the fixed cover read argv of one
+// video-relative stream index for a direct launcher; nil otherwise or for
+// an index outside 0..CoverMaxVideoIndex.
+func (l *Launcher) DirectCoverArguments(stream int) []string {
+	if !l.Direct() || stream < 0 || stream > CoverMaxVideoIndex {
+		return nil
+	}
+	return coverArguments(stream)
+}
+
+// Close releases a direct launcher's hold on its tool image, after which
+// the tool may be replaced; runners built from it must no longer be used.
+// It is a no-op for helper launchers. The hold is otherwise released when
+// the launcher becomes unreachable.
+func (l *Launcher) Close() error {
+	if l == nil || l.image == nil {
+		return nil
+	}
+	return l.image.Close()
+}
+
+// Confinement returns the restrictions a direct launcher's tool must run
+// under; the zero value (never valid) otherwise.
+func (l *Launcher) Confinement() Confinement {
+	if !l.Direct() {
+		return Confinement{}
+	}
+	return MetadataConfinement()
+}
+
 func (l *Launcher) Executable() string {
 	if l == nil {
 		return ""
@@ -138,7 +190,7 @@ func (l *Launcher) Executable() string {
 }
 
 func (l *Launcher) HelperArguments() []string {
-	if l == nil {
+	if l == nil || l.direct {
 		return nil
 	}
 	return []string{HelperCommand, l.descriptor}

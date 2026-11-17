@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+
+	"github.com/MoYuanCN/Jelee/internal/platform/sandbox"
 )
 
 var (
@@ -74,6 +76,9 @@ type Runner struct {
 	peak      atomic.Int64
 	cancelled atomic.Uint64
 	timedOut  atomic.Uint64
+	// confinement is set only by the sealed isolated factories for a direct
+	// (Windows) launcher; every child then starts confined or not at all.
+	confinement *sandbox.Confinement
 }
 
 // Stats contains aggregate process lifecycle counts without paths or output.
@@ -303,7 +308,12 @@ func (r *Runner) runWith(ctx context.Context, request Request, arguments []strin
 	if ctx.Err() != nil {
 		return Result{}, contextError(ctx)
 	}
-	process, err := startChild(tool.Path, arguments, dir, environment(dir), stdin, stdoutWrite, stderrWrite)
+	var process child
+	if r.confinement != nil {
+		process, err = startConfinedChild(tool.Path, arguments, dir, environment(dir), stdin, stdoutWrite, stderrWrite, *r.confinement)
+	} else {
+		process, err = startChild(tool.Path, arguments, dir, environment(dir), stdin, stdoutWrite, stderrWrite)
+	}
 	if err != nil {
 		if errors.Is(err, ErrUnsupported) {
 			return Result{}, ErrUnsupported

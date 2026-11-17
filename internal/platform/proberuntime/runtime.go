@@ -1,5 +1,6 @@
-// Package proberuntime registers the shipped, isolated Linux metadata helper.
-// Its locations and digests come only from the embedded dependency manifest.
+// Package proberuntime registers the shipped, isolated Linux metadata helper
+// and, on Windows amd64, the confined direct ffprobe.exe (ADR 0011). Its
+// locations and digests come only from the embedded dependency manifest.
 package proberuntime
 
 import (
@@ -23,7 +24,20 @@ var ErrUnavailable = errors.New("probe_runtime_unavailable")
 // Policy is independent of the helper descriptor and the mutable filesystem.
 // Project-local developer installations cannot enable this production profile.
 func Policy() (sandbox.Policy, error) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	return policyFor(runtime.GOOS + "-" + runtime.GOARCH)
+}
+
+func policyFor(platform string) (sandbox.Policy, error) {
+	if platform == "windows-amd64" {
+		// The Windows vendor build is static: the policy is the executable
+		// digest alone; the launcher pins the image while it lives.
+		probe, err := tools.FFprobeSpec(platform)
+		if err != nil {
+			return sandbox.Policy{}, ErrUnavailable
+		}
+		return sandbox.Policy{FFprobeSHA256: probe.SHA256, RequireProtectedFiles: true}, nil
+	}
+	if platform != "linux-amd64" {
 		return sandbox.Policy{}, ErrUnavailable
 	}
 	probe, err := tools.FFprobeSpec("linux-amd64")
@@ -44,6 +58,11 @@ func Policy() (sandbox.Policy, error) {
 // Helper dispatch must run before service configuration, DB access or Fx.
 // The caller immediately exits with the returned code; success replaces itself.
 func Helper(argv []string) int {
+	if runtime.GOOS != "linux" {
+		// Only Linux has a helper; Windows starts the tool directly.
+		_, _ = os.Stderr.WriteString("probe_runtime_unavailable\n")
+		return sandbox.ExitUnavailable
+	}
 	policy, err := Policy()
 	if err != nil {
 		_, _ = os.Stderr.WriteString("probe_runtime_unavailable\n")
@@ -72,6 +91,29 @@ func expectedDescriptor(value string) bool {
 	return false
 }
 
+// ffprobeLocation is the fixed image path on Linux. On Windows it is the
+// manifest's project-relative ffprobe.exe under the installation root, the
+// parent of the directory holding the running executable (bin\jelee.exe);
+// neither the working directory nor the environment can select it.
+func ffprobeLocation() (string, error) {
+	if runtime.GOOS != "windows" {
+		return FFprobePath, nil
+	}
+	spec, err := tools.FFprobeSpec("windows-amd64")
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	location, ok := sandbox.WindowsToolLocation(executable, spec.ExecutablePath, "ffprobe.exe")
+	if !ok {
+		return "", ErrUnavailable
+	}
+	return location, nil
+}
+
 // CoverMaxStdoutBytes bounds one cover read's hex dump. ffprobe prints about
 // 4.3 bytes per payload byte, so this admits pictures somewhat above
 // domain.EmbeddedCoverMaxBytes; anything larger fails as an output limit.
@@ -85,7 +127,11 @@ func NewCover(ctx context.Context, tempRoot string) (*process.IsolatedRunner, er
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: FFprobePath}, policy)
+	location, err := ffprobeLocation()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: location}, policy)
 	if err != nil {
 		return nil, ErrUnavailable
 	}
@@ -106,7 +152,11 @@ func New(ctx context.Context, tempRoot string) (*process.IsolatedRunner, error) 
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: FFprobePath}, policy)
+	location, err := ffprobeLocation()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	launcher, err := sandbox.New(ctx, sandbox.Profile{FFprobePath: location}, policy)
 	if err != nil {
 		return nil, ErrUnavailable
 	}

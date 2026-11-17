@@ -32,6 +32,7 @@
 | B6 | 直投在 Windows 走緩衝備援路徑（無 sendfile）：實機跑 `go test ./internal/adapter/media/`，並實際播放、拖動一次 | `docs/direct-delivery.md`「零拷贝直投」 | 待跑 |
 | B7 | 日誌檔與暫存目錄在 Windows 沒有 POSIX 權限位元，隱私完全依賴所在目錄繼承的 ACL；請確認預設安裝位置（服務帳號、ProgramData）下其他使用者讀不到 `jelee.log` 與暫存目錄，若讀得到需決定是否明確設定 ACL | `internal/platform/logging/rotate.go`、`internal/platform/scratch/` | 待跑 |
 | B8 | Windows 上的 mkvtoolnix／MediaInfo（E4）：`scripts/make.ps1 bootstrap-matroska` 後 `scripts/make.ps1 tools-verify`，確認兩個 zip 只取出清單列出的檔案、`--version` 版本字串相符，並以 `.tools/matroska/mkvtoolnix/102.0/windows-amd64/mkvtoolnix/mkvextract.exe` 手動擷取 `.testfixtures` 的 `subtitles-fonts.mkv`。Windows 正式服務的擷取與補充仍停用（沙箱只在 linux-amd64） | `docs/matroska-tools.md` | 待跑 |
+| B18 | Windows 媒體探測隔離（G09.6，ADR 0011）：在 Windows 10 1607 以上、以標準使用者身分，`scripts/make.ps1 bootstrap-media` 後跑 `go test -count=1 -v -run "Confined|DirectLauncher|WindowsCommandLine" ./internal/platform/process/ ./internal/platform/sandbox/`（子程序為 Low IL、無 Administrators 允許項、特權 ≤1；寫入私有目錄與暫存目錄被拒、不能建立子程序、3 GiB 配置失敗、逾時終止 Job；參數與 `CommandLineToArgvW` 一致；`ffprobe.exe` 被釘住時不能覆寫、改名檔案或上層目錄，`Close` 後可以）。再以 `bin\jelee-cli.exe doctor probe` 確認 `state=available`、`reason=confined_process_verified`；另以系統管理員身分（已提升）各跑一次，回報受限 token 是否仍通過核對 | `internal/platform/process/child_confined_windows.go`、`internal/platform/sandbox/direct_windows_amd64.go`、`docs/media-sandbox.md`「Windows amd64 confinement」 | 待跑 |
 
 ## C. 長時間、規模、效能
 
@@ -61,6 +62,7 @@
 | C22 | 統一權限過濾器：受限使用者在 10 萬條目以上的庫，瀏覽總數、庫清單內容種類探查（某種類全被隱藏時）的耗時，以及 G48 要求的 ≤10% 開銷與 P95 | `docs/access-control.md` | 待跑 |
 | C23 | 客戶端管控：目標硬體與高並發下重跑 C7 的 P95；多實例長時間的規則版本失效與命中寫入延遲；命中表 30 天保留的大小與清除速度、已知客戶端接近 10 萬筆上限 | `docs/client-control.md` | 待跑 |
 | C24 | 資料一致性檢查：在目標硬體的真實大型媒體庫（含 NAS／網路掛載）重跑 `JELEE_CONSISTENCY_SCALE=1 go test -p 1 -run TestConsistencyScale100000Postgres ./internal/adapter/postgres/`，並以 `jelee-cli consistency check` 量測全庫耗時、stat 預算是否足夠；開 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS=168` 運作數週，確認排程不與掃描搶佔、報告保留與 `jelee_consistency_*` 指標正常 | `docs/consistency.md` | 待跑 |
+| C36 | Windows 受限 ffprobe 的開銷與穩定性：同一批真實 MKV／MP4 連續以 `doctor probe` 或健康檢查迴圈跑數千次，量每次啟動的額外延遲（受限 token＋暫停＋核對）、Job／handle 是否洩漏（工作管理員的控制代碼數）、30 秒 CPU 與 2 GiB 上限對大檔或損壞檔的誤殺率 | ADR 0011；`internal/platform/process/child_confined_windows.go` | 待跑 |
 
 ## D. 真實資料／真金鑰／真客戶端
 
@@ -91,6 +93,7 @@
 | D23 | API 控制台（G49.4）：在可開發實例以真實瀏覽器開啟開發者模式，管理員進入「管理 → API 控制台」，對一個讀取與一個寫入操作各送一次，確認狀態碼、耗時、traceId 與日誌中的 `requestId` 一致、`Set-Cookie` 被遮罩、複製的 cURL 只有佔位符；換成非管理員、關閉開發者模式、生產組態各試一次，確認導覽沒有入口且直接輸入網址得到 404 頁面 | `docs/developer-mode.md`「API 控制台」 | 待跑 |
 | D24 | Matroska 擷取與 MediaInfo 補充（E4，G15.5、G15.7、G19.1）：在正式映像（`make bootstrap-matroska` 後建置）以真實 MKV 庫開啟 `JELEE_ENABLE_MATROSKA_EXTRACTION`，用真客戶端（Jellyfin 相容 App、mpv 等）播放含 ASS 內嵌字幕與字型附件的影片，確認字幕與字型正確顯示、原檔雜湊不變、快取上限與淘汰合理、大檔（數十 GB）首次擷取時間可接受；同時確認探測後章節名稱、軌名與附件出現在播放資訊，且 Web 端拿不到任何字幕或字型位元組 | `docs/matroska-tools.md`；容器實測 `docs/evidence/matroska-runtime-image.txt` | 待跑 |
 | D25 | 字幕 OCR 真實點陣字幕準確率（G15.6）：在 OCR 層映像（`make bootstrap-ocr`、`deploy/ocr/Dockerfile`）開啟 `JELEE_ENABLE_SUBTITLE_OCR`，以真實藍光 PGS（1080p／4K，含粗描邊、斜體、雙行、強制字幕）與 DVD VobSub（720×480、各種調色盤）各至少一部英文與一部中文（繁、簡）、一部日文片，人工比對抽樣 100 句以上的字元正確率與時間軸，記錄每部片的辨識耗時、Tesseract 峰值記憶體與 CPU、快取大小；確認原檔 SHA 不變、原點陣軌仍可直投、Web 端拿不到 SRT、真客戶端（Jellyfin 相容 App、mpv）能選到「(OCR)」軌並正常顯示；與 [字幕 OCR](subtitle-ocr.md) 的合成樣本數據對照 | `docs/subtitle-ocr.md`；合成樣本 `TestRealOCRAccuracyAndCost`；容器實測 `docs/evidence/ocr-runtime-image.txt` | 待跑 |
+| D36 | Windows 真實素材探測（G09.6）：受限 ffprobe 以 `fd:` 從繼承的 stdin handle 讀取時能否正確 seek（MP4 moov 在檔尾、MKV cues）、輸出與 Linux 同一素材一致；媒體放在服務使用者可讀的一般 NTFS 目錄、外接磁碟與網路磁碟機（對應的磁碟機代號）各試一次；確認目錄掃描探測在 Windows 維持停用並在啟動日誌有 `reason=catalog_identity_unsupported` 的 WARN | ADR 0011「範圍與已知限制」；`docs/deployment.md`「Windows 上的媒體探測」 | 待跑 |
 
 ## E. 需要擁有者決定
 
