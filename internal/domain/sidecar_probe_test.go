@@ -243,3 +243,30 @@ func TestPlaybackExternalTracksProbeAndPairing(t *testing.T) {
 		t.Fatalf("unpaired .sub must stay listed: %d", len(alone.External))
 	}
 }
+
+// A WAV file names its codec one way: absent until the probe says which
+// PCM sample format (or other codec) the RIFF container carries, then the
+// probe name, as for embedded PCM streams. A declared "pcm" covers it.
+func TestExternalWAVCodecComesOnlyFromTheProbe(t *testing.T) {
+	record := func(id string, probe SidecarProbeRecord) SidecarTrackRecord {
+		return SidecarTrackRecord{ID: id, Track: SidecarTrack{Kind: SidecarKindAudio, Format: "wav"}, Probe: probe, Size: 10}
+	}
+	pending := record("00000000-0000-4000-8000-0000000000b1", SidecarProbeRecord{State: SidecarProbePending})
+	failed := record("00000000-0000-4000-8000-0000000000b2", SidecarProbeRecord{State: SidecarProbeFailed})
+	ready := record("00000000-0000-4000-8000-0000000000b3", SidecarProbeRecord{State: SidecarProbeReady, Facts: SidecarProbeFacts{Codec: "pcm_s24le", Channels: 2, SampleRate: 48000}})
+	source := BuildPlaybackSource(PlaybackSourceRecord{ID: "s", Sidecars: []SidecarTrackRecord{pending, failed, ready}})
+	codecs := map[string]string{}
+	for _, track := range source.External {
+		codecs[track.ID] = track.Codec
+	}
+	if codecs[pending.ID] != "" || codecs[failed.ID] != "" || codecs[ready.ID] != "pcm_s24le" {
+		t.Fatalf("wav codecs: %v", codecs)
+	}
+	reasons := map[string]string{}
+	for _, track := range CheckPlayback(ClientCapabilities{AudioCodecs: []string{"pcm"}}, source).Tracks {
+		reasons[track.ID] = track.Reason
+	}
+	if reasons[pending.ID] != PlaybackReasonTrackNotProbed || reasons[failed.ID] != PlaybackReasonTrackNotProbed || reasons[ready.ID] != "" {
+		t.Fatalf("wav decisions: %v", reasons)
+	}
+}

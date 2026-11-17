@@ -2,9 +2,9 @@
 
 ## 当前边界
 
-`internal/adapter/media` 只读取并传输原始文件，不启动子进程，没有转码、重编码、烧录字幕、HLS、DASH 或 Remux 实现。HTTP 层必须先验证凭据，再通过 `ServeSource` 传入不透明资源 ID。是否注册公开播放入口由应用层功能开关控制。
+`internal/adapter/media` 只读取并传输原始文件，不启动子进程，没有转码、重编码、烧录字幕、HLS、DASH 或 Remux 实现。Remux 在正式与开发者模式都不提供，也不建关键帧表（以容器内 seek 索引代替），理由见 [ADR 0013](adr/0013-no-remux-no-keyframe-table.md)。HTTP 层必须先验证凭据，再通过 `ServeSource` 传入不透明资源 ID。是否注册公开播放入口由应用层功能开关控制。
 
-这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流、外挂字幕/音轨直投及兼容层直投见下文；第三方客户端实际起播验收、播放会话统计、ffprobe、内嵌字幕/音轨提取（mkvextract）、Remux、实际播放器验证与部署性能验收仍需各自实现和验收。本模块测试通过不能代替这些验收。
+这是直投安全基础模块。按用户/设备的并发与带宽限制及撤销即断流、外挂字幕/音轨直投（含按需探测与 UTF-8 衍生副本）、容器布局提示与首段预读、兼容层直投见下文；ffprobe 探测见[媒体中继数据](media-metadata.md)，内嵌字幕与字型提取（mkvextract）见 [mkvtoolnix 与 MediaInfo](matroska-tools.md)。第三方客户端实际起播、实际播放器与目标硬件上的性能验收仍待[拥有者验证清单](owner-verification-queue.md)（C42、D11、D13、D44 等），本模块测试通过不能代替这些验收。
 
 ## 接口和信任边界
 
@@ -185,7 +185,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 **并发计数。** 轨道计入它所属资源的播放：并发上限的计数键是“会话＋资源 ID”，所以同一会话同时拉视频、外挂音轨和字幕只占一个播放名额；换成另一个资源仍按上限拒绝。带宽桶本来就按用户（或设备）共享，轨道与视频一起受限。
 
-**外挂轨探测与 `.idx`＋`.sub`（B4，schema 109）。** 音轨、`.sub`、`.sup` 由目录同步在检查之后按需探测（见 `catalog-sync.md`），结果只是描述，不改变投递：`externalTracks[]` 新增 `probeState`（`pending`／`ready`／`failed`／`not_applicable`），`ready` 时音轨另有 `profile`、`channels`、`channelLayout`、`sampleRate`、`bitRate`、`durationMicros` 与 `atmos`（沿用内嵌轨规则：E-AC-3／TrueHD 的 profile 标明 Dolby Atmos），字幕有 `durationMicros`。`codec` 以探测结果为准（例如 `.dts` 里其实是 AC-3 就报 `ac3`；`mka`／`m4a`／`ogg`／`oga` 探测后不再是空的），未探测时照旧由扩展名决定，`.sub` 由内容判别给 `microdvd` 或 `vobsub`；探测失败或尚未探测的轨照常列出，只是事实未知，判定仍是 `track_not_probed` 或依扩展名的 codec，播放信息从不等待探测。VobSub 的 `.sub` 数据半边不单独列为轨，同名 `.idx` 带 `pairedTrackId`，客户端用它经同一条字幕路由取 `.sub` 原文件。
+**外挂轨探测与 `.idx`＋`.sub`（B4，schema 109）。** 音轨、`.sub`、`.sup` 由目录同步在检查之后按需探测（见 `catalog-sync.md`），结果只是描述，不改变投递：`externalTracks[]` 新增 `probeState`（`pending`／`ready`／`failed`／`not_applicable`），`ready` 时音轨另有 `profile`、`channels`、`channelLayout`、`sampleRate`、`bitRate`、`durationMicros` 与 `atmos`（沿用内嵌轨规则：E-AC-3／TrueHD 的 profile 标明 Dolby Atmos），字幕有 `durationMicros`。`codec` 以探测结果为准（例如 `.dts` 里其实是 AC-3 就报 `ac3`；`mka`／`m4a`／`ogg`／`oga`／`wav` 探测后不再是空的；`wav` 是 RIFF 容器，PCM 采样格式要探测才知道，探测后报 ffprobe 名称如 `pcm_s16le`，与内嵌 PCM 轨一致，声明 `pcm` 仍涵盖所有 PCM），未探测时照旧由扩展名决定，`.sub` 由内容判别给 `microdvd` 或 `vobsub`；探测失败或尚未探测的轨照常列出，只是事实未知，判定仍是 `track_not_probed` 或依扩展名的 codec，播放信息从不等待探测。VobSub 的 `.sub` 数据半边不单独列为轨，同名 `.idx` 带 `pairedTrackId`，客户端用它经同一条字幕路由取 `.sub` 原文件。
 
 探测走媒体探测同一个沙箱 runtime 的新封闭操作 `sidecar`：helper 描述符 `{"version":1,"mode":"sidecar",…}`（Linux）或 Windows 直接启动的固定 argv，与 `metadata` 注册在同一个 `IsolatedRunner`，共用进程并发上限、逾时与输出上限；argv 与 `metadata` 完全相同，只有 `-format_whitelist` 换成 `matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,ogg,mpeg,aac,ac3,eac3,dts,truehd,mlp,flac,mp3,wav,sup,microdvd`（仍只允许 `fd` 协议，没有网络、图片序列、`concat`、`vobsub`（会按名称打开另一个文件）或纯文字字幕 demuxer）。文件仍以 `os.OpenRoot` 只读打开后经 stdin 交给子进程，前后比对大小、mtime 与边缘指纹。新操作不改变探测身份（`ArgumentsSHA256` 只涵盖 `metadata` argv），探测结果存在外挂轨行而不进探测缓存。
 
@@ -259,7 +259,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 容器布局与 faststart 建议（`layout`、`layoutHints`）见上文“容器布局提示与 faststart 建议”。
 
-每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式，以及原文件的直投地址 `url`，见上一节）。多个资源按版本质量分数从高到低排列，同分按 ID。
+每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、格式与 `codec`——按需探测完成时以探测为准，否则由扩展名或 `.sub` 内容判别确定——以及原文件的直投地址 `url`，见上一节）。多个资源按版本质量分数从高到低排列，同分按 ID。
 
 内嵌轨标签（B3）：音轨另给 `title`、`commentary`（`comment` 旗标）、`visualImpaired`（`visual_impaired` 或 `descriptions`），字幕轨另给 `sdh`（`hearing_impaired` 或 `captions`）与 `charset`（内嵌文字轨固定 `UTF-8`，点阵与隐藏式字幕不报）；标题先取 ffprobe 读到的串流标题，没有才取 Matroska 补充的轨道名称。这些值来自探测，旧探测缓存需重探才有（parser `media-metadata-v5`），详见 [媒体中继数据](media-metadata.md#內嵌軌標籤b3g152g163)。选轨偏好对内嵌轨同样适用 SDH 与评论音轨规则。
 
@@ -303,7 +303,7 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 | 类别 | 参数（上游拼写） | 判定 |
 | --- | --- | --- |
-| 编码选择 | `videoCodec`、`audioCodec`、`subtitleCodec` | 出现即拒绝（含 `copy`：那是 Remux，默认关闭） |
+| 编码选择 | `videoCodec`、`audioCodec`、`subtitleCodec` | 出现即拒绝（含 `copy`：那是 Remux，不提供，见 ADR 0013） |
 | 码率 | `maxVideoBitrate`、`maxAudioBitrate`、`maxStreamingBitrate`、`videoBitRate`、`audioBitRate` | 出现即拒绝 |
 | 画面与视频编码约束 | `width`、`height`、`maxWidth`、`maxHeight`、`framerate`、`maxFramerate`、`profile`、`level`、`videoProfile`、`videoLevel`、`videoRangeType`、`codecTag`、`rotation`、`maxRefFrames`、`maxVideoBitDepth`、`videoBitDepth`、`requireAvc`、`requireNonAnamorphic`、`deInterlace` | 出现即拒绝 |
 | 音频编码约束 | `audioSampleRate`、`maxAudioSampleRate`、`audioChannels`、`maxAudioChannels`、`maxAudioBitDepth`、`audioBitDepth`、`transcodingMaxAudioChannels`、`transcodingAudioChannels`、`enableAudioVbrEncoding` | 出现即拒绝 |

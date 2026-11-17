@@ -1047,7 +1047,7 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name,
 		for _, sub := range externalSubtitles(source) {
 			t := sub.track
 			info.MediaStreams = append(info.MediaStreams, mediaStream{
-				Codec: t.Format, Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, IsHearingImpaired: t.SDH,
+				Codec: externalSubtitleCodec(t), Language: t.Language, Title: t.Title, IsDefault: t.Default, IsForced: t.Forced, IsHearingImpaired: t.SDH,
 				Type: mediaStreamSubtitle, Index: sub.index, IsExternal: true, IsTextSubtitleStream: textSubtitleFormats[t.Codec],
 				SupportsExternalStream: true, DeliveryMethod: subtitleDeliveryExternal,
 				DeliveryURL: subtitleURL(itemID, id, sub.index, t.Format),
@@ -1059,6 +1059,18 @@ func (rt *router) mediaSource(itemID string, source domain.PlaybackSource, name,
 	}
 	setDisplayTitles(&info, locale)
 	return info, nil
+}
+
+// externalSubtitleCodec names an external subtitle by the canonical format
+// the own API reports (webvtt, ttml, sami, microdvd, vobsub, pgs), as
+// embedded subtitles are, not by its file extension (vtt, dfxp, smi, sub,
+// idx, sup). A ".sub" whose content kind is not known yet keeps the
+// extension. The DeliveryUrl still ends in the original extension.
+func externalSubtitleCodec(t domain.PlaybackExternalTrack) string {
+	if t.Codec != "" {
+		return t.Codec
+	}
+	return t.Format
 }
 
 // externalAudioStream describes an external audio file (G16.4): the codec

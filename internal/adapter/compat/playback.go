@@ -727,4 +727,6 @@ func (rt *router) audioStream(w http.ResponseWriter, r *http.Request) {
 }
 
 // textSubtitleFormats are the canonical subtitle formats that are text.
-var textSubtitleFormats = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "mov_text": true, "ttml": true, "sami": true, "text": true}
+// MicroDVD is a text format ("{start}{end}line"), as upstream counts every
+// subtitle codec that is not a bitmap one.
+var textSubtitleFormats = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "mov_text": true, "ttml": true, "sami": true, "text": true, "microdvd": true}

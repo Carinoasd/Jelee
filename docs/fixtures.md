@@ -65,15 +65,15 @@ Windows 执行 `scripts/make.ps1 fixtures`；Linux 执行 `make fixtures`。命�
 
 缺 ffmpeg／ffprobe 時這些測試 `SKIP`，設 `JELEE_REQUIRE_MEDIA_TOOL_TESTS=true` 則失敗；編碼器缺失一律 `SKIP` 並印出原因。
 
-### 驗收中觀察到的事項（未改產品邏輯）
+### 驗收中觀察到的事項（B11 未改產品邏輯；前三項已在 B12 修正）
 
-1. 已探測的 WAV 在外掛軌回報 codec `pcm_s16le`，未探測時回報 `pcm`；單聲道 WAV 沒有聲道佈局。
-2. 相容層把 MicroDVD 外掛字幕的 `IsTextSubtitleStream` 報為 `false`（它是文字，但 `microdvd` 不在 `textSubtitleFormats`）。
-3. 相容層外掛字幕的 `Codec` 是副檔名（`vtt`、`dfxp`、`smi`），不是播放資訊的規範名稱（`webvtt`、`ttml`、`sami`）。
+1. 已探測的 WAV 在外掛軌回報 codec `pcm_s16le`，未探測時回報 `pcm`；單聲道 WAV 沒有聲道佈局。**B12 已修**：WAV 改與 mka／m4a／ogg／oga 同列「探測前不報 codec」，探測後為 ffprobe 名稱（與內嵌 PCM 軌一致，客戶端宣告 `pcm` 照樣涵蓋）。
+2. 相容層把 MicroDVD 外掛字幕的 `IsTextSubtitleStream` 報為 `false`（它是文字，但 `microdvd` 不在 `textSubtitleFormats`）。**B12 已修**：`microdvd` 加入 `textSubtitleFormats`，與上游「非點陣即文字」一致；只影響這個旗標，編號、`DeliveryUrl` 與投遞方式不變。
+3. 相容層外掛字幕的 `Codec` 是副檔名（`vtt`、`dfxp`、`smi`），不是播放資訊的規範名稱（`webvtt`、`ttml`、`sami`）。**B12 已修**：相容層外掛字幕的 `Codec` 改用播放資訊的規範名稱（`.sub`、`.idx`、`.sup` 也分別為 `microdvd`／`vobsub`、`vobsub`、`pgs`），與內嵌字幕一致；`DeliveryUrl` 仍以原副檔名結尾，編號不變；既有黃金檔只含 `srt`、`ass` 外掛字幕，名稱相同，未改。
 4. 太短的 TrueHD／MLP 位元流（不到約 0.5 至 1 秒）ffprobe 在 `fd:` 輸入下辨識不出，外掛軌會是 `failed`；真實檔案不受影響。
 5. DTS 編碼器固定約 1.4 Mbit/s，所以 0.25 秒的 DTS 樣本仍有 44 KB（只在測試時產生，不入庫）。
 
-真實 DTS-HD MA、TrueHD Atmos、ALAC、Vorbis、多軌 MKA 的探測正確性仍由擁有者驗證項 D42 負責，本包沒有新增編號。
+真實 DTS-HD MA、TrueHD Atmos、ALAC、Vorbis、多軌 MKA 的探測正確性仍由擁有者驗證項 [D42](owner-verification-queue.md) 負責（B12 補入清單，並含正式 ffprobe 建置的 demuxer 檢查）。
 
 ## 验证
 

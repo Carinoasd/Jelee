@@ -403,12 +403,17 @@ var playbackSidecarSubtitles = map[string]string{
 	"smi": "sami", "sami": "sami", "idx": "vobsub", "sup": "pgs",
 }
 
-// External audio extensions with exactly one codec. mka, m4a, ogg and oga
-// may hold several codecs and are absent. WAV carries PCM, declared as "pcm".
+// External audio extensions with exactly one codec. mka, m4a, ogg, oga and
+// wav may hold several codecs and are absent until probed: a WAV file is a
+// RIFF container whose PCM sample format (pcm_s16le, pcm_s24le, pcm_f32le,
+// ...) or non-PCM codec only the probe can name. Reporting a bare "pcm"
+// before the probe and "pcm_s16le" after it named one file two ways; the
+// probe name is what embedded PCM streams report, and a declared "pcm"
+// still covers every PCM sample format (supportedCodec).
 var playbackSidecarAudio = map[string]string{
 	"aac": "aac", "ac3": "ac3", "eac3": "eac3", "ec3": "eac3", "dts": "dts", "dtshd": "dts",
 	"thd": "truehd", "truehd": "truehd", "mlp": "mlp", "flac": "flac", "alac": "alac",
-	"opus": "opus", "mp3": "mp3", "wav": "pcm",
+	"opus": "opus", "mp3": "mp3",
 }
 
 // ContainerFromContentType maps a stored media content type to the

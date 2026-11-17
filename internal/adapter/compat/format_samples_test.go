@@ -157,10 +157,7 @@ func TestCompatListsAndDeliversEveryFormatSample(t *testing.T) {
 		}
 		wantCodec := s.codec
 		if s.kind == domain.SidecarKindAudio && probeErr != nil {
-			wantCodec = extensionCodec[s.record.Track.Format] // empty for mka, m4a, ogg and oga until probed
-		}
-		if s.kind == domain.SidecarKindAudio && probeErr != nil && s.record.Track.Format == "wav" {
-			wantCodec = "pcm"
+			wantCodec = extensionCodec[s.record.Track.Format] // empty for mka, m4a, ogg, oga and wav until probed
 		}
 		if got.Codec != wantCodec || got.Charset != s.charset || got.Kind != s.kind || got.SizeBytes != int64(len(s.data)) {
 			t.Errorf("%s: playback track %+v, want codec %q charset %q", s.record.RelativePath, got, wantCodec, s.charset)
@@ -234,6 +231,12 @@ func TestCompatListsAndDeliversEveryFormatSample(t *testing.T) {
 			if e.Track.Kind == domain.SidecarKindSubtitle && stream.IsTextSubtitleStream != compatTextSubtitles[s.codec] {
 				t.Errorf("%s: IsTextSubtitleStream=%v for %s", s.record.RelativePath, stream.IsTextSubtitleStream, s.codec)
 			}
+			// The codec is the canonical format the own API reports (webvtt,
+			// ttml, sami, microdvd), as for embedded subtitles, not the
+			// extension the DeliveryUrl keeps.
+			if e.Track.Kind == domain.SidecarKindSubtitle && stream.Codec != s.codec {
+				t.Errorf("%s: Codec=%q, want %q", s.record.RelativePath, stream.Codec, s.codec)
+			}
 		}
 		if !strings.HasSuffix(url, "."+s.record.Track.Format) {
 			t.Errorf("%s: DeliveryUrl %s does not end in the file's own format", s.record.RelativePath, url)
@@ -291,10 +294,10 @@ type formatSample struct {
 }
 
 // compatTextSubtitles says which subtitle codecs the compatibility layer
-// reports as text streams. MicroDVD is text on disk but is reported as a
-// non-text stream today (recorded in docs/fixtures.md).
-var compatTextSubtitles = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "ttml": true, "sami": true, "microdvd": false, "vobsub": false, "pgs": false}
+// reports as text streams: every text format, MicroDVD included; only the
+// bitmap formats are not.
+var compatTextSubtitles = map[string]bool{"srt": true, "ass": true, "ssa": true, "webvtt": true, "ttml": true, "sami": true, "microdvd": true, "vobsub": false, "pgs": false}
 
 // extensionCodec is what the extension alone names for audio, used when the
 // sample is not probed (no ffprobe on the machine).
-var extensionCodec = map[string]string{"aac": "aac", "ac3": "ac3", "eac3": "eac3", "ec3": "eac3", "dts": "dts", "thd": "truehd", "truehd": "truehd", "mlp": "mlp", "flac": "flac", "opus": "opus", "mp3": "mp3", "wav": "pcm"}
+var extensionCodec = map[string]string{"aac": "aac", "ac3": "ac3", "eac3": "eac3", "ec3": "eac3", "dts": "dts", "thd": "truehd", "truehd": "truehd", "mlp": "mlp", "flac": "flac", "opus": "opus", "mp3": "mp3"}
