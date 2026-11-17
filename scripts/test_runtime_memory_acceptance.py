@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import runtime_memory_acceptance as acceptance
+from test_container_memory import inspect_fixture
 
 ARMED = b'{"memoryOOMProbe":"armed","hardLimitBytes":67108864,"attemptBytes":134217728}\n'
 
@@ -122,6 +123,73 @@ class FailureEvidenceTests(unittest.TestCase):
                 validate.assert_not_called()
             self.assertEqual(record["result"], "failed")
             self.assertTrue(record["containerRemoved"])
+
+    def oom_run(self, calls):
+        def run(argv, **kwargs):
+            calls.append(argv[:3])
+            return subprocess.CompletedProcess(argv, 0, ARMED if argv[:2] == ["docker", "logs"] else b"")
+        return run
+
+    def test_late_docker_oom_flag_is_awaited_not_assumed(self):
+        record, calls = {}, []
+        late = [inspect_fixture(oom=True) for _ in range(3)]
+        late[0]["State"]["OOMKilled"] = late[1]["State"]["OOMKilled"] = False
+        with patch.object(acceptance, "inspect_owned", side_effect=late + [inspect_fixture(oom=True)]), \
+                patch.object(acceptance.time, "sleep"):
+            acceptance.check_oom_negative(self.oom_run(calls), "image", "name", record)
+        self.assertEqual(record["result"], "passed")
+        self.assertEqual((record["attempts"], record["oomFlagMissingAttempts"]), (1, 0))
+        self.assertTrue(record["container"]["oomKilled"])
+        self.assertNotIn("secret", json.dumps(record))
+
+    def test_missing_docker_oom_flag_starts_a_fresh_probe(self):
+        record, calls = {}, []
+        missing = inspect_fixture(oom=True)
+        missing["State"]["OOMKilled"] = False
+        # Two attempts never receive the flag; the third probe is fully verified.
+        inspections = [missing, missing, missing, missing, inspect_fixture(oom=True), inspect_fixture(oom=True)]
+        with patch.object(acceptance, "inspect_owned", side_effect=inspections), \
+                patch.object(acceptance, "OOM_FLAG_SETTLE_SECONDS", 0):
+            acceptance.check_oom_negative(self.oom_run(calls), "image", "name", record)
+        self.assertEqual(record["result"], "passed")
+        self.assertEqual((record["attempts"], record["oomFlagMissingAttempts"]), (3, 2))
+        self.assertNotIn("rejectedCheck", record)
+        self.assertEqual(calls.count(["docker", "run", "-d"]), 3)
+        self.assertEqual(calls.count(["docker", "container", "rm"]), 3)
+
+    def test_missing_docker_oom_flag_is_never_accepted(self):
+        record, calls = {}, []
+        missing = inspect_fixture(oom=True)
+        missing["State"]["OOMKilled"] = False
+        with patch.object(acceptance, "inspect_owned", return_value=missing), \
+                patch.object(acceptance, "OOM_FLAG_SETTLE_SECONDS", 0):
+            with self.assertRaisesRegex(acceptance.Rejected, "^container_memory_evidence_invalid$"):
+                acceptance.check_oom_negative(self.oom_run(calls), "image", "name", record)
+        self.assertEqual(record["result"], "failed")
+        self.assertEqual(record["rejectedCheck"], "state_oom_killed")
+        self.assertEqual(record["attempts"], acceptance.OOM_PROBE_ATTEMPTS)
+        self.assertEqual(calls.count(["docker", "container", "rm"]), acceptance.OOM_PROBE_ATTEMPTS)
+        self.assertNotIn("secret", json.dumps(record))
+
+    def test_other_oom_probe_contract_failures_are_not_retried(self):
+        for path, value, check in ((("State", "ExitCode"), 1, "state_exit_code"),
+                                   (("HostConfig", "Memory"), 805306368, "host_memory"),
+                                   (("HostConfig", "ReadonlyRootfs"), False, "host_readonly_rootfs"),
+                                   (("HostConfig", "CapDrop"), [], "host_cap_drop"),
+                                   (("HostConfig", "SecurityOpt"), [], "host_security_opt")):
+            record, calls = {}, []
+            invalid = inspect_fixture(oom=True)
+            parent = invalid
+            for key in path[:-1]:
+                parent = parent[key]
+            parent[path[-1]] = value
+            with self.subTest(path=path), patch.object(acceptance, "inspect_owned", return_value=invalid), \
+                    patch.object(acceptance, "OOM_FLAG_SETTLE_SECONDS", 0):
+                with self.assertRaises(acceptance.Rejected):
+                    acceptance.check_oom_negative(self.oom_run(calls), "image", "name", record)
+                self.assertEqual(record["attempts"], 1)
+                self.assertEqual(record["rejectedCheck"], check)
+                self.assertTrue(record["containerRemoved"])
 
     def test_unavailable_or_malformed_inspection_never_invents_success(self):
         with patch.object(acceptance, "inspect_owned", side_effect=RuntimeError("PRIVATE_ERROR")):

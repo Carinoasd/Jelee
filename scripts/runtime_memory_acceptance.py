@@ -6,7 +6,16 @@ import time
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
-from container_memory import validate_container_interval, validate_oom_negative
+from container_memory import Rejected, validate_container_interval, validate_oom_negative
+
+# Docker sets State.OOMKilled from containerd's TaskOOM event, which is
+# delivered independently of TaskExit. On cgroup v2 the OOM notification can be
+# processed after `docker wait` returns, or be lost once the task's cgroup has
+# been deleted. The probe therefore waits briefly for a late flag and, only when
+# every other inspected field (limits, exit 137, armed allocation) matched,
+# starts a fresh probe. A passing result still needs Docker's own OOMKilled flag.
+OOM_PROBE_ATTEMPTS = 3
+OOM_FLAG_SETTLE_SECONDS = 5.0
 
 
 def inspect_owned(name):
@@ -129,7 +138,11 @@ def check_production_entry(run, image, name, secret_folder, dsn, schema, gogc, r
         effective = dict(value.split("=", 1) for value in inspected["Config"]["Env"])
         if inspected["Config"]["Entrypoint"] != ["/jelee"] or effective.get("GOGC") != str(gogc) or effective.get("GOMEMLIMIT") != "512MiB":
             raise RuntimeError("production memory entry settings differ")
-        record.update(validate_container_interval(before, after, inspected))
+        try:
+            record.update(validate_container_interval(before, after, inspected))
+        except Rejected as error:
+            record["rejectedCheck"] = error.check
+            raise
         record.update(entrypoint="/jelee", health="passed", readiness="passed", stop="passed",
                       runtimeSettingsObservedIn="separate observer process in the same container",
                       mainStartupEnvironmentVerified=True, mainRuntimeSettingsDirectlyObserved=False)
@@ -150,9 +163,40 @@ def check_production_entry(run, image, name, secret_folder, dsn, schema, gogc, r
             environment.unlink(missing_ok=True)
 
 
+def _settled_oom_inspection(name):
+    """Re-inspect an exited probe until Docker has applied a late OOM event."""
+    def flagged(inspected):
+        state = inspected.get("State")
+        return type(state) is dict and state.get("OOMKilled") is True
+
+    inspected = inspect_owned(name)
+    deadline = time.monotonic() + OOM_FLAG_SETTLE_SECONDS
+    while not flagged(inspected) and time.monotonic() < deadline:
+        time.sleep(0.25)
+        inspected = inspect_owned(name)
+    return inspected
+
+
 def check_oom_negative(run, image, name, record):
     """A separate 64 MiB container must demonstrate the OOM rejection path."""
+    record["attempts"] = 0
+    record["oomFlagMissingAttempts"] = 0
+    while True:
+        record["attempts"] += 1
+        try:
+            return _check_oom_negative_once(run, image, name, record)
+        except Rejected as error:
+            # Only a missing Docker OOM flag on an otherwise verified probe is
+            # retried; every other contract failure stops at once.
+            if error.check != "state_oom_killed" or record["attempts"] >= OOM_PROBE_ATTEMPTS:
+                raise
+            record["oomFlagMissingAttempts"] += 1
+
+
+def _check_oom_negative_once(run, image, name, record):
     record.update(result="failed", stage="start")
+    record.pop("rejectedCheck", None)
+    record.pop("allocationPhaseConfirmed", None)
     started = False
     try:
         run(["docker", "run", "-d", "--name", name, "--read-only", "--network", "none", "--cap-drop", "ALL",
@@ -173,7 +217,11 @@ def check_oom_negative(run, image, name, record):
         except (ValueError, UnicodeError):
             raise RuntimeError("controlled OOM probe did not confirm its allocation phase") from None
         record["allocationPhaseConfirmed"] = True
-        record.update(validate_oom_negative(inspect_owned(name)))
+        try:
+            record.update(validate_oom_negative(_settled_oom_inspection(name)))
+        except Rejected as error:
+            record["rejectedCheck"] = error.check
+            raise
         record.update(result="passed", stage="complete")
         return record
     finally:
