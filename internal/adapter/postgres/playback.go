@@ -33,7 +33,9 @@ func listSourcesSQL(sessionFilter string) string {
  CASE WHEN p.root_id IS NOT NULL AND (c.source_id IS NULL OR (c.size=p.size AND c.modified_unix_nano=p.modified_unix_nano)) THEN p.metadata END,
  c.size,
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',t.id::text,'kind',t.kind,'format',t.format,'language',t.language,'languages',t.languages,
-  'title',t.title,'forced',t.forced,'sdh',t.sdh,'default',t.is_default,'commentary',t.commentary,'charset',t.charset,'size',t.size)
+  'title',t.title,'forced',t.forced,'sdh',t.sdh,'default',t.is_default,'commentary',t.commentary,'charset',t.charset,'size',t.size,
+  'probeState',t.probe_state,'codec',t.codec,'profile',t.profile,'channels',t.channels,'channelLayout',t.channel_layout,
+  'sampleRate',t.sample_rate,'bitRate',t.bit_rate,'durationMicros',t.duration_micros,'subtitleKind',t.subtitle_kind,'pairedTrackId',t.paired_track_id::text)
   ORDER BY t.kind DESC,t.root_id,t.relative_path)
   FROM media_sidecar_tracks t WHERE t.source_id=m.id AND t.library_id=m.library_id),'[]'::jsonb),
  EXISTS(SELECT 1 FROM item_primary_versions pv WHERE pv.item_id=i.id AND pv.source_id=m.id),
@@ -71,6 +73,16 @@ type playbackSidecar struct {
 	Commentary bool     `json:"commentary"`
 	Charset    *string  `json:"charset"`
 	Size       int64    `json:"size"`
+	ProbeState string   `json:"probeState"`
+	Codec      *string  `json:"codec"`
+	Profile    *string  `json:"profile"`
+	Channels   *int     `json:"channels"`
+	Layout     *string  `json:"channelLayout"`
+	SampleRate *int     `json:"sampleRate"`
+	BitRate    *int64   `json:"bitRate"`
+	Duration   *int64   `json:"durationMicros"`
+	SubKind    *string  `json:"subtitleKind"`
+	Paired     *string  `json:"pairedTrackId"`
 }
 
 // ListPlaybackSources returns every media source of a visible item for a
@@ -136,7 +148,9 @@ func (s *Store) listSources(parent context.Context, query string, actor domain.A
 			if len(t.Languages) > 0 {
 				track.Languages = t.Languages
 			}
-			record.Sidecars = append(record.Sidecars, domain.SidecarTrackRecord{ID: t.ID, SourceID: id, Track: track, Charset: sidecarText(t.Charset), Size: t.Size})
+			probe := sidecarProbeRecord(t.ProbeState, t.Codec, t.Profile, t.Channels, t.Layout, t.SampleRate, t.BitRate, t.Duration)
+			record.Sidecars = append(record.Sidecars, domain.SidecarTrackRecord{ID: t.ID, SourceID: id, Track: track, Charset: sidecarText(t.Charset), Size: t.Size,
+				Probe: probe, SubtitleKind: sidecarText(t.SubKind), PairedTrackID: sidecarText(t.Paired)})
 		}
 		result = append(result, record)
 	}

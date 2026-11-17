@@ -44,6 +44,9 @@ type Source struct {
 	// only reported as a Content-Type parameter; the bytes are never
 	// converted.
 	Charset string
+	// SubtitleKind is the content kind of an external ".sub" (VobSub data
+	// or MicroDVD text); it only selects the Content-Type.
+	SubtitleKind string
 }
 
 // Resolver must apply authorization in its lookup, check enabled users and
@@ -135,7 +138,7 @@ func (h *Handler) ServeTrack(w http.ResponseWriter, r *http.Request, sourceID st
 		if err != nil {
 			return Source{}, err
 		}
-		source.ContentType = TrackContentType(kind, path.Ext(source.RelativePath), source.Charset)
+		source.ContentType = TrackContentType(kind, path.Ext(source.RelativePath), source.Charset, source.SubtitleKind)
 		return source, nil
 	})
 }

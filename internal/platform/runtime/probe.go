@@ -13,6 +13,7 @@ import (
 	"github.com/MoYuanCN/Jelee/internal/adapter/probe"
 	"github.com/MoYuanCN/Jelee/internal/app"
 	"github.com/MoYuanCN/Jelee/internal/domain"
+	jobworker "github.com/MoYuanCN/Jelee/internal/platform/jobs"
 	"github.com/MoYuanCN/Jelee/internal/platform/mkvruntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/proberuntime"
 	"github.com/MoYuanCN/Jelee/internal/platform/process"
@@ -197,6 +198,30 @@ func (p *probeService) Probe(ctx context.Context, source domain.ProbeSource) (do
 	}
 	p.probeCalls.Add(1)
 	return p.backend.Probe(ctx, source)
+}
+
+// ProbeSidecar probes one external track file through the same isolated
+// runner, and so the same process admission, as Probe (B4). An unavailable
+// or disabled runtime refuses it like Probe.
+func (p *probeService) ProbeSidecar(ctx context.Context, source domain.ProbeSource) (domain.ProbeObservation, error) {
+	if !p.Available() {
+		return domain.ProbeObservation{}, domain.ErrProbeRuntimeUnavailable
+	}
+	prober, ok := p.backend.(app.SidecarProber)
+	if !ok {
+		return domain.ProbeObservation{}, domain.ErrProbeRuntimeUnavailable
+	}
+	p.probeCalls.Add(1)
+	return prober.ProbeSidecar(ctx, source)
+}
+
+// sidecarProbeOptions wires the external track probe pass when media
+// probing is available; it follows probing's own availability afterwards.
+func sidecarProbeOptions(probing *probeService, repository app.SidecarProbeRepository) *jobworker.SidecarProbeOptions {
+	if probing == nil || repository == nil || !probing.Available() {
+		return nil
+	}
+	return &jobworker.SidecarProbeOptions{Repository: repository, Prober: probing, Available: probing.Available}
 }
 
 func (p *probeService) startMaintenance(ctx context.Context) {

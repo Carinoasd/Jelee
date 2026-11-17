@@ -76,6 +76,18 @@ func NewAdapterWithSupplement(runner *process.IsolatedRunner, supplement *proces
 // changed edge fingerprint, malformed output, or child failure discards metadata.
 // Caller authorization must resolve Source from a registered library first.
 func (a *Adapter) Probe(ctx context.Context, source Source) (observation Observation, resultErr error) {
+	return a.probe(ctx, source, "metadata")
+}
+
+// ProbeSidecar probes one external audio or subtitle file (B4) exactly like
+// Probe, through the same runner and its process admission, but with the
+// sealed sidecar operation whose demuxer whitelist admits standalone audio
+// and subtitle formats. The MediaInfo supplement is never run.
+func (a *Adapter) ProbeSidecar(ctx context.Context, source Source) (Observation, error) {
+	return a.probe(ctx, source, process.SidecarOperation)
+}
+
+func (a *Adapter) probe(ctx context.Context, source Source, operation string) (observation Observation, resultErr error) {
 	if a == nil || a.runner == nil || ctx == nil {
 		return Observation{}, ErrInvalidInput
 	}
@@ -97,7 +109,7 @@ func (a *Adapter) Probe(ctx context.Context, source Source) (observation Observa
 	if err != nil {
 		return Observation{}, err
 	}
-	result, err := a.runner.Run(ctx, process.Request{Tool: "ffprobe", Operation: "metadata", Stdin: input.Stdin()})
+	result, err := a.runner.Run(ctx, process.Request{Tool: "ffprobe", Operation: operation, Stdin: input.Stdin()})
 	if err := ctx.Err(); err != nil {
 		return Observation{}, err
 	}
@@ -111,7 +123,7 @@ func (a *Adapter) Probe(ctx context.Context, source Source) (observation Observa
 	if err != nil {
 		return Observation{}, err
 	}
-	if a.supplement != nil && domain.IsMatroskaMetadata(metadata) {
+	if operation == "metadata" && a.supplement != nil && domain.IsMatroskaMetadata(metadata) {
 		if err := a.supplementMetadata(ctx, input, &metadata); err != nil {
 			return Observation{}, err
 		}

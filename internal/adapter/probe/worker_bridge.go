@@ -17,7 +17,10 @@ type WorkerBridge struct {
 	digest  string
 }
 
-var _ app.MetadataProber = (*WorkerBridge)(nil)
+var (
+	_ app.MetadataProber = (*WorkerBridge)(nil)
+	_ app.SidecarProber  = (*WorkerBridge)(nil)
+)
 
 func NewWorkerBridge(adapter *Adapter, identity domain.ProbeIdentity) (*WorkerBridge, error) {
 	if adapter == nil || adapter.runner == nil {
@@ -67,6 +70,27 @@ func (b *WorkerBridge) Probe(ctx context.Context, source domain.ProbeSource) (do
 		return domain.ProbeObservation{}, err
 	}
 	observation, err := b.adapter.Probe(ctx, source)
+	if ctx.Err() != nil {
+		return domain.ProbeObservation{}, ctx.Err()
+	}
+	if err != nil {
+		return domain.ProbeObservation{}, workerError(err)
+	}
+	result, err := workerObservation(observation, b.digest)
+	if ctx.Err() != nil {
+		return domain.ProbeObservation{}, ctx.Err()
+	}
+	return result, err
+}
+
+// ProbeSidecar probes one external track file through the same isolated
+// runner as Probe (B4). The result is not a probe cache entry; the caller
+// stores only the facts it reduces it to.
+func (b *WorkerBridge) ProbeSidecar(ctx context.Context, source domain.ProbeSource) (domain.ProbeObservation, error) {
+	if err := b.check(ctx); err != nil {
+		return domain.ProbeObservation{}, err
+	}
+	observation, err := b.adapter.ProbeSidecar(ctx, source)
 	if ctx.Err() != nil {
 		return domain.ProbeObservation{}, ctx.Err()
 	}

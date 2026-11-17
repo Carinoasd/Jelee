@@ -36,3 +36,19 @@ type SidecarInspectionRepository interface {
 type SidecarInspector interface {
 	InspectSidecar(ctx context.Context, target domain.SidecarInspectionTarget) (domain.SidecarInspection, error)
 }
+
+// SidecarProbeRepository pages, under a catalog sync lease, the external
+// tracks whose sandboxed probe is pending (B4) and records the outcomes. A
+// result applies only while the row's size and modification time still
+// equal the stamp that was probed; a changed file stays pending.
+type SidecarProbeRepository interface {
+	NextSidecarProbes(ctx context.Context, lease domain.JobLease, after string, limit int) ([]domain.SidecarInspectionTarget, error)
+	RecordSidecarProbes(ctx context.Context, lease domain.JobLease, results []domain.SidecarProbeResult) (int, error)
+}
+
+// SidecarProber probes one external audio or subtitle file with the
+// sandboxed metadata runtime, under the same process admission as media
+// probing. Errors are the MetadataProber sentinels.
+type SidecarProber interface {
+	ProbeSidecar(ctx context.Context, source domain.ProbeSource) (domain.ProbeObservation, error)
+}

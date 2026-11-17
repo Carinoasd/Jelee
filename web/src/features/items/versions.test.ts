@@ -28,7 +28,7 @@ function source(id: string, name: string, primary: boolean): MediaSourceInfo {
     videoTracks: [],
     audioTracks: [{ index: 1, codec: "eac3", language: "eng", default: true, forced: false, atmos: false, commentary: false, visualImpaired: false }],
     subtitleTracks: [{ index: 2, codec: "subrip", format: "srt", language: "jpn", default: false, forced: false, sdh: false }],
-    externalTracks: [{ id: "70000000-0000-4000-8000-000000000001", kind: "audio", format: "ac3", language: "en", commentary: true, forced: false, sdh: false, default: false, sizeBytes: 1 }],
+    externalTracks: [{ id: "70000000-0000-4000-8000-000000000001", kind: "audio", format: "ac3", language: "en", commentary: true, forced: false, sdh: false, default: false, sizeBytes: 1, probeState: "ready" }],
   };
 }
 

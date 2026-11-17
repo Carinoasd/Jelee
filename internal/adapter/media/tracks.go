@@ -40,8 +40,9 @@ var trackTypes = map[TrackKind]map[string]string{
 }
 
 // textSubtitles are the subtitle extensions that are text, so a detected
-// charset is meaningful for them. A ".sub" with a detected charset is
-// MicroDVD text; without one it stays opaque.
+// charset is meaningful for them. A ".sub" not yet content-checked is taken
+// for MicroDVD text when it has a detected charset; without one it stays
+// opaque.
 var textSubtitles = map[string]string{
 	"srt": "", "ass": "", "ssa": "", "vtt": "", "webvtt": "", "ttml": "", "dfxp": "",
 	"smi": "", "sami": "", "idx": "", "sub": "text/x-microdvd",
@@ -52,8 +53,23 @@ var textSubtitles = map[string]string{
 // its detected charset. The charset is only reported as a parameter and only
 // when it is one of the names the scan records; the bytes are delivered as
 // they are. Unknown formats are application/octet-stream.
-func TrackContentType(kind TrackKind, extension, charset string) string {
+//
+// subtitleKind is the content kind the scan found in a ".sub": MicroDVD is
+// text/x-microdvd even without a charset, VobSub data is always opaque. An
+// unchecked ".sub" falls back to the charset rule.
+func TrackContentType(kind TrackKind, extension, charset, subtitleKind string) string {
 	ext := strings.ToLower(strings.TrimPrefix(extension, "."))
+	if kind == TrackSubtitle && ext == "sub" {
+		switch subtitleKind {
+		case domain.SidecarSubtitleVobSub:
+			return "application/octet-stream"
+		case domain.SidecarSubtitleMicroDVD:
+			if charset != "" && slices.Contains(domain.SidecarCharsets, charset) {
+				return "text/x-microdvd; charset=" + charset
+			}
+			return "text/x-microdvd"
+		}
+	}
 	contentType := trackTypes[kind][ext]
 	known := kind == TrackSubtitle && charset != "" && slices.Contains(domain.SidecarCharsets, charset)
 	if fallback, text := textSubtitles[ext]; kind == TrackSubtitle && text && known {

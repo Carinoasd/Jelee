@@ -76,6 +76,7 @@ erDiagram
         uuid source_id FK
         uuid library_id FK
         uuid root_id FK
+        uuid paired_track_id FK
         text kind
         text format
     }
@@ -195,6 +196,7 @@ erDiagram
     media_sources ||--o| item_primary_versions : "source_id"
     media_sources ||--o{ media_sidecar_tracks : "source_id,library_id"
     library_roots ||--o{ media_sidecar_tracks : "root_id,library_id"
+    media_sidecar_tracks |o--o{ media_sidecar_tracks : "paired_track_id,source_id"
     items ||--o{ item_images : "item_id,library_id"
     library_roots |o--o{ item_images : "root_id,library_id"
     items ||--o| item_metadata_state : "item_id"

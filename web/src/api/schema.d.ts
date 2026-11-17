@@ -35634,12 +35634,18 @@ export type components = {
             contentType: string;
             durationMicros?: number;
             externalTracks: {
+                /** @description Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos. */
+                atmos?: boolean;
+                bitRate?: number;
+                channelLayout?: string;
+                channels?: number;
                 /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                 charset?: string;
-                /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                 codec?: string;
                 commentary: boolean;
                 default: boolean;
+                durationMicros?: number;
                 forced: boolean;
                 /** @description File extension of the sidecar file. */
                 format: string;
@@ -35649,6 +35655,19 @@ export type components = {
                 kind: "subtitle" | "audio";
                 language?: string;
                 languages?: string[];
+                /**
+                 * Format: uuid
+                 * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.
+                 */
+                pairedTrackId?: string;
+                /**
+                 * @description Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.
+                 * @enum {string}
+                 */
+                probeState: "pending" | "ready" | "failed" | "not_applicable";
+                /** @description Probed audio profile, such as DTS-HD MA. */
+                profile?: string;
+                sampleRate?: number;
                 sdh: boolean;
                 sizeBytes: number;
                 title?: string;
@@ -35702,12 +35721,18 @@ export type components = {
                 contentType: string;
                 durationMicros?: number;
                 externalTracks: {
+                    /** @description Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos. */
+                    atmos?: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
                     /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                     charset?: string;
-                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                     codec?: string;
                     commentary: boolean;
                     default: boolean;
+                    durationMicros?: number;
                     forced: boolean;
                     /** @description File extension of the sidecar file. */
                     format: string;
@@ -35717,6 +35742,19 @@ export type components = {
                     kind: "subtitle" | "audio";
                     language?: string;
                     languages?: string[];
+                    /**
+                     * Format: uuid
+                     * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.
+                     */
+                    pairedTrackId?: string;
+                    /**
+                     * @description Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.
+                     * @enum {string}
+                     */
+                    probeState: "pending" | "ready" | "failed" | "not_applicable";
+                    /** @description Probed audio profile, such as DTS-HD MA. */
+                    profile?: string;
+                    sampleRate?: number;
                     sdh: boolean;
                     sizeBytes: number;
                     title?: string;
@@ -36581,12 +36619,18 @@ export type components = {
             };
             durationMicros?: number;
             externalTracks: {
+                /** @description Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos. */
+                atmos?: boolean;
+                bitRate?: number;
+                channelLayout?: string;
+                channels?: number;
                 /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                 charset?: string;
-                /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                 codec?: string;
                 commentary: boolean;
                 default: boolean;
+                durationMicros?: number;
                 forced: boolean;
                 /** @description File extension of the sidecar file. */
                 format: string;
@@ -36596,6 +36640,19 @@ export type components = {
                 kind: "subtitle" | "audio";
                 language?: string;
                 languages?: string[];
+                /**
+                 * Format: uuid
+                 * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.
+                 */
+                pairedTrackId?: string;
+                /**
+                 * @description Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.
+                 * @enum {string}
+                 */
+                probeState: "pending" | "ready" | "failed" | "not_applicable";
+                /** @description Probed audio profile, such as DTS-HD MA. */
+                profile?: string;
+                sampleRate?: number;
                 sdh: boolean;
                 sizeBytes: number;
                 title?: string;
@@ -36653,12 +36710,18 @@ export type components = {
                 contentType: string;
                 durationMicros?: number;
                 externalTracks: {
+                    /** @description Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos. */
+                    atmos?: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
                     /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
                     charset?: string;
-                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    /** @description The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe). */
                     codec?: string;
                     commentary: boolean;
                     default: boolean;
+                    durationMicros?: number;
                     forced: boolean;
                     /** @description File extension of the sidecar file. */
                     format: string;
@@ -36668,6 +36731,19 @@ export type components = {
                     kind: "subtitle" | "audio";
                     language?: string;
                     languages?: string[];
+                    /**
+                     * Format: uuid
+                     * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.
+                     */
+                    pairedTrackId?: string;
+                    /**
+                     * @description Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.
+                     * @enum {string}
+                     */
+                    probeState: "pending" | "ready" | "failed" | "not_applicable";
+                    /** @description Probed audio profile, such as DTS-HD MA. */
+                    profile?: string;
+                    sampleRate?: number;
                     sdh: boolean;
                     sizeBytes: number;
                     title?: string;

@@ -43,6 +43,8 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 - **忽略規則**：只採用發布目標基準那次掃描實際觀測到的外掛檔（`observed_revision` 等於目標版號）。忽略模式下被排除的檔案在基準中保留舊觀測，因此不會變成軌道；條目本身仍依原規則處理。
 - **刪除**：影片在一般同步中被標記缺失時，其外掛軌一併清空（稽核 removed＝原軌數）；影片重新出現時再配對。接受缺失（accept）刪除來源時，外掛軌經外鍵 `ON DELETE CASCADE` 一起刪除。明確匯入的來源不屬同步管理，同步不為它們配對外掛軌。
 - **字元集與指紋**：寫入時兩者先留空（大小＋mtime 代表內容）。同步各階段完成後、任務結束前，worker 在交易之外逐頁（每頁 64 軌，`media_sidecar_tracks_uninspected_idx`）讀取 `fingerprint IS NULL` 的軌：指紋沿用媒體探測的邊緣指紋（`probe.EdgeFingerprint`：大小＋頭尾各至多 64 KiB 的 SHA-256，不讀整檔），文字字幕再以 `subtitles.DetectCharset` 讀至多 1 MiB 判斷字元集，低信心不記錄。檔案以 `os.OpenRoot` 唯讀開啟，前後比對大小與 mtime，期間被改寫、已消失或已被替換就跳過，下次掃描再處理；寫回時再以大小＋mtime＋`fingerprint IS NULL` 為條件並受租約保護。從不轉碼、改名或改寫原檔。
+- **`.sub` 內容判別與 `.idx`＋`.sub` 成對（B4，schema 109）**：同一趟檢查對 `.sub` 讀檔頭至多 4 KiB（`domain.SniffSubtitleSub`）：MPEG-PS pack header `00 00 01 BA` 為 VobSub 資料，第一個非空行是 `{n}{n}` 幀號（可有 UTF-8／UTF-16 BOM）為 MicroDVD 文字，結果記在 `subtitle_kind`（其他內容為 NULL）；VobSub 一律不記字元集，即使偵測器猜到。成對只看檔名：同一來源、同一目錄、去掉副檔名後完全相同的 `.idx` 與 `.sub`，`.idx` 列的 `paired_track_id` 指向 `.sub` 列（自參照外鍵 `(paired_track_id,source_id)`，`ON DELETE SET NULL (paired_track_id)`，不能跨來源、只有 `.idx` 能指）。每次該來源的外掛軌有變動時以一條 SQL 重算；`.sub` 消失時外鍵自動解除成對，`.idx` 仍是軌。播放資訊不把成對的 `.sub` 列為獨立軌，`.idx` 帶 `pairedTrackId`，`.sub` 本身仍可經同一字幕路由取原檔。升級到 schema 109 時，既有 `.idx` 立即成對，既有 `.sub` 清掉指紋排回下一趟檢查（同時重判字元集），音軌、`.sub`、`.sup` 全部排為待探測。
+- **按需探測（B4，schema 109）**：音軌、`.sub`、`.sup` 寫入時 `probe_state='pending'`，其他文字字幕為 `not_applicable`（資料庫 CHECK 限定只有這三類可排程）。檢查之後、圖片入庫之前，worker 以 `NextSidecarProbes` 逐頁（每頁 16 軌，部分索引 `media_sidecar_tracks_probe_pending_idx`）取出待探測軌，每個檔在交易之外、IO 工作配額下以**同一個沙箱 ffprobe runtime**（媒體探測的 `IsolatedRunner`、同樣的進程上限與 30 秒逾時；新的封閉操作 `sidecar`，只把 demuxer 白名單換成外掛音軌與字幕需要的格式，見 `docs/direct-delivery.md`）探測，每次同步至多 512 個，其餘留給下次同步。結果寫回 `codec`、`profile`、`channels`、`channel_layout`、`sample_rate`、`bit_rate`、`duration_micros` 與探測時的 `probed_size`／`probed_modified_unix_nano`；寫回條件是列仍為 pending 且大小＋mtime 等於探測的那一版。檔案本身的失敗（ffprobe 拒絕、輸出不合白名單或超限、沒有音訊／字幕串流）記為 `failed`，同一版檔案不再重試；忙碌、逾時、檔案變動或讀不到則保持 pending；runtime 不可用就結束這一趟。資料庫 CHECK 保證 ready／failed 的探測戳記必須等於列的戳記，重掃發現大小、mtime、種類或格式改變時，同一條 UPDATE 把探測欄位與 `subtitle_kind` 清回初始狀態，之後重新檢查與探測。探測結果不進探測快取，不改探測身分（仍是 `media-metadata-v5`）。
 - **直投**：寫入的列即 `/api/v1/sources/{id}/subtitles|audio/{trackId}` 的資料來源（見 `direct-delivery.md`）。
 
 ## 圖片入庫（G40.2、G40.3，schema 94）
@@ -119,4 +121,4 @@ POST /api/v1/jobs/REVIEWED_SCAN_ID/accept-missing
 
 ## 未涵蓋
 
-識別修正與待確認決定的網頁介面、自動合併原因（`grouping_reason`）與分片原因（`part_reason`）的 API 與網頁顯示、只有一個檔案的條目的分片原因、只靠解析度／HDR／剪輯版標記而沒有 NFO 外部 ID 的跨目錄聚合、忽略模式發布後的自動同步、明確匯入來源的外掛軌配對、`.idx`＋`.sub` 成對關係的記錄（兩者各自成軌）。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。
+識別修正與待確認決定的網頁介面、自動合併原因（`grouping_reason`）與分片原因（`part_reason`）的 API 與網頁顯示、只有一個檔案的條目的分片原因、只靠解析度／HDR／剪輯版標記而沒有 NFO 外部 ID 的跨目錄聚合、忽略模式發布後的自動同步、明確匯入來源的外掛軌配對。大規模首掃／重掃、GOMAXPROCS=2/4、24 小時混合負載尚待擁有者量測。

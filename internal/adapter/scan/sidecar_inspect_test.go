@@ -92,8 +92,38 @@ func TestSidecarInspectorCharsetFingerprintAndUnchangedFile(t *testing.T) {
 		t.Fatalf("audio inspection %v %+v", err, audio)
 	}
 	vobsub, err := SidecarInspector{}.InspectSidecar(ctx, inspectTarget(t, root, "Movie/Movie.sub", domain.SidecarKindSubtitle, "sub"))
-	if err != nil || vobsub.Charset != "" || len(vobsub.Fingerprint) != domain.SidecarFingerprintBytes {
+	if err != nil || vobsub.Charset != "" || len(vobsub.Fingerprint) != domain.SidecarFingerprintBytes || vobsub.SubtitleKind != domain.SidecarSubtitleVobSub {
 		t.Fatalf("binary subtitle %v %+v", err, vobsub)
+	}
+	if audio.SubtitleKind != "" || ascii.SubtitleKind != "" {
+		t.Fatal("content kind reported for a format other than .sub")
+	}
+}
+
+// The content, not the charset, decides a ".sub" (B4): MicroDVD text keeps
+// its charset; VobSub data never gets one, even when its bytes happen to
+// look like text to the detector; unrecognized content has no kind.
+func TestSidecarInspectorSniffsSubContent(t *testing.T) {
+	root := t.TempDir()
+	writeInspectFile(t, root, "Movie/Movie.en.sub", []byte("{1}{1}23.976\r\n{0}{48}Hello there.|Second line\r\n{50}{96}Bye.\r\n"))
+	textLike := append([]byte{0, 0, 1, 0xba}, bytes.Repeat([]byte("plain ascii text "), 400)...)
+	writeInspectFile(t, root, "Movie/Movie.sub", textLike)
+	writeInspectFile(t, root, "Movie/Other.sub", []byte("1\r\n00:00:01,000 --> 00:00:02,000\r\nNot MicroDVD.\r\n"))
+	writeInspectFile(t, root, "Movie/Empty.sub", nil)
+	ctx := context.Background()
+	for _, tc := range []struct {
+		path, kind string
+		charset    bool
+	}{
+		{"Movie/Movie.en.sub", domain.SidecarSubtitleMicroDVD, true},
+		{"Movie/Movie.sub", domain.SidecarSubtitleVobSub, false},
+		{"Movie/Other.sub", "", true},
+		{"Movie/Empty.sub", "", true}, // empty text detects as UTF-8, as before
+	} {
+		got, err := SidecarInspector{}.InspectSidecar(ctx, inspectTarget(t, root, tc.path, domain.SidecarKindSubtitle, "sub"))
+		if err != nil || got.SubtitleKind != tc.kind || (got.Charset != "") != tc.charset || !domain.ValidSidecarInspection(got) {
+			t.Fatalf("%s: %v %+v", tc.path, err, got)
+		}
 	}
 }
 

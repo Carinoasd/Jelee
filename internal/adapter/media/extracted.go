@@ -53,7 +53,7 @@ var fontTypes = map[string]string{"ttf": "font/ttf", "otf": "font/otf", "ttc": "
 func ExtractedContentType(kind ExtractedKind, extension string) string {
 	ext := strings.ToLower(strings.TrimPrefix(extension, "."))
 	if kind == ExtractedSubtitle || kind == ExtractedOCRSubtitle {
-		return TrackContentType(TrackSubtitle, ext, "UTF-8")
+		return TrackContentType(TrackSubtitle, ext, "UTF-8", "")
 	}
 	if contentType, ok := fontTypes[ext]; ok {
 		return contentType

@@ -98,6 +98,7 @@
 | 106 | 多分片版本：`media_source_parts`（同步时建立，来源删除时清除；不导出：可重建的衍生状态），`catalog_scan_sources.part_reason`、`catalog_sync_requests.parts_cursor`／`parts_done`；见[多版本](item-versions.md#多分片版本g211schema-106) |
 | 107 | 通用任务排程：`job_schedules`（管理员建立与删除；媒体库删除时级联清除；无窗口、非 `once` 的扫描排程随 `scan_schedule` 记录导出，带窗口或 `once` 的扫描排程与其他种类不导出（还原后需重新设定）），`scan_schedules` 只保留扫描选项、监看与拥有者；`jobs.system_source`（系统身份任务的来源）；见[任务排程](job-schedules.md) |
 | 108 | 无新表：`tool_versions.platform` 的 CHECK 放宽为 `linux-amd64`／`windows-amd64`（ffprobe 的 Windows 探测身份，见 [ADR 0011](adr/0011-windows-media-tool-confinement.md)）；降级时若有非 Linux 的身份列会被拒绝；`tool_versions` 仍不导出（可重建的衍生状态） |
+| 109 | 无新表：`media_sidecar_tracks` 加外挂轨按需探测栏位（`probe_state`、`codec`、`profile`、`channels`、`channel_layout`、`sample_rate`、`bit_rate`、`duration_micros`、`probed_size`／`probed_modified_unix_nano`）、`.sub` 内容类别 `subtitle_kind`、`.idx` 指向同名 `.sub` 的自参照外键 `paired_track_id`（同来源，`ON DELETE SET NULL`）与待探测部分索引；全部由扫描与探测重建，降级时直接丢弃这些栏位（外挂轨列保留）；随外挂轨不导出（可重建的衍生状态）；见[目录同步](catalog-sync.md) |
 
 数据量上限、回收与降级的细节分别写在 [探测缓存](probe-cache.md)、[NFO 缓存](nfo-cache.md)、[任务](jobs-worker.md)、[ignore 存储](ignore-family-storage.md)、[NFO commit 恢复租约](nfo-commit-recovery-lease.md)。回滚说明在各迁移对应的文档里；降级会丢失该迁移之后的状态，但不会改动媒体目录。
 

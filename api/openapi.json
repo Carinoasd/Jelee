@@ -6988,12 +6988,28 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "atmos": {
+                  "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos.",
+                  "type": "boolean"
+                },
+                "bitRate": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "channelLayout": {
+                  "type": "string"
+                },
+                "channels": {
+                  "maximum": 256,
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "charset": {
                   "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                   "type": "string"
                 },
                 "codec": {
-                  "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                  "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                   "type": "string"
                 },
                 "commentary": {
@@ -7001,6 +7017,10 @@
                 },
                 "default": {
                   "type": "boolean"
+                },
+                "durationMicros": {
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "forced": {
                   "type": "boolean"
@@ -7029,6 +7049,29 @@
                   },
                   "type": "array"
                 },
+                "pairedTrackId": {
+                  "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.",
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "probeState": {
+                  "description": "Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.",
+                  "enum": [
+                    "pending",
+                    "ready",
+                    "failed",
+                    "not_applicable"
+                  ],
+                  "type": "string"
+                },
+                "profile": {
+                  "description": "Probed audio profile, such as DTS-HD MA.",
+                  "type": "string"
+                },
+                "sampleRate": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "sdh": {
                   "type": "boolean"
                 },
@@ -7048,7 +7091,8 @@
                 "sdh",
                 "default",
                 "commentary",
-                "sizeBytes"
+                "sizeBytes",
+                "probeState"
               ],
               "type": "object"
             },
@@ -7222,12 +7266,28 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "atmos": {
+                        "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos.",
+                        "type": "boolean"
+                      },
+                      "bitRate": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "channelLayout": {
+                        "type": "string"
+                      },
+                      "channels": {
+                        "maximum": 256,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
                       "charset": {
                         "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                         "type": "string"
                       },
                       "codec": {
-                        "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                        "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                         "type": "string"
                       },
                       "commentary": {
@@ -7235,6 +7295,10 @@
                       },
                       "default": {
                         "type": "boolean"
+                      },
+                      "durationMicros": {
+                        "minimum": 0,
+                        "type": "integer"
                       },
                       "forced": {
                         "type": "boolean"
@@ -7263,6 +7327,29 @@
                         },
                         "type": "array"
                       },
+                      "pairedTrackId": {
+                        "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.",
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "probeState": {
+                        "description": "Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.",
+                        "enum": [
+                          "pending",
+                          "ready",
+                          "failed",
+                          "not_applicable"
+                        ],
+                        "type": "string"
+                      },
+                      "profile": {
+                        "description": "Probed audio profile, such as DTS-HD MA.",
+                        "type": "string"
+                      },
+                      "sampleRate": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
                       "sdh": {
                         "type": "boolean"
                       },
@@ -7282,7 +7369,8 @@
                       "sdh",
                       "default",
                       "commentary",
-                      "sizeBytes"
+                      "sizeBytes",
+                      "probeState"
                     ],
                     "type": "object"
                   },
@@ -10285,12 +10373,28 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "atmos": {
+                  "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos.",
+                  "type": "boolean"
+                },
+                "bitRate": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "channelLayout": {
+                  "type": "string"
+                },
+                "channels": {
+                  "maximum": 256,
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "charset": {
                   "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                   "type": "string"
                 },
                 "codec": {
-                  "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                  "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                   "type": "string"
                 },
                 "commentary": {
@@ -10298,6 +10402,10 @@
                 },
                 "default": {
                   "type": "boolean"
+                },
+                "durationMicros": {
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "forced": {
                   "type": "boolean"
@@ -10326,6 +10434,29 @@
                   },
                   "type": "array"
                 },
+                "pairedTrackId": {
+                  "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.",
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "probeState": {
+                  "description": "Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.",
+                  "enum": [
+                    "pending",
+                    "ready",
+                    "failed",
+                    "not_applicable"
+                  ],
+                  "type": "string"
+                },
+                "profile": {
+                  "description": "Probed audio profile, such as DTS-HD MA.",
+                  "type": "string"
+                },
+                "sampleRate": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "sdh": {
                   "type": "boolean"
                 },
@@ -10350,6 +10481,7 @@
                 "default",
                 "commentary",
                 "sizeBytes",
+                "probeState",
                 "url"
               ],
               "type": "object"
@@ -10528,12 +10660,28 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "atmos": {
+                        "description": "Probed E-AC-3 or TrueHD audio whose profile names Dolby Atmos.",
+                        "type": "boolean"
+                      },
+                      "bitRate": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "channelLayout": {
+                        "type": "string"
+                      },
+                      "channels": {
+                        "maximum": 256,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
                       "charset": {
                         "description": "Detected charset of a text subtitle. Reported only; the file is delivered unconverted.",
                         "type": "string"
                       },
                       "codec": {
-                        "description": "Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell.",
+                        "description": "The codec the sandboxed probe found once probeState is ready; before that the canonical subtitle format or audio codec implied by the extension, or for .sub the content check (microdvd or vobsub). Absent when only probing can tell (mka, m4a, ogg, oga, or a failed probe).",
                         "type": "string"
                       },
                       "commentary": {
@@ -10541,6 +10689,10 @@
                       },
                       "default": {
                         "type": "boolean"
+                      },
+                      "durationMicros": {
+                        "minimum": 0,
+                        "type": "integer"
                       },
                       "forced": {
                         "type": "boolean"
@@ -10569,6 +10721,29 @@
                         },
                         "type": "array"
                       },
+                      "pairedTrackId": {
+                        "description": "On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.",
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "probeState": {
+                        "description": "Sandboxed probe of an audio, .sub or .sup file: pending until a catalog sync probes it, failed when it could not be read (the track stays listed, its facts unknown), not_applicable for text subtitles.",
+                        "enum": [
+                          "pending",
+                          "ready",
+                          "failed",
+                          "not_applicable"
+                        ],
+                        "type": "string"
+                      },
+                      "profile": {
+                        "description": "Probed audio profile, such as DTS-HD MA.",
+                        "type": "string"
+                      },
+                      "sampleRate": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
                       "sdh": {
                         "type": "boolean"
                       },
@@ -10593,6 +10768,7 @@
                       "default",
                       "commentary",
                       "sizeBytes",
+                      "probeState",
                       "url"
                     ],
                     "type": "object"

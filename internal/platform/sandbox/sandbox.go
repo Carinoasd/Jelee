@@ -155,6 +155,30 @@ func (l *Launcher) ChapterHelperArguments(stream int) []string {
 	return []string{HelperCommand, base64.RawURLEncoding.EncodeToString(data)}
 }
 
+// SidecarHelperArguments returns the sealed helper argv of the external
+// track probe (B4): the metadata probe with the demuxers of standalone
+// audio and subtitle files allowed. It reuses the executable and dependency
+// closure this launcher verified at construction.
+func (l *Launcher) SidecarHelperArguments() []string {
+	if l == nil || l.descriptor == "" || l.direct {
+		return nil
+	}
+	data, err := json.Marshal(descriptor{Version: 1, Mode: "sidecar", FFprobePath: l.ffprobePath})
+	if err != nil || len(data) > MaxDescriptor {
+		return nil
+	}
+	return []string{HelperCommand, base64.RawURLEncoding.EncodeToString(data)}
+}
+
+// DirectSidecarArguments returns a fresh copy of the fixed external track
+// probe argv of a direct launcher, without the program name; nil otherwise.
+func (l *Launcher) DirectSidecarArguments() []string {
+	if !l.Direct() {
+		return nil
+	}
+	return sidecarArguments()
+}
+
 func (l *Launcher) ProtectedFilesRequired() bool { return l != nil && l.protected }
 
 // Direct reports a launcher whose Executable is the verified tool itself
@@ -263,6 +287,8 @@ func decodeDescriptor(argv []string) (invocation, error) {
 	switch {
 	case value.Mode == "metadata" && value.Stream == nil:
 		arguments = metadataArguments()
+	case value.Mode == "sidecar" && value.Stream == nil:
+		arguments = sidecarArguments()
 	case value.Mode == "cover" && value.Stream != nil && *value.Stream >= 0 && *value.Stream <= CoverMaxVideoIndex:
 		arguments = coverArguments(*value.Stream)
 	case value.Mode == "chapters" && value.Stream != nil && *value.Stream >= 0 && *value.Stream <= CoverMaxVideoIndex:
@@ -337,6 +363,19 @@ func chapterArguments(stream int) []string {
 		"-show_entries", "stream=index,codec_type,codec_name:stream_disposition=attached_pic,timed_thumbnails:packet=stream_index,pts_time,size,data,data_hash:chapter=start_time,end_time",
 		"-show_data", "-show_data_hash", "SHA256", "-of", "json", "-i", "fd:"}
 }
+
+// sidecarArguments is the metadata probe of one external audio or subtitle
+// file (B4). Every input restriction of metadataArguments stays; only the
+// demuxer whitelist differs: the containers that hold external audio
+// (Matroska, MP4/M4A, Ogg), MPEG-PS for VobSub ".sub" data, the raw audio
+// elementary streams, HDMV PGS ".sup" and MicroDVD text. Video-only and
+// network-capable demuxers are not allowed.
+func sidecarArguments() []string {
+	return []string{"-hide_banner", "-v", "error", "-max_alloc", "33554432", "-threads", "1", "-probesize", "1048576", "-analyzeduration", "2000000", "-max_probe_packets", "2500", "-max_streams", "64", "-protocol_whitelist", "fd", "-format_whitelist", SidecarFormatWhitelist, "-enable_drefs", "0", "-show_format", "-show_streams", "-show_chapters", "-of", "json", "-i", "fd:"}
+}
+
+// SidecarFormatWhitelist is the demuxer list of the external track probe.
+const SidecarFormatWhitelist = "matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,ogg,mpeg,aac,ac3,eac3,dts,truehd,mlp,flac,mp3,wav,sup,microdvd"
 
 func metadataArguments() []string {
 	return []string{"-hide_banner", "-v", "error", "-max_alloc", "33554432", "-threads", "1", "-probesize", "1048576", "-analyzeduration", "2000000", "-max_probe_packets", "2500", "-max_streams", "64", "-protocol_whitelist", "fd", "-format_whitelist", "matroska,webm,mov,mp4,m4a,3gp,3g2,mj2,avi,mpegts,mpeg,mpegvideo,flv,ogg", "-enable_drefs", "0", "-show_format", "-show_streams", "-show_chapters", "-of", "json", "-i", "fd:"}

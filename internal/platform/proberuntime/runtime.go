@@ -77,12 +77,15 @@ func Helper(argv []string) int {
 	return sandbox.RunHelper(argv, policy)
 }
 
-// expectedDescriptor accepts the metadata descriptor and the cover and
+// expectedDescriptor accepts the metadata and external track probe
+// descriptors and the cover and
 // chapter image read descriptors of the shipped path only, in their canonical
 // encodings.
 func expectedDescriptor(value string) bool {
-	if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"metadata","ffprobePath":"`+FFprobePath+`"}`)) {
-		return true
+	for _, mode := range []string{"metadata", "sidecar"} {
+		if value == base64.RawURLEncoding.EncodeToString([]byte(`{"version":1,"mode":"`+mode+`","ffprobePath":"`+FFprobePath+`"}`)) {
+			return true
+		}
 	}
 	for stream := 0; stream <= sandbox.CoverMaxVideoIndex; stream++ {
 		for _, mode := range []string{"cover", "chapters"} {
