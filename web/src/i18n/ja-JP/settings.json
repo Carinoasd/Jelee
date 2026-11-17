@@ -12,9 +12,28 @@
       "system": "システムに合わせる",
       "light": "ライト",
       "dark": "ダーク",
-      "hint": "すぐに適用され、アカウントに保存されるので、ほかの端末でも同じテーマになります。",
+      "sepia": "セピア",
+      "contrast": "ハイコントラスト",
       "saved": "テーマを保存しました。"
     },
+    "density": {
+      "label": "表示密度",
+      "comfortable": "ゆったり",
+      "compact": "コンパクト",
+      "saved": "表示密度を保存しました。"
+    },
+    "poster": {
+      "ratio": "ポスターの形",
+      "size": "ポスターのサイズ",
+      "portrait": "縦長",
+      "square": "正方形",
+      "landscape": "横長",
+      "small": "小",
+      "medium": "中",
+      "large": "大"
+    },
+    "view": "既定の表示",
+    "listDensity": "リストの密度",
     "profile": {
       "heading": "プロフィール",
       "name": "表示名",

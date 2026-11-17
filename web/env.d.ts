@@ -10,3 +10,6 @@ declare module "*.vue" {
 
 /** Version of the web client (package.json), injected by vite.config.ts. */
 declare const __JELEE_VERSION__: string;
+
+/** The design tokens compiled from src/theme/tokens.ts (vite.config.ts). */
+declare module "virtual:jelee-tokens.css";

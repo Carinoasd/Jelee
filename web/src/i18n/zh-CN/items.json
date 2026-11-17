@@ -12,12 +12,6 @@
       "newest": "上映日期（新到旧）",
       "year": "年份（新到旧）"
     },
-    "listCaption": "{name} 中的条目",
-    "column": {
-      "poster": "海报",
-      "title": "标题",
-      "kind": "类型"
-    },
     "kind": {
       "movie": "电影",
       "homeVideo": "家庭视频",

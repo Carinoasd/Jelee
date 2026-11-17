@@ -57,6 +57,14 @@ function itemsPage(url: URL): Answer {
   if (q !== null) {
     list = list.filter((item) => item.title.toLowerCase().includes(q.toLowerCase()));
   }
+  const types = url.searchParams.getAll("type").flatMap((value) => value.split(","));
+  if (types.length > 0) {
+    list = list.filter((item) => types.includes(item.kind));
+  }
+  const libraryId = url.searchParams.get("libraryId");
+  if (libraryId !== null) {
+    list = list.filter((item) => item.libraryId === libraryId);
+  }
   const sort = url.searchParams.get("sort") ?? "name";
   list = [...list].sort((a, b) =>
     sort === "name" ? a.title.localeCompare(b.title) : (b.premiereDate ?? "").localeCompare(a.premiereDate ?? "") || a.id.localeCompare(b.id),

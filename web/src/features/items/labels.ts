@@ -22,11 +22,12 @@ export const sortLabelKey: Readonly<Record<LibrarySort, string>> = {
   year: "items.sort.year",
 };
 
-export type ItemView = "poster" | "list";
+export const itemViews = ["poster", "list"] as const;
+export type ItemView = (typeof itemViews)[number];
 
-/** Reads the ?view= query value; the poster wall is the default. */
-export function parseItemView(value: unknown): ItemView {
-  return value === "list" ? "list" : "poster";
+/** Reads the ?view= query value; without one the user's default view applies. */
+export function parseItemView(value: unknown, fallback: ItemView = "poster"): ItemView {
+  return value === "list" || value === "poster" ? value : fallback;
 }
 
 /** Reads the ?sort= query value; name order is the default. */

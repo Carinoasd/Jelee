@@ -1,7 +1,8 @@
 // The one place the web client touches browser storage (eslint.config.js
 // allows localStorage in this file only). It keeps the browser copies of
 // presentation state whose server copy may be unavailable (signed out, or
-// the server cannot be read): layouts (G33.5), plugin enablement and plugin
+// the server cannot be read): layouts (G33.5), display choices the server
+// document has no member for yet (G33.2), plugin enablement and plugin
 // settings (G32.4) and administrator CSS (G33.4). Credentials, CSRF values
 // and session data never come here (G35.1): keys naming them are refused,
 // every value is JSON with a size limit, and everything read back is

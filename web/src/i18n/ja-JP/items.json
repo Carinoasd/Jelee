@@ -12,12 +12,6 @@
       "newest": "公開日（新しい順）",
       "year": "年（新しい順）"
     },
-    "listCaption": "{name} のアイテム",
-    "column": {
-      "poster": "ポスター",
-      "title": "タイトル",
-      "kind": "種類"
-    },
     "kind": {
       "movie": "映画",
       "homeVideo": "ホームビデオ",

@@ -110,10 +110,10 @@ web/
 
 | 路由 | 頁面 | API |
 | --- | --- | --- |
-| 頁首搜尋框 | `role="search"`；`/` 鍵聚焦、Esc 清除；在搜尋頁輸入時去抖 300 ms 更新 `?q=`（`router.replace`，同路徑不搶焦點），其他頁按 Enter 才前往搜尋頁 | — |
-| `/search?q=&type=` | 搜尋結果（伺服器比對、依存取權過濾與計數）、類型篩選、「顯示 n 項，共 m 項」（`role="status"`）、載入更多、未輸入提示、空結果、錯誤＋重試 | `GET /items?q=…&type=…&sort=name&offset=…&limit=40` |
+| 頁首搜尋框 | `role="search"`；`/` 鍵聚焦、Esc 清除、↓ 移到第一筆結果；在搜尋頁輸入時去抖 300 ms 更新 `?q=`（`router.replace`，同路徑不搶焦點），其他頁按 Enter 才前往搜尋頁 | — |
+| `/search?q=&type=&library=` | 未選類型時依類型分組（電影、劇集、單集、家庭影片各取前 12 筆，標題連到該類型並顯示總數，沒有結果的類型不顯示）；選了類型則列出全部（虛擬列表、捲動接近底部自動載入下一頁，「載入更多」保留為後備）；類型切換鈕組與媒體庫選單都寫進 URL；結果之間可用方向鍵、Home／End 移動；未輸入提示、空結果、錯誤＋重試（重試略過快取）。詳見下方「搜尋、虛擬列表與請求快取」 | 分組：每類型一個 `GET /items?q=…&type=<類型>&libraryId=…&sort=name&offset=0&limit=12`；單一類型：`…&limit=40&offset=…` |
 | `/stats` | 我的觀看統計：總計（有效時長、次數、工作階段、完成率、首看／重看）、按日／週／月／年走勢（SVG 長條，另附隱藏資料表）、Top N（連到條目詳情）、按庫／按類型（CSS 長條表格）；清除自己的觀看紀錄（兩段確認） | `GET /users/me/watch-stats?period=&top=&from=&to=`、`DELETE /users/me/playback-history` |
-| `/settings` | 介面語言（立即套用並存入帳號）、主題（跟隨系統／淺色／深色，存入帳號）、個人資料（顯示名稱、在公開清單隱藏）、變更密碼（12–1024 位元組檢查、確認欄；成功後所有工作階段失效、回登入頁） | `PUT /users/me/profile`、`GET/PUT /users/me/preferences`、`PUT /users/me/password` |
+| `/settings` | 介面語言（立即套用並存入帳號）、外觀（主題五選一含兩個預設、密度、海報比例與大小、預設檢視、列表密度，見下方「主題、密度與 token」）、個人資料（顯示名稱、在公開清單隱藏）、變更密碼（12–1024 位元組檢查、確認欄；成功後所有工作階段失效、回登入頁） | `PUT /users/me/profile`、`GET/PUT /users/me/preferences`、`PUT /users/me/password` |
 | `/admin/users` | 使用者列表（游標分頁、可含已刪除）、建立使用者（`Idempotency-Key`，重送同一筆沿用同一鍵） | `GET/POST /users` |
 | `/admin/users/:userId` | 帳號設定（停用需兩段確認）、原生登入權限 allowNative（撤銷需確認）、投遞上限（留空＝跟隨伺服器、0＝不限）、解鎖、軟刪除／還原、工作階段與全部撤銷、媒體庫授權勾選、內容存取（分級上限、未分級三態、標籤與關鍵字封鎖、條目 hide/allow 規則：以搜尋挑條目）、限制時段（星期、起訖、時區預填瀏覽器時區、時段內隱藏全部或分級上限），每區附變更影響說明 | `GET/PUT/DELETE /users/{id}`、`PUT /users/{id}/native`、`GET/PUT /users/{id}/delivery-limits`、`POST /users/{id}/unlock`、`POST /users/{id}/restore`、`GET/DELETE /users/{id}/sessions`、`GET /libraries`、`GET/PUT /users/{id}/libraries`、`GET/PUT /users/{id}/content-access`、`PUT /users/{id}/content-access/windows`、`PUT/DELETE /users/{id}/content-access/items/{itemId}`、`GET /access/parental-ratings`、`GET /items?q=` |
 | `/admin/access` | 全站內容存取政策（未分級預設、管理員是否受限；變更需確認並說明影響）、分級代碼對照表（可編輯、整表兩段確認）、規則優先順序說明 | `GET/PUT /access/policy`、`GET/PUT /access/parental-ratings` |
@@ -183,14 +183,31 @@ web/
 
 ### 瀏覽器儲存例外
 
-`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放呈現狀態的瀏覽器副本：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）。伺服器已有對應 API（G32／G33 表），這些副本只在未登入、讀不到伺服器，或一般使用者自己覆蓋插件設定時生效。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
+`stores/persist.ts` 是唯一碰 `localStorage` 的模組（ESLint 只對它解除限制），鍵一律以 `jelee.ui.v1.` 開頭，存放呈現狀態的瀏覽器副本：插件啟用與順序（`plugin-host.state`）、插件設定（`plugin-settings.<插件 ID>`）、管理員 CSS（`admin-css.custom`）、版面（`page-layout.<使用者 ID>`）、伺服器偏好還沒有欄位的顯示選擇（`display-preferences.<使用者 ID>`，見「主題、密度與 token」）。伺服器已有對應 API（G32／G33 表），這些副本只在未登入、讀不到伺服器，或一般使用者自己覆蓋插件設定時生效。固定鍵名不得含憑證相關字詞、範圍部分只接受 ID 字元，值為 JSON 且有大小上限；讀回的內容一律當成不可信輸入處理。憑證、CSRF、工作階段資料仍然只在記憶體或 HttpOnly Cookie（G35.1 不變）。只在使用者實際變更時才寫入，登入流程依舊沒有任何 storage 寫入。
+
+## 主題、密度與 token（G33.1、G33.2、G33.6）
+
+- **單一來源**：`web/src/theme/tokens.ts` 定義全部 token（色彩依預設分組、間距、圓角、陰影、字型、層級、動效、觸控目標、海報與列表尺寸）。`vite.config.ts` 的 `jelee-design-tokens` 插件把它編譯成虛擬模組 `virtual:jelee-tokens.css`，由 `main.ts` 匯入、隨打包樣式出貨；原本手寫的 `tokens.css` 已刪除。這樣首屏不用等 JavaScript 也不用構造樣式表就有 token，CSP 仍是 `style-src 'self'`。同一個模組也給執行期（設定頁的色票、偏好的合法值）與測試用，所以不會有兩份數值。執行期覆寫（插件 token、全站 token、管理員 CSS）照舊以構造樣式表疊上去。
+- **主題**：跟隨系統、淺色、深色、復古紙張（sepia，淺色系）、高對比（contrast，深色系）。根元素 `data-theme` 只會是 `light`／`dark`（或不設＝跟隨系統），預設主題另加 `data-palette`；預設的選擇器是 `:root[data-theme][data-palette="…"]`（三個屬性選擇器），比全站 token 覆寫的 `:root[data-theme="dark"]` 高一級，所以使用者選了預設就看到預設本身，管理員的亮／暗覆寫只套在淺色與深色上。
+- **密度**：寬鬆／緊湊兩檔。緊湊把 `--jl-space-2…12` 收一級（仍在 4/8 px 格線上），觸控目標維持 44 px。**海報比例**直式 2:3／方形 1:1／橫式 16:9（`--jl-poster-ratio`），**海報大小**小／中／大（海報牆最小欄寬 120／150／200 px），**列表密度**寬鬆／緊湊（列高與縮圖寬），**預設檢視**海報牆／列表（媒體庫與搜尋頁沒有 `?view=` 時採用）。屬性為預設值時不寫入根元素。
+- **存放**：伺服器偏好文件只有 `theme`（system／light／dark）、`density`、`layout`，而且 `additionalProperties: false`，所以主題存成它的色系（復古紙張存 `light`、高對比存 `dark`），密度存進原本預留的 `density`；預設主題名、海報比例與大小、列表密度、預設檢視依帳號存在本瀏覽器（`persist.ts` 的 `display-preferences.<使用者 ID>`）。只有伺服器的主題仍是該預設的色系時才套用本機的預設，所以在別的裝置改成另一個色系會蓋過它。後端加欄位前這幾項不跨裝置（見下方後端缺口表）。
+- **設定頁**：「外觀」卡片用 `UiChoiceGroup`（原生 radio 畫成方塊，方向鍵切換）：主題方塊畫出該預設自己的背景、卡片、文字與主色，海報比例方塊畫出形狀，沒有說明文字；原本的主題說明小字移除。主題與密度存入帳號時顯示「已儲存」通知，其餘立即套用不另提示。
+- **對比度測試**（`theme/tokens.test.ts`，以 `theme/contrast.ts` 自算 WCAG 相對亮度，不用 axe）：每個預設的正文與次要文字對背景、卡片、徽章、資訊／錯誤／成功底色，主色對背景與卡片，主色上的文字，錯誤與成功文字對各自底色都要 ≥4.5:1，焦點色對背景與卡片 ≥3:1；海報懸停資訊在最壞情況（白色海報上疊遮罩）也要 ≥4.5:1。另檢查每個 `.vue`／`.css` 用到的 `var(--jl-*)` 與 SDK 可覆寫的 token 名稱都在 `tokens.ts` 有定義。反向驗證：把復古紙張的文字色改成背景色，6 項對比測試失敗。
+
+## 搜尋、虛擬列表與請求快取（G34.3、G35.3、G34.2）
+
+- **分組而不是混排**：伺服器沒有「跨類型相關度」排序，`GET /items` 只能依名稱或日期排序；混排加「載入更多」時，各類型數量不明。改為每個類型各發一個 `limit=12` 的請求，標題顯示該類型的 `total`，點標題就是只看該類型的完整清單。代價是一次搜尋 4 個請求，靠去抖與下方快取壓低。
+- **海報多尺寸與懸停資訊**：卡片的封面帶 `srcset`（120／240／360／480／720 寬）與 `sizes`，瀏覽器依實際大小與像素密度挑；`src` 仍是 300 寬。卡片標題固定兩行（讓每列等高，虛擬列表才能用一個列高），滑鼠懸停或鍵盤聚焦時在封面上顯示完整標題、類型與年份（`aria-hidden`，同樣的文字已在連結裡）。
+- **虛擬列表** `components/ui/UiVirtualList.vue`（自寫，不加相依）：超過 120 筆才虛擬化，以下全部渲染（保留瀏覽器內搜尋）。捲動容器是整頁（頁首 sticky），欄數讀瀏覽器算出的 `grid-template-columns`（CSS 的 `auto-fill` 仍是唯一來源），列高量第一個項目、量不到用估計值；上下各多渲染幾列，Tab／Shift+Tab 走到邊緣時瀏覽器把它捲進畫面、接著渲染後面的列，所以鍵盤不會跳出清單。虛擬化時 `li` 帶 `aria-setsize`／`aria-posinset`。清單末端用 `IntersectionObserver` 觀察，接近底部（800 px）就要下一頁，新頁到了再觀察一次，所以一頁塞不滿畫面時會繼續載；沒有 `IntersectionObserver` 或下一頁失敗時用「載入更多」。純計算在 `virtualWindow.ts`，有單元測試。
+- **套用範圍**：媒體庫條目頁（海報牆與列表）與搜尋結果共用 `features/items/ItemResults.vue`。列表檢視從 `<table>` 改為每列一個連結的清單（縮圖、標題、類型與年份），整列可點、可用方向鍵移動。
+- **請求去重與短期快取** `api/requestCache.ts`：相同請求進行中時共用同一個 promise，完成後 15 秒內重用，最多 200 筆、失敗不快取。快取掛在 API client 上，登入的使用者一變就清空（`stores/auth.ts` 同步 watch），重試與「重新載入」帶 `force` 略過快取。目前用在條目列表與搜尋。
 
 ## Bundle 預算（G35.4）
 
 - `web/scripts/check-bundle-budget.mjs` 讀 `dist/index.html`，量測首屏必須下載的檔案（module 入口、它的 `modulepreload` 與 stylesheet），以 gzip level 9 計算：`entryJsGzipBytes`（入口）、`initialJsGzipBytes`（入口加預載）、`initialCssGzipBytes`。懶載入 chunk 不計入。
 - 預算檔 `web/bundle-budget.json` 進版控，任一項超過即失敗並列出超出位元組數；放寬預算是對該檔的審查變更，理由寫在提交訊息。
 - `npm run build`（即 `make web-build`）在 Vite 建置與禁播掃描後執行此門禁；`make web-budget` 可對現有 `dist` 重跑。CI 的 Linux「Web frontend gates」步驟執行 `make … web-build web-budget`。
-- 2026-10-04 量測值：入口 121,154 B、首屏 JS 145,313 B、首屏 CSS 2,313 B；預算分別為 127,000、152,000、2,450 B（約多 5%）。插件工作前的首屏 JS 約 142,900 B：插件宿主、SDK 與 CSS 清洗器都在懶載入 chunk，首屏只多了首頁路由與動態啟動碼。
+- 2026-10-04 量測值：入口 121,154 B、首屏 JS 145,313 B、首屏 CSS 2,313 B；預算分別為 127,000、152,000、2,450 B（約多 5%）。2026-10-31 主題預設、緊湊密度與海報／列表選項從 `tokens.ts` 編進首屏樣式表，首屏 CSS 實測 2,665 B，預算放寬到 2,800 B（讓選了預設的使用者不閃爍、也不依賴構造樣式表）；入口 JS 120,071 B、首屏 JS 147,639 B。插件工作前的首屏 JS 約 142,900 B：插件宿主、SDK 與 CSS 清洗器都在懶載入 chunk，首屏只多了首頁路由與動態啟動碼。
 - 「首屏可交互 P95 ≤1.5s」需要真實瀏覽器與網路條件量測，尚未做。
 
 ## G32／G33.4／G33.5 的後端缺口
@@ -205,6 +222,7 @@ web/
 | `UserPreferences` 沒有版面欄位 | 已解除 | 偏好加 `layout`（可為 `null`），PUT 仍須帶齊全部欄位；見上方「版面」的存放說明 |
 | 伺服器不回報版本 | 已解除 | `GET /api/v1/system` 回傳 `version`（`internal/platform/buildinfo`：發行建置以 `-ldflags -X …buildinfo.version=` 或 Dockerfile `--build-arg JELEE_VERSION` 指定，未指定或格式不對時為與 `web/package.json` 相同的預設版本，測試確保兩者一致），與 OpenAPI `info.version` 相同；插件宿主啟動前讀取並用它比較 `minJeleeVersion`，讀不到時才用網頁端版本 |
 | 沒有插件專屬的伺服器授權範圍 | 缺 | 插件的請求等同使用者本人的請求；受限客戶端只開放固定唯讀端點。若要支援第三方插件：插件權杖或 iframe 隔離加伺服器端範圍 |
+| `UserPreferences` 沒有主題預設名、海報比例與大小、列表密度、預設檢視欄位（`additionalProperties: false`） | 缺 | 依帳號存在本瀏覽器，不跨裝置；預設主題以其色系存入 `theme`。建議偏好加 `display: {palette, posterRatio, posterSize, listDensity, view}`（可為 `null`），屆時 `stores/preferences.ts` 只要把讀寫本機副本換成伺服器欄位 |
 | 未登入頁面（登入頁）不套用全站外觀 | 限制 | 全站外觀與插件設定的讀取都需要工作階段，登入頁只用打包樣式與本瀏覽器副本 |
 
 ## CSP 規劃（G35.1）
@@ -259,7 +277,7 @@ base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 
 ## 後續
 
-- G33／G34：主題預設、更多 UI 元件、響應式斷點、axe 掃描（需核准新相依）、條目詳情載入後的焦點；視覺基線的人工確認紀錄（D14；基線已改為 CI 實際圖，擁有者仍需看過）。
+- G33／G34：顯示選擇存到伺服器（上表後端缺口）、管理員設定全站的預設主題預設與密度、更多 UI 元件、響應式斷點、axe 掃描（需核准新相依）、條目詳情載入後的焦點；視覺基線的人工確認紀錄（D14；基線已改為 CI 實際圖，擁有者仍需看過）。
 - G27.4：E2E 全點擊遍歷。
 - G35.4：預算門禁已上線；評估 vue-i18n 預編譯訊息以縮小首屏 JS；首屏可交互 P95 需要真實瀏覽器量測。
 - G32／G33：上表的後端缺口；命令面板 UI 與 Webhook 頁使用插件標籤；第三方插件的真正隔離（iframe／獨立來源）。
