@@ -47,7 +47,7 @@ AppContainer（或 LPAC）隔離更強（獨立的物件命名空間、預設拒
 ## 範圍與已知限制
 
 - **只涵蓋 ffprobe（metadata 與內嵌封面）。** MediaInfo、mkvtoolnix、Tesseract 的 Linux 模式讓工具以 `/proc/self/fd/0` 重新開啟 stdin；Windows 沒有對應的路徑，MediaInfo CLI 從 stdin 讀的行為也未經驗證，若改成傳媒體路徑會違反「使用者資料不成為參數」（G09.2）。這些模式在 Windows 仍是 `platform_unsupported`，`Confinement` 與 `startConfinedChild` 已是通用的，之後只需各自決定輸入方式。
-- **目錄探測仍停用。** `tool_versions.platform` 與 `domain.ValidateProbeIdentity` 只接受 `linux-amd64`（遷移 000004 的 CHECK）。本 ADR 不含遷移，所以 Windows 啟動時會跑一次健康檢查：通過時記 WARN「Windows media sandbox is verified, but catalog probing stays disabled…」（reason `catalog_identity_unsupported`），失敗時記 WARN（`health_check_failed`）；兩者都維持停用，沒有未隔離的備援。放寬 platform 需要另一個遷移，以及 Windows 自己的 `WindowsMetadataPolicyVersion` 進入探測身分。`jelee-cli doctor probe` 與初始化向導的工具偵測已會實際跑受限 ffprobe。
+- **目錄探測已開放（遷移 000108）。** 原先 `tool_versions.platform` 與 `domain.ValidateProbeIdentity` 只收 `linux-amd64`（遷移 000004 的 CHECK），Windows 啟動時即使沙箱通過也以 `catalog_identity_unsupported` 停用目錄探測。遷移 000108（暫定編號）讓 CHECK 與驗證函式接受 `windows-amd64`；Windows 探測身分由 `proberuntime.Identity` 以清單中的 ffprobe.exe 雜湊、固定的靜態版 runtime 標籤（無函式庫清單）、與 Linux 相同的固定 argv 摘要，以及 `WindowsMetadataPolicyVersion` 組成，平台字串本身在身分摘要裡，所以 Linux 與 Windows 的快取結果永不共用。Windows 啟動時跑同一個健康檢查：通過即啟用目錄探測，失敗時記 WARN（`health_check_failed`）並維持停用，沒有未隔離的備援。降級遷移在有任何非 Linux 身分列時拒絕（`55000`），由操作者先清掉探測快取。`catalog_identity_unsupported` 這個原因已移除。只開放 ffprobe；`jelee-cli doctor probe` 與初始化向導的工具偵測照舊會實際跑受限 ffprobe。
 - **服務身分。** 以 LocalSystem 執行時，Low IL 仍擋寫入，但 SYSTEM 能讀的範圍很大；建議以專用標準使用者執行服務（見[部署](../deployment.md#windows-上的媒體探測g096)）。
 - **釘住的副作用。** launcher 存活期間無法更新或刪除 `ffprobe.exe`，也不能改名它的上層目錄；更新工具要先停服務。
 

@@ -90,7 +90,7 @@ func (s *Store) accountTransaction(ctx context.Context) (pgx.Tx, error) {
 }
 
 func (s *Store) authorizedTransaction(ctx context.Context, actor domain.Actor, adminOnly bool) (pgx.Tx, bool, error) {
-	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
+	if !actorPresent(actor) {
 		return nil, false, domain.ErrUnauthenticated
 	}
 	tx, err := s.accountTransaction(ctx)
@@ -108,7 +108,21 @@ func (s *Store) authorizedTransaction(ctx context.Context, actor domain.Actor, a
 // Callers acquire their advisory locks before locking the live actor rows.
 // Keeping the same validation inside the transaction preserves revocation and
 // administrator checks while allowing jobs to establish a consistent order.
+// actorPresent reports a user session or the system actor; either is then
+// authorized by authorizeActorInTransaction.
+func actorPresent(actor domain.Actor) bool {
+	return domain.ValidID(actor.UserID) && domain.ValidID(actor.SessionID) || actor.IsSystem()
+}
+
+// authorizeActorInTransaction checks the live session and role of a user. The
+// system actor (domain.SystemActor) holds administrator rights here: it is
+// built only by the schedule dispatcher and the job workers, carried only by
+// jobs of a schedulable kind (enforced by the jobs CHECK), and the
+// application refuses it on every entry point except those workers' calls.
 func authorizeActorInTransaction(ctx context.Context, tx pgx.Tx, actor domain.Actor, adminOnly bool) (bool, error) {
+	if actor.IsSystem() {
+		return true, nil
+	}
 	var admin bool
 	err := tx.QueryRow(ctx, `SELECT u.is_admin FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1::uuid AND s.id=$2::uuid AND NOT u.disabled AND u.deleted_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>now() FOR UPDATE OF u,s`, actor.UserID, actor.SessionID).Scan(&admin)
 	if err != nil || adminOnly && !admin {

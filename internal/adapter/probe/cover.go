@@ -38,64 +38,80 @@ func NewCoverAdapter(runner *process.IsolatedRunner) (*CoverAdapter, error) {
 // file again afterwards. The returned bytes are the attached picture packet,
 // verified against ffprobe's own SHA-256 of the packet, a known picture
 // signature and a header-only dimension precheck.
-func (a *CoverAdapter) ExtractCover(ctx context.Context, candidate domain.EmbeddedCoverCandidate) (cover domain.EmbeddedCover, resultErr error) {
+func (a *CoverAdapter) ExtractCover(ctx context.Context, candidate domain.EmbeddedCoverCandidate) (domain.EmbeddedCover, error) {
 	if a == nil || a.runner == nil || ctx == nil || !domain.ValidEmbeddedCoverCandidate(candidate) {
 		return domain.EmbeddedCover{}, ErrInvalidInput
 	}
 	// The candidate check bounds VideoIndex to the sealed operation range.
 	operation := process.CoverOperation(candidate.VideoIndex)
-	input, err := Open(ctx, candidate.Source())
+	var cover domain.EmbeddedCover
+	err := readStableSource(ctx, candidate.Source(), candidate.Stamp, func(stdin *os.File) error {
+		result, err := a.runner.Run(ctx, process.Request{Tool: "ffprobe", Operation: operation, Stdin: stdin})
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err != nil {
+			return coverProcessError(err)
+		}
+		cover, err = parseCoverOutput(result.Stdout, candidate.StreamIndex)
+		return err
+	})
 	if err != nil {
-		return domain.EmbeddedCover{}, workerError(err)
+		return domain.EmbeddedCover{}, err
+	}
+	return cover, nil
+}
+
+// readStableSource opens the media file once, checks that it still has the
+// probed size, mtime and edge fingerprint, runs read on that descriptor, and
+// checks the file again afterwards, including that the authorized path still
+// names the same file. read's error is returned unchanged; nothing read from
+// a file that changed is trusted.
+func readStableSource(ctx context.Context, source domain.ProbeSource, stamp domain.ProbeStamp, read func(*os.File) error) (resultErr error) {
+	input, err := Open(ctx, source)
+	if err != nil {
+		return workerError(err)
 	}
 	defer func() {
 		if err := input.Close(); err != nil && resultErr == nil {
-			cover, resultErr = domain.EmbeddedCover{}, domain.ErrProbeInputUnavailable
+			resultErr = domain.ErrProbeInputUnavailable
 		}
 	}()
 	// The held descriptor must still show the probed size, mtime and edge
 	// fingerprint before and after the child reads it.
 	check := func() (os.FileInfo, error) {
 		info, err := input.Stdin().Stat()
-		if err != nil || !matches(info, input.Metadata()) || info.Size() != candidate.Stamp.Size || info.ModTime().UnixNano() != candidate.Stamp.ModifiedUnixNano {
+		if err != nil || !matches(info, input.Metadata()) || info.Size() != stamp.Size || info.ModTime().UnixNano() != stamp.ModifiedUnixNano {
 			return nil, domain.ErrProbeSourceChanged
 		}
 		fingerprint, err := edgeFingerprint(ctx, input.Stdin(), info.Size())
-		if err != nil || fingerprint != candidate.Stamp.Fingerprint {
+		if err != nil || fingerprint != stamp.Fingerprint {
 			return nil, domain.ErrProbeSourceChanged
 		}
 		return info, nil
 	}
 	before, err := check()
 	if err != nil {
-		return domain.EmbeddedCover{}, err
+		return err
 	}
-	result, err := a.runner.Run(ctx, process.Request{Tool: "ffprobe", Operation: operation, Stdin: input.Stdin()})
-	if err := ctx.Err(); err != nil {
-		return domain.EmbeddedCover{}, err
-	}
-	if err != nil {
-		return domain.EmbeddedCover{}, coverProcessError(err)
-	}
-	cover, err = parseCoverOutput(result.Stdout, candidate.StreamIndex)
-	if err != nil {
-		return domain.EmbeddedCover{}, err
+	if err := read(input.Stdin()); err != nil {
+		return err
 	}
 	if _, err := check(); err != nil {
-		return domain.EmbeddedCover{}, err
+		return err
 	}
 	// Re-resolve the authorized path to reject replacement of the catalog
 	// target while ffprobe read the original descriptor.
-	current, err := Open(ctx, candidate.Source())
+	current, err := Open(ctx, source)
 	if err != nil {
-		return domain.EmbeddedCover{}, domain.ErrProbeSourceChanged
+		return domain.ErrProbeSourceChanged
 	}
 	currentInfo, statErr := current.Stdin().Stat()
 	closeErr := current.Close()
 	if statErr != nil || closeErr != nil || !os.SameFile(before, currentInfo) || !matches(currentInfo, input.Metadata()) {
-		return domain.EmbeddedCover{}, domain.ErrProbeSourceChanged
+		return domain.ErrProbeSourceChanged
 	}
-	return cover, nil
+	return nil
 }
 
 func coverProcessError(err error) error {

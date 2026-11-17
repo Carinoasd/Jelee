@@ -67,6 +67,8 @@ Jelee 本仓库派生自 [Jellyfin](https://github.com/jellyfin/jellyfin)。审�
 
 `golang.org/x/image v0.46.0` 使用 BSD 三條款授權，Copyright (c) 2009 The Go Authors；完整聲明保留於 `internal/adapter/images/LICENSE.x-image`，正式容器另附於 `/licenses/x-image/LICENSE`。版本與校驗值由 go.mod/go.sum 固定；本地圖片縮圖使用 `draw.ApproxBiLinear`（EXIF 方向以同一插值器的仿射 `Transform`），WebP／BMP／TIFF 解碼使用同一固定版本的 `webp`、`bmp`、`tiff` 子套件；JPEG／PNG／GIF 解碼與 JPEG 編碼使用固定 Go SDK。
 
+`github.com/HugoSmits86/nativewebp v1.3.0` 使用 MIT 授權，Copyright (c) 2024 Hugo Smits；完整聲明保留於 `internal/adapter/images/LICENSE.nativewebp`，正式容器另附於 `/licenses/nativewebp/LICENSE`。版本與校驗值由 go.mod/go.sum 固定，以 `GOFLAGS=-mod=mod go get github.com/HugoSmits86/nativewebp@v1.3.0` 取得；它唯一的相依 `golang.org/x/image`（要求 ≥ v0.24.0）沿用上述固定版本，沒有新增其他模組。只用其 `Encode` 產生無損 WebP（VP8L）輸出（G40.6）；純 Go、沒有 cgo、沒有 `unsafe` 與組合語言。選擇理由與 AVIF 不提供的原因見 [ADR 0010](adr/0010-image-output-formats.md)。
+
 ## 舊庫遷移的 SQLite 依賴
 
 依[擁有者核對清單](owner-verification-queue.md) E13 的決定，舊庫遷移工具（G04.6，`jelee-cli legacy-import`，見 [legacy-import.md](legacy-import.md)）使用純 Go 的 `modernc.org/sqlite v1.60.1` 讀取上游 SQLite 資料庫。版本與校驗值由 go.mod/go.sum 固定；以 `GOFLAGS=-mod=mod go get modernc.org/sqlite@v1.60.1` 取得、`go mod tidy` 整理，沒有加入其他直接依賴。

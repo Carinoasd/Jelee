@@ -51,22 +51,42 @@ func (s *Server) playbackInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 	defer cancel()
 	id := chi.URLParam(r, "id")
-	sources, err := s.catalog.PlaybackSources(ctx, actor, id)
+	sources, selection, err := s.catalog.PlaybackChoice(ctx, actor, id, nil)
 	if err != nil {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
 	}
+	principal, hasPrincipal := access.PrincipalFromContext(r.Context())
 	for i := range sources {
-		for j := range sources[i].External {
-			track := &sources[i].External[j]
-			track.URL = trackURL(sources[i].ID, track.Kind, track.ID)
-		}
-		s.decorateExtracted(&sources[i])
-		if principal, ok := access.PrincipalFromContext(r.Context()); ok {
-			s.decorateOCR(ctx, principal, &sources[i])
+		s.decoratePlayback(ctx, principal, hasPrincipal, &sources[i])
+		// Every part of a multi-part version is delivered from its own
+		// source routes (G21.1).
+		for j := range sources[i].Parts {
+			s.decoratePlayback(ctx, principal, hasPrincipal, &sources[i].Parts[j].PlaybackSource)
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources}})
+	s.logSelection(r, w, selection)
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "sources": sources, "selection": selection}})
+}
+
+// decoratePlayback adds the delivery URLs of one source's external,
+// extractable and OCR-derived tracks.
+func (s *Server) decoratePlayback(ctx context.Context, principal access.Principal, hasPrincipal bool, source *domain.PlaybackSource) {
+	for j := range source.External {
+		track := &source.External[j]
+		track.URL = trackURL(source.ID, track.Kind, track.ID)
+	}
+	s.decorateExtracted(source)
+	if hasPrincipal {
+		s.decorateOCR(ctx, principal, source)
+	}
+}
+
+// logSelection records the default version choice (G20.2) at debug level:
+// only source IDs and fixed reason codes, never names or paths.
+func (s *Server) logSelection(r *http.Request, w http.ResponseWriter, selection domain.VersionSelection) {
+	s.logger.DebugContext(r.Context(), "default version chosen", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
+		"sourceId", selection.DefaultSourceID, "reason", selection.Reason, "preferences", selection.Preferences, "excluded", len(selection.Excluded))
 }
 
 func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +102,7 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.RequestTimeout())
 	defer cancel()
 	id := chi.URLParam(r, "id")
-	decisions, err := s.catalog.CheckPlayback(ctx, actor, id, caps)
+	decisions, selection, err := s.catalog.CheckPlaybackChoice(ctx, actor, id, caps)
 	if err != nil {
 		WriteError(w, r, s.hiddenContentError(err))
 		return
@@ -113,5 +133,6 @@ func (s *Server) playbackCheck(w http.ResponseWriter, r *http.Request) {
 		s.logger.InfoContext(r.Context(), "direct play unsupported", "component", "playback", "requestId", w.Header().Get("X-Request-ID"),
 			"sources", len(decisions), "unsupported", unsupported, "reasons", reasons)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "directPlayable": playable, "decisions": decisions}})
+	s.logSelection(r, w, selection)
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"itemId": id, "delivery": playbackDelivery, "directPlayable": playable, "decisions": decisions, "selection": selection}})
 }

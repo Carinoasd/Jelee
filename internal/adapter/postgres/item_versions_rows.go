@@ -37,6 +37,11 @@ var versionSnapshotTables = []versionRowTable{
  OR EXISTS(SELECT 1 FROM item_directory_sources d WHERE d.id=vr.id OR d.root_id=vr.root_id AND d.relative_path=vr.relative_path)`},
 	{"item_parent_links", `item_id=$1::uuid`, `DELETE FROM vr WHERE NOT EXISTS(SELECT 1 FROM items p WHERE p.id=vr.parent_id)`},
 	{"catalog_scan_items", `item_id=$1::uuid`, `DELETE FROM vr WHERE EXISTS(SELECT 1 FROM catalog_scan_items c WHERE c.library_id=vr.library_id AND c.kind=vr.kind AND c.group_digest=vr.group_digest)`},
+	{"item_identity_corrections", `item_id=$1::uuid`, ""},
+	// A refused automatic match (G14.6) is an administrator decision and
+	// comes back with the item; a pending one is restored as it was.
+	{"metadata_refresh_reviews", `item_id=$1::uuid`, `UPDATE vr SET job_id=NULL WHERE NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=vr.job_id);
+ UPDATE vr SET rejected_by=NULL WHERE NOT EXISTS(SELECT 1 FROM users u WHERE u.id=vr.rejected_by)`},
 	{"item_images", `item_id=$1::uuid`, `DELETE FROM vr WHERE vr.root_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM library_roots r WHERE r.id=vr.root_id)`},
 	{"user_item_data", `item_id=$1::uuid`, versionUserGone + `;
  UPDATE vr SET last_source_id=NULL WHERE NOT EXISTS(SELECT 1 FROM media_sources m WHERE m.id=vr.last_source_id)`},
@@ -60,10 +65,12 @@ var versionSnapshotMoved = []string{"media_sources", "catalog_scan_sources", "pl
 
 // versionSnapshotDropped cascade with the item and are not kept: prepared
 // NFO writes expire within minutes and are rebuilt on request; embedded cover
-// attempts are a rebuildable cache keyed by the file fingerprint; share links
+// and chapter image attempts are a rebuildable cache keyed by the file
+// fingerprint; share links
 // on the absorbed item are only revoked or expired ones (a live one refuses
-// the merge, liveShareOnItem).
-var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "share_links"}
+// the merge, liveShareOnItem); session track choices (G20.4) name stream
+// indexes of one version and expire within 30 days.
+var versionSnapshotDropped = []string{"nfo_write_preparations", "item_embedded_cover_attempts", "item_chapter_image_attempts", "share_links", "session_track_selections"}
 
 type versionRowsPhase int
 

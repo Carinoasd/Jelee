@@ -69,7 +69,7 @@ func newProbeService(ctx context.Context, enabled bool, repository probeMaintena
 			reason = "cleanup_failed"
 		}
 		switch reason {
-		case "platform_unsupported", "temporary_unavailable", "cleanup_failed", "health_check_failed", "catalog_identity_unsupported":
+		case "platform_unsupported", "temporary_unavailable", "cleanup_failed", "health_check_failed":
 			p.capability.Reason = reason
 		}
 		return p, nil
@@ -95,10 +95,9 @@ func newProbeService(ctx context.Context, enabled bool, repository probeMaintena
 }
 
 func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) {
-	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
-		return preparedProbe{}, windowsProbeReason(proberuntime.Diagnose(ctx)), domain.ErrProbeRuntimeUnavailable
-	}
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	// Linux uses the isolated helper; Windows amd64 the confined direct
+	// ffprobe.exe (ADR 0011). Both pass the same health check below.
+	if runtime.GOARCH != "amd64" || (runtime.GOOS != "linux" && runtime.GOOS != "windows") {
 		return preparedProbe{}, "platform_unsupported", domain.ErrProbeRuntimeUnavailable
 	}
 	identity, err := proberuntime.Identity()
@@ -141,18 +140,6 @@ func prepareProductionProbe(ctx context.Context) (preparedProbe, string, error) 
 	return prepared, "runtime_unavailable", err
 }
 
-// windowsProbeReason classifies the Windows startup check. The confined
-// ffprobe.exe (ADR 0011) is exercised by the same health check as on Linux,
-// but catalog probing stays disabled even when it passes: probe identities
-// and tool_versions rows accept only linux-amd64 until a schema change
-// admits windows-amd64. A failed check is reported as such.
-func windowsProbeReason(health proberuntime.Diagnostic) string {
-	if health.Capability == "available" {
-		return "catalog_identity_unsupported"
-	}
-	return "health_check_failed"
-}
-
 // warnProbeUnavailable makes an enabled but unavailable probe visible at
 // startup. Probing stays disabled; there is never an unconfined fallback.
 func warnProbeUnavailable(logger *slog.Logger, capability domain.ProbeCapability) {
@@ -160,9 +147,6 @@ func warnProbeUnavailable(logger *slog.Logger, capability domain.ProbeCapability
 		return
 	}
 	message := "media probing is enabled but its isolated runtime is unavailable; probing stays disabled"
-	if capability.Reason == "catalog_identity_unsupported" {
-		message = "the Windows media sandbox is verified, but catalog probing stays disabled until probe identities accept windows-amd64"
-	}
 	logger.Warn(message, "component", "probe", "code", "probe_runtime_unavailable", "reason", capability.Reason)
 }
 

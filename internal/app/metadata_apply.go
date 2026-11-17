@@ -24,7 +24,7 @@ func (m *Metadata) ApplyTMDB(ctx context.Context, actor domain.Actor, item strin
 	if err := ctx.Err(); err != nil {
 		return domain.MetadataApplyResult{}, err
 	}
-	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
+	if !workerActor(actor) {
 		return domain.MetadataApplyResult{}, domain.ErrUnauthenticated
 	}
 	if !domain.ValidTMDBMetadataInput(item, input) {

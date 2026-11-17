@@ -41,6 +41,7 @@ COPY --from=build /usr/local/go/PATENTS /licenses/go/PATENTS
 COPY LICENSE /LICENSE
 COPY docs/LICENSE-COMPLIANCE.md /licenses/README.md
 COPY --chmod=0444 internal/adapter/images/LICENSE.x-image /licenses/x-image/LICENSE
+COPY --chmod=0444 internal/adapter/images/LICENSE.nativewebp /licenses/nativewebp/LICENSE
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.modernc-sqlite /licenses/modernc-sqlite/LICENSE
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.public-domain-sqlite /licenses/modernc-sqlite/LICENSE-SQLITE
 COPY --chmod=0444 internal/adapter/legacydb/LICENSE.modernc-sqlite-third-party.txt /licenses/modernc-sqlite/LICENSE-3RD-PARTY.md

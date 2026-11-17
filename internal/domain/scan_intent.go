@@ -26,6 +26,15 @@ type ScanCapabilities struct {
 	// NFOExport lets a worker with a configured exporter claim nfo_export
 	// jobs whose child write job, if any, has finished.
 	NFOExport bool
+	// ImageRefresh lets a worker with a configured refresher claim
+	// image_refresh jobs.
+	ImageRefresh bool
+	// MetadataRefresh lets a worker claim metadata_refresh jobs; one without
+	// a configured provider fails them.
+	MetadataRefresh bool
+	// Kinds are further job kinds the worker claims (maintenance jobs,
+	// G13.6, G14.7); each has a self-contained worker.
+	Kinds []string
 }
 
 func ValidateScanIntent(v ScanIntent) error {

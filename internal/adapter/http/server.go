@@ -328,6 +328,9 @@ func newServer(cfg config.Config, backend Backend, catalog *app.Catalog, resolve
 	}
 	if cfg.EnableImages {
 		s.imageRoutes(r)
+		if cfg.EnableAccounts && cfg.EnableCatalog {
+			s.imageAdminRoutes(r)
+		}
 	}
 	if s.metadata != nil && cfg.TMDBAPIKey != "" {
 		s.metadataRoutes(r)
@@ -493,7 +496,7 @@ func (s *Server) newCompat(cfg config.Config, backend Backend) (http.Handler, er
 	// The library module reads only through the catalog service, which
 	// applies the library grants in storage like the native catalog routes.
 	if cfg.EnableCatalog && s.catalog.CanBrowse() {
-		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP}
+		opts.Library = &compat.LibraryOptions{Catalog: s.catalog, HiddenStatus: cfg.Access.HiddenContentStatus(), DirectPlay: cfg.EnableDirect, ClientIP: requestClientIP, Logger: s.logger}
 		// Playback reports, played marks and user data use the catalog's
 		// progress buffer, which answers 503 until it is wired.
 		opts.Library.Playstate = s.catalog
@@ -868,7 +871,9 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 409, "devmode_toggle_unavailable", "This developer mode option is not available in this build."
 	case errors.Is(err, errLogComponentMandatory):
 		status, code, message = 409, "log_component_mandatory", "The audit and security logs cannot be lowered or disabled."
-	case errors.Is(err, errConfirmationRequired):
+	case errors.Is(err, domain.ErrScheduleKindNotAllowed):
+		status, code, message = 400, "schedule_kind_not_allowed", "This job kind cannot be scheduled."
+	case errors.Is(err, errConfirmationRequired), errors.Is(err, domain.ErrConfirmationRequired):
 		status, code, message = 400, "confirmation_required", "This operation is dangerous and needs an explicit confirmation."
 	case errors.Is(err, domain.ErrForbidden):
 		status, code, message = 403, "forbidden", "Operation is not permitted."
@@ -946,6 +951,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		status, code, message = 503, "not_ready", "Service is not ready."
 	case errors.Is(err, domain.ErrMetadataUnavailable):
 		status, code, message = 503, "metadata_unavailable", "Metadata provider is unavailable. Try again later."
+	case errors.Is(err, domain.ErrSubtitleCacheUnavailable):
+		status, code, message = 503, "subtitle_cache_unavailable", "The subtitle extraction cache is not configured on this server."
 	case errors.Is(err, domain.ErrImageBusy):
 		status, code, message = 503, "image_busy", "Image processing is busy. Try again later."
 		w.Header().Set("Retry-After", "1")

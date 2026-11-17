@@ -89,6 +89,23 @@ Jelee 不需要 Redis：快取都在各實例的記憶體內，以版本號、�
 
 開啟時必須同時開啟 `JELEE_ENABLE_PROBE`（因此也需要 jobs／accounts 與已驗證的 Linux amd64 正式映像）、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則啟動時設定驗證失敗。執行時探測能力不可用或存放區沒開時只記 WARN（`embedded_cover_prerequisite_unavailable`／`embedded_cover_runtime_unavailable`）並跳過這一段，服務照常啟動。它只用映像內已固定雜湊的 ffprobe 與既有沙箱，不需要也不會呼叫 ffmpeg（G37.1：正式映像不含 ffmpeg，本功能也沒有把它加進 Dockerfile）；`jelee-cli doctor` 在開關開啟時回報 `embedded_covers_ready`／`embedded_covers_tool_missing`；子行程同時 1 個、20 秒逾時、輸出 16 MiB、單張封面 3 MiB，每次 catalog sync 最多 512 次。schema 升到 79（新增 `item_embedded_cover_attempts`）；探測 parser 升為 `media-metadata-v3`（探測資料 schema 2，與 E4 的 MediaInfo 補充合併後的格式），升級後既有探測快取會在下次探測時重算。細節、優先序與界限見[本地圖片：內嵌封面擷取](local-images.md#內嵌封面擷取g404schema-79)。
 
+## 章節圖擷取（G40.1）
+
+| 設定 | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enableChapterImages` | `JELEE_ENABLE_CHAPTER_IMAGES` | `false` | catalog sync 結束時（內嵌封面之後）把已探測媒體容器內已存的章節圖原樣複製到圖片存放區 |
+
+前置條件與內嵌封面相同（探測、圖片、`JELEE_IMAGE_STORE_ROOT`），否則設定驗證失敗；執行時不可用只記 WARN（`chapter_image_prerequisite_unavailable`／`chapter_image_runtime_unavailable`），服務照常啟動。只用映像內固定雜湊的 ffprobe 與既有沙箱，**不從影格生成章節圖**（ADR 0007：正式映像不含 ffmpeg）；`jelee-cli doctor` 回報 `chapter_images_ready`／`chapter_images_tool_missing`。schema 升到 98（新增 `item_chapter_image_attempts`）。界限與行為見[圖片資產：章節圖](image-assets.md#章节图g401)。
+
+## 遠端圖片抓取（G40.9）
+
+預設關閉，即「僅本地圖片」模式：伺服器不發出任何圖片請求。
+
+| 設定 | 環境變數 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `enableImageFetch` | `JELEE_ENABLE_IMAGE_FETCH` | `false` | 允許管理員送出 `image_refresh` 任務，把未鎖定、非手動、尚無內容的遠端圖片抓進圖片存放區 |
+
+開啟時必須同時開啟 `JELEE_ENABLE_JOBS`、`JELEE_ENABLE_IMAGES` 並設定 `JELEE_IMAGE_STORE_ROOT`，否則設定驗證失敗。抓取只連公網 HTTPS 位址（SSRF 防護），規則與失敗處理見[圖片刷新任務](image-refresh-jobs.md)。
 ## Windows 上的媒體探測（G09.6）
 
 Windows amd64 以「受限 token＋Job Object」直接執行已驗證的 `ffprobe.exe`，決定與理由見 [ADR 0011](adr/0011-windows-media-tool-confinement.md)，技術細節見[媒體 helper 隔離](media-sandbox.md#windows-amd64-confinement-g096)。
@@ -97,7 +114,7 @@ Windows amd64 以「受限 token＋Job Object」直接執行已驗證的 `ffprob
 - **執行身分。** 請以專用的標準使用者（非 Administrators、非 LocalSystem）執行服務，並只授予它媒體根目錄的讀取權。工具以低完整性（Low IL）執行：能讀服務使用者能讀的檔案，不能寫任何一般檔案或目錄，不能建立子程序，記憶體 2 GiB、CPU 30 秒，逾時或取消會終止整個 Job。不需要也不會改動媒體目錄的 ACL。
 - **更新工具。** 服務執行期間 `ffprobe.exe` 被以「不共用寫入／刪除」的方式開著，無法覆寫、刪除或改名其上層目錄；更新 `.tools` 前請先停服務。
 - **檢查。** `jelee-cli doctor probe`（或 `scripts/make.ps1 diag`）會實際以受限身分跑一次健康檢查，成功時 `reason` 為 `confined_process_verified`。
-- **目前的限制。** 目錄掃描的探測在 Windows 仍停用：探測身分與 `tool_versions` 只接受 `linux-amd64`，放寬需要另一個遷移。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查並記一筆 WARN（`code=probe_runtime_unavailable`，`reason=catalog_identity_unsupported` 表示沙箱可用但目錄探測未開放，`health_check_failed` 表示沙箱不可用），探測維持停用，沒有未隔離的備援。MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
+- **目錄探測與限制。** 沙箱健康檢查通過時，Windows 上的目錄掃描探測會啟用（探測身分與 `tool_versions` 在遷移 000108 起接受 `windows-amd64`，Windows 與 Linux 的快取結果分開）。開 `JELEE_ENABLE_PROBE=true` 時，啟動會跑一次健康檢查；失敗時記一筆 WARN（`code=probe_runtime_unavailable`，`reason=health_check_failed`），探測維持停用，沒有未隔離的備援。降級到 000108 之前的結構時，若已有 Windows 探測身分列會被拒絕，需先清除探測快取。只有 ffprobe 開放：MediaInfo、mkvtoolnix、Tesseract 在 Windows 仍是 `platform_unsupported`。
 
 ## 媒體庫語言設定的升級
 
@@ -245,7 +262,7 @@ Jelee 用标准库 gzip 压缩非媒体响应（JSON、NDJSON、HTML、CSS、Jav
 
 每條告警的處置步驟見 [Runbook](runbook.md)，指標定義見[指標契約](metrics.md#維運告警指標g506)。版本內沒有固定 `promtool`；規則語法與指標存在性由 `internal/platform/telemetry/alerts_test.go` 檢查，部署端有 `promtool` 時可再跑 `promtool check rules`。
 
-**資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
+**資料一致性檢查。** `jelee-cli consistency check [--library 名稱]` 在服務主機上直接檢查（預設只報告，結束碼 3 表示有發現）；`--fix` 只修正可逆的參照與統計計數，寫入修正日誌與稽核，`jelee-cli consistency revert --run RUN_ID` 還原。定期檢查以 `JELEE_JOB_CONSISTENCY_INTERVAL_HOURS`（例如 `168`＝每週）啟用，任務在任務清單中可觀察與取消。備份提醒以 `JELEE_JOB_BACKUP_REMINDER_DAYS`（例如 `7`，預設 0 關閉）每天檢查最後一次元資料匯出（也可改用 `POST /api/v1/schedules` 建立 `backup_reminder` 排程，可設時區與窗口，見[任務排程](job-schedules.md)）；字幕擷取快取清理與按媒體庫移除外部元資料為手動任務，見[維護任務](maintenance-jobs.md)。完整說明、報告格式與限制見[資料一致性檢查](consistency.md)。
 
 **自愈動作（G50.4）。** `jelee-cli repair <動作> --dry-run` 列出會受影響的對象與數量（不寫任何東西），確認後 `--yes` 執行並寫稽核，再跑一次影響為 0；`stats`、`counts` 可以 `jelee-cli repair revert --run RUN_ID --yes` 回滾。`image-variants` 與 `nfo` 由執行中的服務完成（`--token-stdin` 或 `POST /api/v1/admin/repairs`）。完整說明見[自愈動作](repair.md)。
 

@@ -127,16 +127,24 @@ func NormalizeTrackLanguage(value string) (string, bool) {
 }
 
 // TrackPreferenceSet is everything one user stored for one item, plus the
-// account locale used when no level names a subtitle language.
+// account locale used when no level names a subtitle language, the latest
+// session choice of the item (G20.4) and the user's version preference
+// (G20.2).
 type TrackPreferenceSet struct {
 	User     *TrackPreference
 	Item     *TrackPreference
 	Versions map[string]TrackPreference
 	Locale   string
+	// Session is the unexpired session choice of the item, if any; it only
+	// applies to the version it was recorded on.
+	Session *SessionTracks
+	// VersionPreference orders the item's versions.
+	VersionPreference VersionPreference
 }
 
 // Effective merges the levels for one version, most specific first, and
-// reports the most specific level that set any member.
+// reports the most specific level that set any member. A session choice of
+// this version comes before every stored level.
 func (s TrackPreferenceSet) Effective(sourceID string) (TrackPreference, string) {
 	var out TrackPreference
 	basis := ""
@@ -154,6 +162,10 @@ func (s TrackPreferenceSet) Effective(sourceID string) (TrackPreference, string)
 		fill(&out.SubtitleLanguage, p.SubtitleLanguage)
 		fill(&out.SubtitleSDH, p.SubtitleSDH)
 		fill(&out.SubtitleTrack, p.SubtitleTrack)
+	}
+	if s.Session != nil && s.Session.SourceID == sourceID {
+		session := s.Session.preference()
+		apply(&session, TrackBasisSession)
 	}
 	if v, ok := s.Versions[sourceID]; ok {
 		apply(&v, TrackBasisVersion)
@@ -195,8 +207,10 @@ type TrackSelection struct {
 type DefaultTracks struct {
 	Audio    *TrackSelection `json:"audio"`
 	Subtitle *TrackSelection `json:"subtitle"`
-	// Basis is the level that decided: version, item, user, locale (only
-	// the account language applied) or source (the file's own defaults).
+	// Basis is the level that decided: session (a track switched to during
+	// an earlier playback of this version), version, item, user, locale
+	// (only the account language applied) or source (the file's own
+	// defaults).
 	Basis string `json:"basis"`
 }
 

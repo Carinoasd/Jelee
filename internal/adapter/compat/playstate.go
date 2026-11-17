@@ -62,16 +62,20 @@ func isPlaybackReportPath(rest string) bool {
 
 // playbackReportBody holds the members of the upstream PlaybackStartInfo,
 // PlaybackProgressInfo and PlaybackStopInfo that change what is recorded.
-// The others (stream indexes, volume, queue, the item, the play method) are
+// The stream indexes are the tracks the client plays; a change is recorded
+// as the session track choice of the item (G20.4) and never changes the
+// delivery. The others (volume, queue, the item, the play method) are
 // ignored: the delivery is always the original file. Member names match
 // case-insensitively, as upstream binds them.
 type playbackReportBody struct {
-	ItemID        string `json:"ItemId"`
-	MediaSourceID string `json:"MediaSourceId"`
-	PositionTicks *int64 `json:"PositionTicks"`
-	IsPaused      bool   `json:"IsPaused"`
-	PlaySessionID string `json:"PlaySessionId"`
-	Failed        bool   `json:"Failed"`
+	ItemID              string `json:"ItemId"`
+	MediaSourceID       string `json:"MediaSourceId"`
+	PositionTicks       *int64 `json:"PositionTicks"`
+	IsPaused            bool   `json:"IsPaused"`
+	PlaySessionID       string `json:"PlaySessionId"`
+	Failed              bool   `json:"Failed"`
+	AudioStreamIndex    *int   `json:"AudioStreamIndex"`
+	SubtitleStreamIndex *int   `json:"SubtitleStreamIndex"`
 }
 
 func readJSONBody(r *http.Request, target any) error {
@@ -135,6 +139,11 @@ func (rt *router) playbackReport(kind domain.PlaybackReportKind) http.HandlerFun
 				return
 			}
 			report.PositionTicks, report.PositionKnown = *body.PositionTicks, true
+		}
+		// An index out of range names no track; the rest of the report is
+		// still recorded.
+		if tracks := (domain.PlaybackTrackReport{AudioIndex: body.AudioStreamIndex, SubtitleIndex: body.SubtitleStreamIndex}); !tracks.Empty() && tracks.Valid() {
+			report.Tracks = &tracks
 		}
 		report.PlayKey = body.PlaySessionID
 		if !domain.ValidPlayKey(report.PlayKey) {

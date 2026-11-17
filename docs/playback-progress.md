@@ -88,7 +88,7 @@
 | `GET /api/v1/items/{id}/user-data` | 任何工作階段 | 續播點、已播放、次數、最後播放時間；看不到的條目 404 |
 | `PUT`／`DELETE /api/v1/items/{id}/played` | 任何工作階段 | 標記已播放（次數 +1、清續播點）／未播放（次數歸零、清續播點）；PUT 主體 `{}` |
 | `GET /api/v1/users/me/resume?offset&limit` | 任何工作階段 | 繼續觀看（最近播放在前，`limit` 1–500，預設 50） |
-| `DELETE /api/v1/users/me/playback-history` | 任何工作階段 | 清除自己的會話、樣本、續播點、已播放、次數與觀看統計；寫審計 `playback.history_cleared`（只記筆數） |
+| `DELETE /api/v1/users/me/playback-history` | 任何工作階段 | 清除自己的會話、樣本、續播點、已播放、次數、觀看統計與會話選軌（G20.4，見[多版本](item-versions.md#會話層級選軌g204)）；寫審計 `playback.history_cleared`（只記筆數） |
 | `GET /api/v1/playback/sessions` | 管理員 | 進行中的會話（最多 500），含本實例尚未 flush 的位置 |
 
 回報路由先過 `GuardProduction`（轉換參數 409 `transcode_disabled`），不接受 query。新錯誤碼 `playback_busy`（503）已加入錯誤碼表與四種語系。

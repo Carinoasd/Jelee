@@ -62,18 +62,20 @@
 
 ## 任務二：圖片掃描入庫、刷新任務、管理 API
 
+> 狀態：三項皆已實作——掃描入庫（schema94，[image-ingest.md](image-ingest.md)）、刷新任務（schema96，[image-refresh-jobs.md](image-refresh-jobs.md)）、管理 API（schema95，[image-assets.md](image-assets.md#管理接口g4010g4011)）；遷移編號皆為暫定。長時間與真實外部主機的驗證列在 [owner-verification-queue.md](owner-verification-queue.md)（C25、D26）。
+
 ### 要做的事
-1. **掃描入庫**（G40.2、G40.3）：
+1. **掃描入庫**（G40.2、G40.3）（狀態：已實作（schema94，暫定編號），設計理由、規則與驗證見 [image-ingest.md](image-ingest.md)：掛在 catalog sync 完成後的收尾、每頁一個有 lease fence 的交易、只讀資料庫不連網；`item_images.manual` 區分手動列；以下原始需求保留供對照）：
    - 掃描或 catalog 發布時，對每個條目的目錄呼叫 `images.RecognizeImageNames`（`internal/adapter/images/naming.go`），把結果寫進 `item_images`。
    - 寫入使用 `postgres.upsertItemImage(ctx, tx, domain.Actor{}, in)`（非手動，`Manual=false`），在自己有 lease fence 的交易內呼叫。
    - 季圖（`season01-poster` 等）掛到 Season 條目；`season-all` 要展開到各季。Fanart 存成 Backdrop。
    - NFO 的 `art` 事實（目前在 `item_metadata_facts` 的 `field='art'`）：相對路徑要在 root 內才寫成 nfo 來源；遠端網址寫成 remote 來源，不在這裡抓取。
    - 一個目錄放多部電影時，`poster.jpg` 這類共用名稱要決定是否採用（建議只在一個目錄一部影片時採用）。
-2. **刷新任務**（G40.9、G40.10）：
+2. **刷新任務**（G40.9、G40.10）（狀態：已實作（schema96，暫定編號），設計與驗證見 [image-refresh-jobs.md](image-refresh-jobs.md)：只抓未鎖定、非手動、尚無內容的 remote 列，寫入時以相同網址再確認；每抓一列一個檢查點，可取消、可續跑；每列失敗記原因與重試退避；預設僅本地圖片模式，未開啟抓取或無存放區時不可送件，已排入的任務明確失敗；以下原始需求保留供對照）：
    - 新 job kind `image_refresh`（要改 jobs 的 kind CHECK 約束與指標維度）。
    - 用 `internal/adapter/images/fetch.go` 抓取尚未有內容的 remote 來源，寫入持久存放區（`store.go`）並回填 `content_sha256` 等欄位。
    - 必須尊重鎖定；可以取消、可以續跑；每筆失敗各自隔離，不影響其他條目。
-3. **管理 API**（G40.10、G40.11）：
+3. **管理 API**（G40.10、G40.11）（狀態：已實作（schema95，暫定編號），設計與限制見 [image-assets.md](image-assets.md#管理接口g4010g4011)；以下原始需求保留供對照）：
    - `POST`／`DELETE /api/v1/items/{id}/images/{type}`（`index` 用查詢參數，和現有 `/images` 一致）與鎖定、解鎖。
    - 刪除或更換要求明確確認（例如 `confirm=true`），並寫稽核。事件名要加進 `internal/adapter/postgres/audit.go` 的白名單（L4 合入後）。
    - 只清 Jelee 自己產生的變體，**不得動使用者原圖**。

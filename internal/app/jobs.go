@@ -25,11 +25,19 @@ type Jobs struct {
 	nfoWriteJobs          NFOWriteJobRepository
 	nfoApplyJobs          NFOApplyJobRepository
 	nfoExportJobs         NFOExportJobRepository
+	imageRefreshJobs      ImageRefreshJobRepository
+	imageRefreshAdmit     bool
+	metadataRefreshJobs   MetadataRefreshJobRepository
+	metadataRefresh       *Metadata
 	nfoQueries            NFOQueryRepository
 	imageQueries          ImageQueryRepository
 	nfoIdentity           *domain.NFOIdentity
 	nfoAvailable          func() bool
 	consistency           *consistencySchedule
+	maintenanceJobs       MaintenanceJobRepository
+	subtitleCacheAdmit    bool
+	backupReminderDays    int
+	backupReminder        *backupReminderSchedule
 }
 
 func NewJobs(repository JobRepository, policy domain.JobPolicy) (*Jobs, error) {

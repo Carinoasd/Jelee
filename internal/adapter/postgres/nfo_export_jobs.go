@@ -18,7 +18,8 @@ var (
 // SubmitNFOExportJob admits a batch NFO export of one library. The library
 // must be read-only with the write permission (domain.ErrNFOWriteDisabled
 // otherwise) and have no active job. Replay of the same key, library and
-// priority returns the first job.
+// priority returns the first job. Its progress total is the library's item
+// count at admission.
 func (s *Store) SubmitNFOExportJob(ctx context.Context, actor domain.Actor, library, key, priority string, policy domain.JobPolicy) (domain.Job, bool, error) {
 	return s.SubmitNFOExportModeJob(ctx, actor, library, key, priority, domain.NFOExportAll, policy)
 }
@@ -64,7 +65,8 @@ func (s *Store) SubmitNFOExportModeJob(ctx context.Context, actor domain.Actor, 
 	if err = libraryAdmission(ctx, tx, library, policy); err != nil {
 		return domain.Job{}, false, err
 	}
-	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit) VALUES($1::uuid,$2::uuid,$3,'nfo_export',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+jobColumns,
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at) VALUES($1::uuid,$2::uuid,$3,'nfo_export',$4,$5,$6,$7,$8,$9,$10,$11,
+ (SELECT count(*) FROM items WHERE library_id=$1::uuid),clock_timestamp()) RETURNING `+jobColumns,
 		library, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit))
 	if err != nil {
 		return domain.Job{}, false, err
@@ -443,8 +445,8 @@ func (s *Store) SubmitNFOExportChunk(ctx context.Context, lease domain.JobLease,
 	}
 	// The child takes the export job's policy; the queue limit was applied when
 	// the export job was admitted.
-	child, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,export_job_id,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit)
- SELECT library_id,actor_id,$2,'nfo_write',priority,id,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit FROM jobs WHERE id=$1::uuid RETURNING `+jobColumns, lease.Job.ID, domain.NFOExportChildKey(lease.Job.ID, chunk)))
+	child, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,export_job_id,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,progress_total,progress_total_at)
+ SELECT library_id,actor_id,$2,'nfo_write',priority,id,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,$3,clock_timestamp() FROM jobs WHERE id=$1::uuid RETURNING `+jobColumns, lease.Job.ID, domain.NFOExportChildKey(lease.Job.ID, chunk), len(preparations)))
 	if err != nil {
 		return err
 	}

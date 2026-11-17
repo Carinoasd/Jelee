@@ -49,6 +49,11 @@ const (
 	// cover pass, which reads covers with ffprobe only.
 	CodeEmbeddedCoversReady  = "embedded_covers_ready"
 	CodeEmbeddedCoversNoTool = "embedded_covers_tool_missing"
+	// CodeChapterImagesReady and CodeChapterImagesNoTool report the G40.1
+	// chapter image pass, which copies stored chapter pictures with ffprobe
+	// only and never generates them.
+	CodeChapterImagesReady  = "chapter_images_ready"
+	CodeChapterImagesNoTool = "chapter_images_tool_missing"
 	// CodeMatroskaVerified and the codes below report the optional
 	// mkvtoolnix/MediaInfo runtime (E4).
 	CodeMatroskaVerified    = "matroska_tool_verified"
@@ -154,10 +159,12 @@ var codes = map[string]codeInfo{
 	CodeToolMissing:          {"pinned ffprobe is not installed", "Container: use the official runtime image. Development: run make bootstrap-media (scripts/make.ps1 bootstrap-media on Windows)."},
 	CodeToolHashMismatch:     {"ffprobe does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (make tools-clean bootstrap-media) or rebuild the runtime image; never replace it with a system ffprobe."},
 	CodeToolUnreadable:       {"ffprobe exists but cannot be read", "Make the tool file a regular file readable by the service account."},
-	CodeToolUnsupported:      {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 only; other platforms run without media probing."},
+	CodeToolUnsupported:      {"no pinned ffprobe exists for this platform", "Probing is available on linux-amd64 and windows-amd64; other platforms run without media probing."},
 	CodeToolManifest:         {"embedded tool manifest is invalid", "Rebuild jelee-cli from a clean checkout."},
 	CodeEmbeddedCoversReady:  {"embedded cover extraction is enabled and its pinned ffprobe is verified (ffmpeg is not used)", ""},
 	CodeEmbeddedCoversNoTool: {"embedded cover extraction is enabled but no verified pinned ffprobe exists; the pass stays off", "Use the official runtime image (it ships ffprobe, never ffmpeg) or set JELEE_ENABLE_EMBEDDED_COVERS=false."},
+	CodeChapterImagesReady:   {"chapter image extraction is enabled and its pinned ffprobe is verified (pictures are copied, never generated; ffmpeg is not used)", ""},
+	CodeChapterImagesNoTool:  {"chapter image extraction is enabled but no verified pinned ffprobe exists; the pass stays off", "Use the official runtime image (it ships ffprobe, never ffmpeg) or set JELEE_ENABLE_CHAPTER_IMAGES=false."},
 	CodeMatroskaVerified:     {"optional mkvtoolnix/MediaInfo tool matches the manifest hash", ""},
 	CodeMatroskaMissing:      {"optional mkvtoolnix/MediaInfo tool is not installed; its feature stays off", "Container: use the official runtime image. Development: make bootstrap-matroska (scripts/make.ps1 bootstrap-matroska). Required only for Matroska subtitle/font extraction and the MediaInfo probe supplement."},
 	CodeMatroskaMismatch:     {"mkvtoolnix/MediaInfo tool does not match the pinned SHA-256 in tools/manifest.json", "Reinstall the pinned tool (remove .tools/matroska, make bootstrap-matroska) or rebuild the runtime image; never replace it with a system copy."},

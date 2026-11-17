@@ -90,7 +90,118 @@ func (s *Store) EffectiveTrackPreferences(parent context.Context, actor domain.A
 	if !visible {
 		return set, domain.ErrNotFound
 	}
+	// The item is visible to the live session; its session choice (only
+	// while unexpired and while the version still belongs to the item) and
+	// the user's version preference complete the set.
+	var (
+		session      domain.SessionTracks
+		audio, sub   *string
+		sessionFound bool
+	)
+	err = s.Pool.QueryRow(ctx, `SELECT v.max_height,v.dynamic_range,v.prefer_smaller,v.max_bitrate,t.source_id IS NOT NULL,COALESCE(t.source_id::text,''),t.audio_track,t.subtitle_track
+ FROM (SELECT 1) one
+ LEFT JOIN user_version_preferences v ON v.user_id=$1::uuid
+ LEFT JOIN session_track_selections t ON t.user_id=$1::uuid AND t.item_id=$2::uuid AND t.updated_at>clock_timestamp()-make_interval(secs=>$3)
+  AND EXISTS(SELECT 1 FROM media_sources m WHERE m.id=t.source_id AND m.item_id=t.item_id)`,
+		actor.UserID, itemID, domain.SessionTrackTTL.Seconds()).Scan(&set.VersionPreference.MaxHeight, &set.VersionPreference.DynamicRange,
+		&set.VersionPreference.PreferSmaller, &set.VersionPreference.MaxBitrate, &sessionFound, &session.SourceID, &audio, &sub)
+	if err != nil {
+		return set, storageError(err)
+	}
+	if sessionFound {
+		if audio != nil {
+			session.AudioTrack = *audio
+		}
+		if sub != nil {
+			session.SubtitleTrack = *sub
+		}
+		set.Session = &session
+	}
 	return set, nil
+}
+
+// VersionPreference returns the user's version preference (G20.2).
+func (s *Store) VersionPreference(ctx context.Context, actor domain.Actor) (domain.VersionPreference, error) {
+	if ctx == nil {
+		return domain.VersionPreference{}, domain.ErrInvalid
+	}
+	tx, _, err := s.authorizedTransaction(ctx, actor, false)
+	if err != nil {
+		return domain.VersionPreference{}, err
+	}
+	defer tx.Rollback(ctx)
+	var p domain.VersionPreference
+	err = tx.QueryRow(ctx, `SELECT max_height,dynamic_range,prefer_smaller,max_bitrate FROM user_version_preferences WHERE user_id=$1::uuid`, actor.UserID).
+		Scan(&p.MaxHeight, &p.DynamicRange, &p.PreferSmaller, &p.MaxBitrate)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return domain.VersionPreference{}, storageError(err)
+	}
+	return p, storageError(tx.Commit(ctx))
+}
+
+// SetVersionPreference replaces the user's version preference; an empty
+// preference removes it.
+func (s *Store) SetVersionPreference(ctx context.Context, actor domain.Actor, p domain.VersionPreference) (domain.VersionPreference, error) {
+	if ctx == nil {
+		return domain.VersionPreference{}, domain.ErrInvalid
+	}
+	if _, err := domain.NormalizeVersionPreference(p); err != nil {
+		return domain.VersionPreference{}, err
+	}
+	tx, _, err := s.authorizedTransaction(ctx, actor, false)
+	if err != nil {
+		return domain.VersionPreference{}, err
+	}
+	defer tx.Rollback(ctx)
+	if p.Empty() {
+		_, err = tx.Exec(ctx, `DELETE FROM user_version_preferences WHERE user_id=$1::uuid`, actor.UserID)
+	} else {
+		_, err = tx.Exec(ctx, `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate) VALUES($1::uuid,$2,$3,$4,$5)
+ ON CONFLICT(user_id) DO UPDATE SET max_height=EXCLUDED.max_height,dynamic_range=EXCLUDED.dynamic_range,prefer_smaller=EXCLUDED.prefer_smaller,
+ max_bitrate=EXCLUDED.max_bitrate,updated_at=clock_timestamp()`, actor.UserID, p.MaxHeight, p.DynamicRange, p.PreferSmaller, p.MaxBitrate)
+	}
+	if err != nil {
+		return domain.VersionPreference{}, storageError(err)
+	}
+	return p, storageError(tx.Commit(ctx))
+}
+
+// recordSessionTracksSQL replaces the user's choice of a visible item in
+// one statement bound to the live native session; the version must be the
+// item's. It also deletes the user's expired and surplus choices and a
+// bounded batch of everyone's expired ones, so the table never grows past
+// SessionTrackUserMax per user plus what expires.
+var recordSessionTracksSQL = `WITH ok AS (SELECT i.id FROM items i
+ JOIN users u ON u.id=$1::uuid AND NOT u.disabled AND u.deleted_at IS NULL
+ JOIN sessions s ON s.id=$2::uuid AND s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
+ WHERE i.id=$3::uuid AND EXISTS(SELECT 1 FROM media_sources m WHERE m.id=$4::uuid AND m.item_id=i.id) AND ` + itemVisibleSQL("$9", "i.library_id", "i.id") + `),
+up AS (INSERT INTO session_track_selections AS t(user_id,item_id,source_id,play_key,audio_track,subtitle_track)
+ SELECT $1::uuid,ok.id,$4::uuid,$5,$6,$7 FROM ok
+ ON CONFLICT(user_id,item_id) DO UPDATE SET source_id=EXCLUDED.source_id,play_key=EXCLUDED.play_key,audio_track=EXCLUDED.audio_track,
+  subtitle_track=EXCLUDED.subtitle_track,updated_at=clock_timestamp() RETURNING 1),
+expired AS (DELETE FROM session_track_selections WHERE ctid IN (SELECT ctid FROM session_track_selections
+ WHERE updated_at<=clock_timestamp()-make_interval(secs=>$8) AND NOT (user_id=$1::uuid AND item_id=$3::uuid) LIMIT 100)),
+surplus AS (DELETE FROM session_track_selections WHERE user_id=$1::uuid AND item_id<>$3::uuid AND item_id IN (SELECT item_id FROM session_track_selections
+ WHERE user_id=$1::uuid ORDER BY updated_at DESC,item_id OFFSET $10))
+SELECT count(*) FROM up`
+
+// RecordSessionTracks stores the session choice of a visible item (G20.4).
+func (s *Store) RecordSessionTracks(ctx context.Context, actor domain.Actor, itemID, playKey string, tracks domain.SessionTracks) error {
+	if ctx == nil || !domain.ValidID(itemID) || !domain.ValidID(tracks.SourceID) || !domain.ValidPlayKey(playKey) ||
+		tracks.AudioTrack == "" && tracks.SubtitleTrack == "" || tracks.AudioTrack != "" && !domain.ValidTrackRef(tracks.AudioTrack) ||
+		tracks.SubtitleTrack != "" && tracks.SubtitleTrack != domain.SubtitleTrackOff && !domain.ValidTrackRef(tracks.SubtitleTrack) {
+		return domain.ErrInvalid
+	}
+	var stored int
+	err := s.Pool.QueryRow(ctx, recordSessionTracksSQL, actor.UserID, actor.SessionID, itemID, tracks.SourceID, playKey,
+		nullableText(tracks.AudioTrack), nullableText(tracks.SubtitleTrack), domain.SessionTrackTTL.Seconds(), requestScopeArg(ctx), domain.SessionTrackUserMax-1).Scan(&stored)
+	if err != nil {
+		return storageError(err)
+	}
+	if stored == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func trackPreferenceView(itemID string, set domain.TrackPreferenceSet) domain.TrackPreferenceView {
@@ -155,6 +266,10 @@ func (s *Store) SetTrackPreference(ctx context.Context, actor domain.Actor, item
 	if err != nil {
 		return domain.TrackPreferenceView{}, storageError(err)
 	}
+	// A deliberate preference replaces the item's session choice (G20.4).
+	if _, err = tx.Exec(ctx, `DELETE FROM session_track_selections WHERE user_id=$1::uuid AND item_id=$2::uuid`, actor.UserID, itemID); err != nil {
+		return domain.TrackPreferenceView{}, storageError(err)
+	}
 	set, visible, err := s.readTrackPreferences(ctx, tx, actor, itemID)
 	if err != nil {
 		return domain.TrackPreferenceView{}, err
@@ -196,6 +311,10 @@ func (s *Store) SetUserTrackPreference(ctx context.Context, actor domain.Actor, 
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	// New defaults replace every session choice of the user (G20.4).
+	if _, err = tx.Exec(ctx, `DELETE FROM session_track_selections WHERE user_id=$1::uuid`, actor.UserID); err != nil {
+		return nil, storageError(err)
+	}
 	if p.Empty() {
 		if _, err = tx.Exec(ctx, `DELETE FROM user_track_preferences WHERE user_id=$1::uuid AND item_id IS NULL`, actor.UserID); err != nil {
 			return nil, storageError(err)
@@ -210,4 +329,11 @@ func (s *Store) SetUserTrackPreference(ctx context.Context, actor domain.Actor, 
 	}
 	out := p
 	return &out, storageError(tx.Commit(ctx))
+}
+
+func nullableText(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
 }

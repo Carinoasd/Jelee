@@ -126,6 +126,23 @@ type liveSession struct {
 	lastReceivedKept             bool
 	// retryEnd is an ending whose write failed; the next flush retries it.
 	retryEnd *domain.PlaybackFlush
+	// tracks is the fingerprint of the last session track choice stored
+	// for this session (G20.4), so unchanged reports write nothing.
+	tracks string
+	// offset maps positions a client reports within a later part of a
+	// multi-part version onto the version's combined timeline (G21.1);
+	// offsetUnknown drops such positions when an earlier part's duration is
+	// unknown, instead of storing a position in the wrong place.
+	offset        int64
+	offsetUnknown bool
+}
+
+// position maps a reported position onto the session's timeline.
+func (s *liveSession) mapPosition(report domain.PlaybackReport) (int64, bool) {
+	if !report.PositionKnown || s.offsetUnknown {
+		return 0, false
+	}
+	return min(report.PositionTicks+s.offset, domain.PlaybackPositionMax), true
 }
 
 // Progress buffers playback reports and writes them in batches (G23.2):
@@ -320,36 +337,48 @@ func (p *Progress) Report(ctx context.Context, actor domain.Actor, report domain
 }
 
 // open authorizes the item with the caller's session, picks the version and
-// opens or rejoins the stored session. created reports a new session.
+// opens or rejoins the stored session. created reports a new session. A
+// report naming a later part of a multi-part version (G21.1) plays that
+// version: positions are kept on its combined timeline, the runtime is the
+// combined duration.
 func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.PlaybackReport) (*liveSession, bool, error) {
 	records, err := p.sources.ListPlaybackSources(ctx, actor, report.ItemID)
 	if err != nil {
 		return nil, false, err
 	}
+	sources := domain.BuildPlaybackSources(records)
 	var source *domain.PlaybackSource
-	for _, record := range records {
-		candidate := domain.BuildPlaybackSource(record)
-		if report.SourceID != "" && candidate.ID != report.SourceID {
-			continue
+	var offset int64
+	offsetUnknown := false
+	if report.SourceID != "" {
+		version, part, ok := domain.FindPart(sources, report.SourceID)
+		if !ok {
+			// A version that does not belong to the item is answered like
+			// an invisible item.
+			return nil, false, domain.ErrNotFound
 		}
-		if source == nil || report.SourceID == "" && compareVersions(candidate, *source) < 0 {
-			c := candidate
-			source = &c
+		source = &version
+		if part.StartMicros == nil || *part.StartMicros > domain.PlaybackPositionMax/10 {
+			offsetUnknown = true
+		} else {
+			offset = *part.StartMicros * 10
+		}
+	} else {
+		for i := range sources {
+			if source == nil || domain.CompareVersions(sources[i], *source) < 0 {
+				source = &sources[i]
+			}
 		}
 	}
-	if report.SourceID != "" && source == nil {
-		// A version that does not belong to the item is answered like an
-		// invisible item.
-		return nil, false, domain.ErrNotFound
-	}
+	live := &liveSession{offset: offset, offsetUnknown: offsetUnknown}
 	start := domain.PlaybackStart{Actor: actor, PlayKey: report.PlayKey, ItemID: report.ItemID, At: p.opts.Clock.Now(), Paused: report.Paused}
-	if report.PositionKnown {
-		start.PositionTicks, start.PositionKnown = report.PositionTicks, true
+	if position, ok := live.mapPosition(report); ok {
+		start.PositionTicks, start.PositionKnown = position, true
 	}
 	if source != nil {
 		start.SourceID = source.ID
-		if source.DurationMicros != nil && *source.DurationMicros > 0 && *source.DurationMicros <= domain.PlaybackPositionMax/10 {
-			start.RuntimeTicks = *source.DurationMicros * 10
+		if runtime := source.RuntimeMicros(); runtime != nil && *runtime > 0 && *runtime <= domain.PlaybackPositionMax/10 {
+			start.RuntimeTicks = *runtime * 10
 		}
 	}
 	record, err := p.repo.StartPlayback(ctx, start)
@@ -357,13 +386,14 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 		return nil, false, err
 	}
 	p.stats.startWrites.Add(1)
-	s := &liveSession{id: record.ID, userID: actor.UserID, itemID: report.ItemID, sourceID: record.SourceID, runtime: record.RuntimeTicks,
-		position: record.PositionTicks, paused: record.Paused, lastReport: start.At, nextSeq: record.SampleCount}
+	s := live
+	s.id, s.userID, s.itemID, s.sourceID, s.runtime = record.ID, actor.UserID, report.ItemID, record.SourceID, record.RuntimeTicks
+	s.position, s.paused, s.lastReport, s.nextSeq = record.PositionTicks, record.Paused, start.At, record.SampleCount
 	created := record.Created
 	if !created {
 		// Rejoined: the report's position wins over the stored one.
-		if report.PositionKnown {
-			s.position = report.PositionTicks
+		if position, ok := s.mapPosition(report); ok {
+			s.position = position
 		}
 		s.paused = report.Paused
 	}
@@ -373,8 +403,8 @@ func (p *Progress) open(ctx context.Context, actor domain.Actor, report domain.P
 // apply updates a session with a report and keeps the samples statistics
 // need. Callers hold p.mu.
 func (p *Progress) apply(s *liveSession, report domain.PlaybackReport, now time.Time) {
-	if report.PositionKnown {
-		s.position = report.PositionTicks
+	if position, ok := s.mapPosition(report); ok {
+		s.position = position
 	}
 	kind := domain.WatchSampleProgress
 	switch {
@@ -808,12 +838,85 @@ func (c *Catalog) progressReady(ctx context.Context) error {
 // HasProgress reports whether playback reporting is wired.
 func (c *Catalog) HasProgress() bool { return c != nil && c.progress != nil }
 
-// ReportPlayback applies one playback report of a native session.
+// ReportPlayback applies one playback report of a native session. When the
+// report says which tracks the client plays and that changed since the last
+// stored choice of the session, the choice is recorded for the item (G20.4)
+// after the report itself was applied. Recording is best effort: a failure
+// is logged and retried with the next report, never held against the
+// report.
 func (c *Catalog) ReportPlayback(ctx context.Context, actor domain.Actor, report domain.PlaybackReport) error {
 	if err := c.progressReady(ctx); err != nil {
 		return err
 	}
-	return c.progress.Report(ctx, actor, report)
+	record := c.versions != nil && report.Tracks != nil && !report.Tracks.Empty()
+	var target sessionTarget
+	held := false
+	if record {
+		// A stop removes the session from the buffer; read it first.
+		target, held = c.progress.target(actor.UserID, report.PlayKey)
+	}
+	if err := c.progress.Report(ctx, actor, report); err != nil {
+		return err
+	}
+	if !record {
+		return nil
+	}
+	if !held {
+		if target, held = c.progress.target(actor.UserID, report.PlayKey); !held {
+			return nil
+		}
+	}
+	fingerprint := report.Tracks.Fingerprint()
+	if target.sourceID == "" || target.tracks == fingerprint {
+		return nil
+	}
+	if err := c.recordSessionTracks(ctx, actor, target, report); err != nil {
+		c.progress.opts.Logger.WarnContext(ctx, "session track choice not recorded; retrying with the next report", "component", "playback")
+		return nil
+	}
+	c.progress.setTracks(actor.UserID, report.PlayKey, fingerprint)
+	return nil
+}
+
+// sessionTarget is what the buffer knows about a live session.
+type sessionTarget struct{ itemID, sourceID, tracks string }
+
+func (p *Progress) target(userID, playKey string) (sessionTarget, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	s := p.sessions[liveKey(userID, playKey)]
+	if s == nil {
+		return sessionTarget{}, false
+	}
+	return sessionTarget{itemID: s.itemID, sourceID: s.sourceID, tracks: s.tracks}, true
+}
+
+func (p *Progress) setTracks(userID, playKey, fingerprint string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if s := p.sessions[liveKey(userID, playKey)]; s != nil {
+		s.tracks = fingerprint
+	}
+}
+
+// recordSessionTracks resolves the reported tracks against the version the
+// session plays and stores them.
+func (c *Catalog) recordSessionTracks(ctx context.Context, actor domain.Actor, target sessionTarget, report domain.PlaybackReport) error {
+	records, err := c.progress.sources.ListPlaybackSources(ctx, actor, target.itemID)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.ID != target.sourceID {
+			continue
+		}
+		tracks, ok := domain.ResolveTrackReport(domain.BuildPlaybackSource(record), *report.Tracks)
+		if !ok {
+			return nil
+		}
+		return c.versions.RecordSessionTracks(ctx, actor, target.itemID, report.PlayKey, tracks)
+	}
+	return nil
 }
 
 // PlaybackReportInterval is the client side report interval to announce.

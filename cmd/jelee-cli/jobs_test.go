@@ -302,3 +302,30 @@ func TestJobsCLIRejectsUnsafeOriginsAndInvalidInput(t *testing.T) {
 		}
 	}
 }
+
+func TestJobsCLIShowsAndValidatesProgress(t *testing.T) {
+	job := validJobsCLIJob()
+	job["state"], job["startedAt"] = "running", "2026-10-01T01:03:03Z"
+	job["progress"] = map[string]any{"done": 40, "total": 100, "totalKnownAt": "2026-10-01T01:03:03Z", "percent": 40, "etaSeconds": 75, "etaBasis": "throughput"}
+	exit, out, errs := jobsCLIReply(t, "get", jobsCLIJSON(t, job), 200)
+	if exit != 0 || errs != "" || !strings.Contains(out, `"total":100`) || !strings.Contains(out, `"percent":40`) || !strings.Contains(out, `"etaSeconds":75`) || !strings.Contains(out, `"etaBasis":"throughput"`) {
+		t.Fatalf("progress not shown: exit=%d out=%s errors=%s", exit, out, errs)
+	}
+	job["progress"] = map[string]any{"done": 3, "total": nil, "totalKnownAt": nil, "percent": nil, "etaSeconds": nil, "etaBasis": "total_unknown"}
+	if exit, out, _ = jobsCLIReply(t, "get", jobsCLIJSON(t, job), 200); exit != 0 || !strings.Contains(out, `"total":null`) || !strings.Contains(out, `"etaSeconds":null`) {
+		t.Fatalf("unknown total not shown as null: %s", out)
+	}
+	for _, progress := range []map[string]any{
+		{"done": 3, "total": nil, "totalKnownAt": nil, "percent": nil, "etaSeconds": 10, "etaBasis": "throughput"},
+		{"done": 3, "total": 10, "totalKnownAt": nil, "percent": 30, "etaSeconds": 10, "etaBasis": "paused"},
+		{"done": 3, "total": 10, "totalKnownAt": nil, "percent": 130, "etaSeconds": nil, "etaBasis": "stalled"},
+		{"done": 3, "total": 10, "totalKnownAt": nil, "percent": nil, "etaSeconds": nil, "etaBasis": "stalled"},
+		{"done": -1, "total": nil, "totalKnownAt": nil, "percent": nil, "etaSeconds": nil, "etaBasis": "total_unknown"},
+		{"done": 3, "total": nil, "totalKnownAt": nil, "percent": nil, "etaSeconds": nil, "etaBasis": "guess"},
+	} {
+		job["progress"] = progress
+		rejectJobsCLIReply(t, "get", jobsCLIJSON(t, job))
+	}
+	job["progress"] = nil
+	rejectJobsCLIReply(t, "get", jobsCLIJSON(t, job))
+}

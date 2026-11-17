@@ -3,11 +3,13 @@ package domain
 import "time"
 
 // ScheduleTiming uses an explicit zone; host-local time is never implied.
+// RunAt is the instant of a "once" schedule (generic schedules only).
 type ScheduleTiming struct {
-	Mode            string `json:"mode"`
-	IntervalSeconds int    `json:"intervalSeconds"`
-	Cron            string `json:"cron"`
-	Timezone        string `json:"timezone"`
+	Mode            string     `json:"mode"`
+	IntervalSeconds int        `json:"intervalSeconds"`
+	Cron            string     `json:"cron"`
+	Timezone        string     `json:"timezone"`
+	RunAt           *time.Time `json:"runAt,omitempty"`
 }
 
 type ScheduleIgnore struct {

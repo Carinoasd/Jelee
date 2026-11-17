@@ -17,6 +17,10 @@ type Images struct {
 	assetRender ItemImageRenderer
 	// Optional listing summaries; without them no slot is summarized.
 	summaries ItemImageSummaryReader
+	// Optional administrator API (G40.10, G40.11); see WithManagement.
+	manager  ItemImageManager
+	ingester ItemImageIngester
+	cleaner  ImageVariantCleaner
 }
 
 func NewImages(repository ImageSourceRepository, renderer ImageRenderer) (*Images, error) {

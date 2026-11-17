@@ -38,15 +38,16 @@ var metadataBackupTables = map[string][]string{
 	"item": {"items"}, "media_source": {"media_sources"}, "item_directory_source": {"item_directory_sources"}, "item_parent_link": {"item_parent_links"},
 	"catalog_scan_item": {"catalog_scan_items"}, "catalog_scan_source": {"catalog_scan_sources"}, "catalog_scan_item_alias": {"catalog_scan_item_aliases"},
 	"item_version_exclusion": {"item_version_exclusions"}, "item_primary_version": {"item_primary_versions"},
-	"item_metadata_state": {"item_metadata_state"}, "item_metadata_field": {"item_metadata_fields"}, "item_metadata_fact": {"item_metadata_facts"},
+	"item_identity_correction": {"item_identity_corrections"},
+	"item_metadata_state":      {"item_metadata_state"}, "item_metadata_field": {"item_metadata_fields"}, "item_metadata_fact": {"item_metadata_facts"},
 	"item_nfo_field_lock": {"item_nfo_field_locks"}, "item_image": {"item_images"},
 	"user_item_data": {"user_item_data"}, "user_track_preference": {"user_track_preferences"},
 	"access_policy": {"access_policy"}, "parental_rating": {"parental_ratings"}, "user_item_access_rule": {"user_item_access_rules"}, "user_blocked_tag": {"user_blocked_tags"},
 	"user_blocked_keyword": {"user_blocked_keywords"}, "user_access_window": {"user_access_windows"}, "access_template": {"access_templates", "access_template_libraries"},
 	"client_control_policy": {"client_control_policy"}, "client_rule": {"client_rules"}, "library_network_rule": {"library_network_rules"},
-	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules"},
+	"webhook": {"webhooks"}, "scan_schedule": {"scan_schedules", "job_schedules"},
 	"collection": {"collections"}, "collection_item": {"collection_items"}, "playlist": {"playlists"}, "playlist_item": {"playlist_items"},
-	"user_preference": {"user_preferences"}, "site_appearance": {"site_appearance"}, "site_plugins": {"site_plugins"}, "audit_retention": {"audit_retention"},
+	"user_preference": {"user_preferences"}, "user_version_preference": {"user_version_preferences"}, "site_appearance": {"site_appearance"}, "site_plugins": {"site_plugins"}, "audit_retention": {"audit_retention"},
 }
 
 // Reasons a table stays out of metadata backups. pg_dump carries all of
@@ -58,6 +59,7 @@ const (
 	excludedDerived       = "cache, quota or derived state: scans, probes, NFO reads and image processing rebuild it"
 	excludedObservation   = "observation or statistic, not configuration: playback sessions, counters, hits, delivery attempts"
 	excludedHistory       = "operation history of this database: repair and consistency journals, version operations and legacy import runs name rows and IDs of the source and can only be reverted there"
+	excludedAutomation    = "automation opt-in: automatic metadata refresh starts off after a restore, so a restored catalog is not rewritten from a provider before an administrator enables it again"
 	excludedInstance      = "state of this instance: setup progress, developer mode session, runtime log levels and log file retention, and migration bookkeeping are set by the target itself"
 )
 
@@ -84,15 +86,17 @@ var metadataBackupExcluded = map[string]string{
 	"nfo_write_commit_attempt_reservations": excludedJob, "nfo_write_commit_attempts": excludedJob, "nfo_write_commit_attempt_checkpoints": excludedJob,
 	"nfo_write_commit_attempt_ready": excludedJob, "nfo_write_commit_recovery_leases": excludedJob, "nfo_write_commit_settlements": excludedJob,
 	"nfo_write_commit_resolutions": excludedJob, "nfo_write_commit_cleanup_leases": excludedJob, "nfo_write_commit_cleanups": excludedJob,
-	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob,
+	"webhook_outbox": excludedJob, "legacy_import_pending": excludedJob, "nfo_apply_job_state": excludedJob, "nfo_export_job_state": excludedJob, "image_refresh_job_state": excludedJob, "metadata_refresh_job_state": excludedJob,
+	"subtitle_cache_cleanup_job_state": excludedJob, "backup_reminder_job_state": excludedJob, "external_metadata_removal_job_state": excludedJob,
 
 	"probe_cache": excludedDerived, "probe_cache_quota": excludedDerived, "probe_library_quota": excludedDerived, "tool_versions": excludedDerived,
 	"nfo_cache": excludedDerived, "nfo_cache_quota": excludedDerived, "nfo_library_quota": excludedDerived, "item_nfo_observations": excludedDerived,
 	"library_inventory_baseline_data": excludedDerived, "inventory_snapshot_preparations": excludedDerived, "inventory_missing_acceptances": excludedDerived,
 	"catalog_scan_pending": excludedDerived, "image_variants": excludedDerived, "media_sidecar_tracks": excludedDerived,
-	"item_embedded_cover_attempts": excludedDerived, "scan_watch_state": excludedDerived,
+	"item_embedded_cover_attempts": excludedDerived, "item_chapter_image_attempts": excludedDerived, "item_image_fetch_failures": excludedDerived, "metadata_refresh_reviews": excludedDerived, "scan_watch_state": excludedDerived,
+	"media_source_parts": excludedDerived,
 
-	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "watch_stats_daily": excludedObservation,
+	"playback_sessions": excludedObservation, "playback_samples": excludedObservation, "session_track_selections": excludedObservation, "watch_stats_daily": excludedObservation,
 	"watch_stats_history": excludedObservation, "known_clients": excludedObservation, "known_client_sessions": excludedObservation,
 	"client_control_hits": excludedObservation, "webhook_deliveries": excludedObservation, "webhook_delivery_attempts": excludedObservation,
 	"job_metric_epoch": excludedObservation, "job_metric_totals": excludedObservation, "job_metric_buckets": excludedObservation,
@@ -100,6 +104,8 @@ var metadataBackupExcluded = map[string]string{
 	"consistency_runs": excludedHistory, "consistency_run_checks": excludedHistory, "consistency_fix_journal": excludedHistory,
 	"repair_runs": excludedHistory, "repair_journal": excludedHistory, "item_version_operations": excludedHistory,
 	"legacy_import_runs": excludedHistory, "legacy_import_checkpoints": excludedHistory, "legacy_import_map": excludedHistory,
+
+	"metadata_refresh_settings": excludedAutomation,
 
 	"setup_state": excludedInstance, "dev_mode_state": excludedInstance, "schema_migrations": excludedInstance, "log_settings": excludedInstance,
 }
@@ -110,7 +116,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		password = ",password_hash"
 	}
 	return []metadataExportQuery{
-		{"library", `SELECT to_jsonb(x)::text FROM (SELECT id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto FROM libraries) x ORDER BY x.id`},
+		{"library", `SELECT to_jsonb(x)::text FROM (SELECT id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto,naming_date_episodes,naming_absolute_episodes FROM libraries) x ORDER BY x.id`},
 		{"library_root", `SELECT to_jsonb(x)::text FROM (SELECT id,library_id,path FROM library_roots) x ORDER BY x.id`},
 		{"user", `SELECT to_jsonb(x)::text FROM (SELECT id,name,is_admin,disabled,hidden,display_name,locale,created_at,deleted_at,allow_native,max_streams,max_kbps,parental_rating_max,block_unrated,content_filtered` + password + ` FROM users WHERE share_id IS NULL) x ORDER BY x.id`},
 		{"library_acl", `SELECT to_jsonb(x)::text FROM (SELECT user_id,library_id FROM library_acl a WHERE ` + notGuestSQL("a.user_id") + `) x ORDER BY x.user_id,x.library_id`},
@@ -118,7 +124,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"media_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,root_id,relative_path,content_type FROM media_sources) x ORDER BY x.id`},
 		{"item_directory_source", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,kind,root_id,relative_path FROM item_directory_sources) x ORDER BY x.id`},
 		{"item_parent_link", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,item_kind,parent_id,parent_kind FROM item_parent_links) x ORDER BY x.item_id`},
-		{"catalog_scan_item", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end FROM catalog_scan_items) x ORDER BY x.item_id`},
+		{"catalog_scan_item", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special FROM catalog_scan_items) x ORDER BY x.item_id`},
 		{"catalog_scan_source", `SELECT to_jsonb(x)::text FROM (SELECT source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual FROM catalog_scan_sources) x ORDER BY x.source_id`},
 		// Manual version decisions (G20.3): merged scan groups, excluded files
 		// and main versions. The operation log only serves undo within its
@@ -126,13 +132,15 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"catalog_scan_item_alias", `SELECT to_jsonb(x)::text FROM (SELECT library_id,kind,group_digest,item_id FROM catalog_scan_item_aliases) x ORDER BY x.library_id,x.kind,x.group_digest`},
 		{"item_version_exclusion", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,root_id,relative_path,created_at FROM item_version_exclusions) x ORDER BY x.item_id,x.root_id,x.relative_path COLLATE "C"`},
 		{"item_primary_version", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,source_id,updated_at FROM item_primary_versions) x ORDER BY x.item_id`},
+		// Identification an administrator corrected and locked (G21.5).
+		{"item_identity_correction", `SELECT to_jsonb(x)::text FROM (SELECT item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at FROM item_identity_corrections) x ORDER BY x.item_id`},
 		{"item_metadata_state", `SELECT to_jsonb(x)::text FROM (SELECT item_id,revision FROM item_metadata_state) x ORDER BY x.item_id`},
 		{"item_metadata_field", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,provider_resource,provider_id,provider_source_url,provider_language,provider_fetched_at,nfo_origin FROM item_metadata_fields) x ORDER BY x.item_id,x.field`},
 		{"item_metadata_fact", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,value,source,locked,updated_at,nfo_origin FROM item_metadata_facts) x ORDER BY x.item_id,x.field`},
 		{"item_nfo_field_lock", `SELECT to_jsonb(x)::text FROM (SELECT item_id,field,origin FROM item_nfo_field_locks) x ORDER BY x.item_id,x.field`},
 		// Unlocked image rows are rebuilt by scans and refreshes; a lock is the
 		// administrator's choice and is kept with its source and content facts.
-		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
+		{"item_image", `SELECT to_jsonb(x)::text FROM (SELECT id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at FROM item_images WHERE locked) x ORDER BY x.id`},
 		{"user_item_data", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at FROM user_item_data d WHERE ` + notGuestSQL("d.user_id") + `) x ORDER BY x.user_id,x.item_id`},
 		{"user_track_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at FROM user_track_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id,x.item_id NULLS FIRST,x.source_id NULLS FIRST`},
 		{"access_policy", `SELECT to_jsonb(x)::text FROM (SELECT restrict_admins,block_unrated FROM access_policy WHERE id) x`},
@@ -152,7 +160,13 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		// Secrets stay sealed with the master key; the seal binds the endpoint
 		// ID, which is why webhooks keep their ID on import.
 		{"webhook", `SELECT to_jsonb(x)::text FROM (SELECT id,name,url,enabled,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at FROM webhooks) x ORDER BY x.id`},
-		{"scan_schedule", `SELECT to_jsonb(x)::text FROM (SELECT library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled FROM scan_schedules) x ORDER BY x.library_id`},
+		// Since schema 107 the timing lives in the library's inventory_scan
+		// schedule; the record keeps its earlier shape. A schedule with a
+		// window or a once time, and schedules of other kinds, are not
+		// exported (automation: see metadataBackupExcluded).
+		{"scan_schedule", `SELECT to_jsonb(x)::text FROM (SELECT s.library_id,s.owner_id,s.revision,COALESCE(j.enabled,false) enabled,COALESCE(j.mode,'interval') mode,COALESCE(j.interval_seconds,86400) interval_seconds,
+ COALESCE(j.cron,'') cron,COALESCE(j.timezone,'UTC') timezone,s.probe,s.nfo,s.ignore_mode,s.ignore_case,j.next_due,s.watch_enabled
+ FROM scan_schedules s LEFT JOIN (SELECT * FROM job_schedules WHERE kind='inventory_scan' AND mode<>'once' AND window_start='') j ON j.library_id=s.library_id) x ORDER BY x.library_id`},
 		// Collections and their manual members (G02.1); NFO-linked members
 		// follow the metadata facts and are not copied.
 		{"collection", `SELECT to_jsonb(x)::text FROM (SELECT id,name,overview,nfo_name,created_by,created_at,updated_at FROM collections) x ORDER BY x.id`},
@@ -160,6 +174,7 @@ func metadataExportQueries(passwordHashes bool) []metadataExportQuery {
 		{"playlist", `SELECT to_jsonb(x)::text FROM (SELECT id,owner_id,name,public,created_at,updated_at FROM playlists p WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
 		{"playlist_item", `SELECT to_jsonb(x)::text FROM (SELECT e.id,e.playlist_id,e.item_id,e.position,e.added_at FROM playlist_items e JOIN playlists p ON p.id=e.playlist_id WHERE ` + notGuestSQL("p.owner_id") + `) x ORDER BY x.id`},
 		{"user_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,theme,density,layout,updated_at FROM user_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
+		{"user_version_preference", `SELECT to_jsonb(x)::text FROM (SELECT user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at FROM user_version_preferences p WHERE ` + notGuestSQL("p.user_id") + `) x ORDER BY x.user_id`},
 		// Single-row documents: revisions and change times belong to the
 		// instance, like those of the access and client control policies.
 		{"site_appearance", `SELECT to_jsonb(x)::text FROM (SELECT default_theme,tokens,custom_css,allow_external_fonts,font_hosts,default_layout FROM site_appearance WHERE id) x`},

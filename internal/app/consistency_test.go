@@ -449,7 +449,7 @@ type scanScheduleFake struct {
 	err    error
 }
 
-func (f scanScheduleFake) DispatchScanSchedule(context.Context, domain.JobPolicy, ScheduleCalendar, *domain.ProbeIdentity, *domain.NFOIdentity, IgnoreAdmissionCapabilities) (bool, error) {
+func (f scanScheduleFake) DispatchJobSchedule(context.Context, domain.JobPolicy, ScheduleCalendar, ScheduleCapabilities) (bool, error) {
 	return f.worked, f.err
 }
 

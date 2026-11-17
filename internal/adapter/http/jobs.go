@@ -30,6 +30,10 @@ func (s *Server) jobRoutes(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(s.jobBudget, s.authenticate)
 		s.nfoRoutes(r)
+		s.imageRefreshRoutes(r)
+		s.metadataRefreshRoutes(r)
+		s.maintenanceRoutes(r)
+		s.scheduleRoutes(r)
 		if s.cfg.EnableAccounts {
 			s.repairRoutes(r)
 		}

@@ -478,6 +478,19 @@ func TestToolFaults(t *testing.T) {
 			t.Fatalf("missing tool not reported for enabled cover pass: %+v", r.Findings)
 		}
 	})
+	t.Run("chapter images need a verified ffprobe only", func(t *testing.T) {
+		env, _ := healthyEnv(t)
+		env.Config.EnableChapterImages = true
+		r := runCheck(t, env, "tools")
+		if !hasFinding(r, StatusOK, CodeChapterImagesReady) || hasFinding(r, StatusOK, CodeEmbeddedCoversReady) {
+			t.Fatalf("ready chapter pass not reported alone: %+v", r.Findings)
+		}
+		env.Tools = []ToolCandidate{{Label: "runtime", Path: filepath.Join(t.TempDir(), "none")}}
+		r = runCheck(t, env, "tools")
+		if r.Status != StatusFail || !hasFinding(r, StatusFail, CodeChapterImagesNoTool) {
+			t.Fatalf("missing tool not reported for enabled chapter pass: %+v", r.Findings)
+		}
+	})
 	t.Run("unsupported platform and broken manifest", func(t *testing.T) {
 		env, _ := healthyEnv(t)
 		env.ToolSpec = func() (tools.FFprobeSpecification, error) {

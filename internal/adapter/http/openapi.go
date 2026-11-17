@@ -95,13 +95,18 @@ func specification(cfg config.Config, deprecations []Deprecation) map[string]any
 	}
 	if cfg.EnableJobs {
 		jobSpecification(paths, schemas)
+		catalogNamingSpecification(paths, schemas)
 		nfoSpecification(paths, schemas)
+		metadataRefreshSpecification(paths, schemas)
+		maintenanceSpecification(paths, schemas)
+		scheduleSpecification(paths, schemas)
 		if cfg.EnableAccounts {
 			repairSpecification(paths, schemas)
 		}
 	}
 	if cfg.EnableImages && cfg.EnableAccounts && cfg.EnableCatalog {
 		imageSpecification(paths, cfg)
+		imageAdminSpecification(paths, schemas, cfg)
 	}
 	errorSpecification(paths, schemas)
 	listSpecification(paths, schemas)

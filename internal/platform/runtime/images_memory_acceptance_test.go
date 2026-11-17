@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	goruntime "runtime"
 	"sort"
 	"strconv"
@@ -299,11 +300,10 @@ func runImagesAcceptance(ctx context.Context, hooks imagesAcceptanceHooks, repor
 		values["JELEE_ENABLE_JOBS"], values["JELEE_JOB_WORKERS"] = "true", "1"
 	}
 	cfg, err := config.LoadWith(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
-	if err != nil || cfg.Images != (func() config.ImagesConfig {
-		v := config.DefaultImagesConfig()
-		v.TempRoot = imagesMemoryScratch
-		return v
-	})() || cfg.Accounts != config.DefaultAccountsConfig() || cfg.EnableJobs != hooks.jobs || cfg.EnableProbe || cfg.EnableFamilyIgnore || goruntime.GOMAXPROCS(0) != 2 {
+	wantImages := config.DefaultImagesConfig()
+	wantImages.TempRoot = imagesMemoryScratch
+	// ImagesConfig holds slices (OutputFormats), so it is compared deeply.
+	if err != nil || !reflect.DeepEqual(cfg.Images, wantImages) || cfg.Accounts != config.DefaultAccountsConfig() || cfg.EnableJobs != hooks.jobs || cfg.EnableProbe || cfg.EnableFamilyIgnore || goruntime.GOMAXPROCS(0) != 2 {
 		return "runtime_configuration_failed"
 	}
 	p, a := cfg.Images, cfg.Accounts

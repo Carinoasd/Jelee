@@ -143,6 +143,15 @@ func validActor(actor domain.Actor) bool {
 	return domain.ValidID(actor.UserID) && domain.ValidID(actor.SessionID) && len(actor.IP) <= 45
 }
 
+// workerActor accepts an administrator session or the system actor. Only
+// the metadata reads and the provider apply that a metadata_refresh worker
+// calls use it; every other entry point refuses the system actor through
+// validActor, so the system actor can do exactly what a scheduled or
+// automatically queued job of a schedulable kind does.
+func workerActor(actor domain.Actor) bool {
+	return validActor(actor) || actor.IsSystem()
+}
+
 func validTarget(actor domain.Actor, id string) bool { return validActor(actor) && domain.ValidID(id) }
 
 func validKey(value string) bool {

@@ -450,8 +450,18 @@ func TestWatchStatsMigrationRoundTrip(t *testing.T) {
 	if _, err = f.s.Pool.Exec(f.ctx, `UPDATE schema_migrations SET version=$1,dirty=false`, want); err != nil {
 		t.Fatal(err)
 	}
-	if err = f.progress.ClearHistory(f.ctx, f.viewer); err != nil {
-		t.Fatal(err)
+	// Clear the viewer's history with the statements of this schema: the
+	// current ClearHistory also deletes tables added by later migrations
+	// (session track choices, schema 99), which do not exist here.
+	for _, statement := range []string{
+		`DELETE FROM playback_sessions WHERE user_id=$1::uuid`,
+		`DELETE FROM user_item_data WHERE user_id=$1::uuid`,
+		`DELETE FROM watch_stats_daily WHERE user_id=$1::uuid`,
+		`DELETE FROM watch_stats_history WHERE user_id=$1::uuid`,
+	} {
+		if _, err = f.s.Pool.Exec(f.ctx, statement, f.viewer.UserID); err != nil {
+			t.Fatal(statement, err)
+		}
 	}
 	// Sessions without statistics remain; schema 66 keeps them.
 	if _, _, err = Migrate(f.ctx, dsn, "up"); err != nil {

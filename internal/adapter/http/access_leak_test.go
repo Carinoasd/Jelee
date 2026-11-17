@@ -65,12 +65,14 @@ type leakRoute struct {
 }
 
 var (
-	itemParam   = map[string]string{"id": "item"}
-	sourceParam = map[string]string{"id": "source"}
-	libParam    = map[string]string{"id": "library"}
-	jobParam    = map[string]string{"id": "job"}
-	selfParam   = map[string]string{"id": "self"}
-	tmdbParam   = map[string]string{"id": "tmdb"}
+	itemParam = map[string]string{"id": "item"}
+	// itemImageParam names an item and one of its image types.
+	itemImageParam = map[string]string{"id": "item", "type": "image-type"}
+	sourceParam    = map[string]string{"id": "source"}
+	libParam       = map[string]string{"id": "library"}
+	jobParam       = map[string]string{"id": "job"}
+	selfParam      = map[string]string{"id": "self"}
+	tmdbParam      = map[string]string{"id": "tmdb"}
 	// webhookParam names a webhook endpoint, never media.
 	webhookParam = map[string]string{"id": "opaque"}
 	// shareParam names a share link or a network rule, never media.
@@ -134,6 +136,7 @@ func leakRouteTable() map[string]leakRoute {
 		// the shared delivery handler runs.
 		"GET /compat/Items/{itemId}/PlaybackInfo":                                                             {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"POST /compat/Items/{itemId}/PlaybackInfo":                                                            {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
+		"GET /compat/Videos/{itemId}/AdditionalParts":                                                         {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"GET /compat/Videos/{itemId}/stream":                                                                  {mode: leakByID, params: map[string]string{"itemId": "item"}, control: true},
 		"GET /compat/Videos/{itemId}/stream.{container}":                                                      {mode: leakByID, params: map[string]string{"itemId": "item", "container": "compat-container"}, control: true},
 		"GET /compat/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{format}":                       {mode: leakByID, params: map[string]string{"itemId": "item", "mediaSourceId": "source", "index": "compat-subtitle-index", "format": "compat-subtitle-format"}, control: true},
@@ -230,6 +233,8 @@ func leakRouteTable() map[string]leakRoute {
 		"PUT /api/v1/items/{id}/track-preferences":                    {mode: leakByID, params: itemParam, control: true},
 		"GET /api/v1/users/me/track-preferences":                      noMedia(noParams, "caller's own default track preferences; languages and modes only"),
 		"PUT /api/v1/users/me/track-preferences":                      exempt("replaces the caller's own default track preferences; carries no media identifiers"),
+		"GET /api/v1/users/me/version-preferences":                    noMedia(noParams, "caller's own version preference; heights, ranges and bit rates only"),
+		"PUT /api/v1/users/me/version-preferences":                    exempt("replaces the caller's own version preference; carries no media identifiers"),
 		// Watch statistics (G23.3, G48.3): the daily roll-up read with the
 		// viewer's library grants; the fixture seeds rows for both users on
 		// both items.
@@ -259,8 +264,15 @@ func leakRouteTable() map[string]leakRoute {
 		"GET /api/v1/users/{id}/watch-stats":                 admin(selfParam),
 		"GET /api/v1/watch-stats":                            admin(noParams),
 		"GET /api/v1/watch-stats/export":                     admin(noParams),
-		"GET /images/{type}/{id}":                            {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
-		"HEAD /images/{type}/{id}":                           {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		// G40.10/G40.11 administrator image API: refused with 403 before the
+		// item or slot is looked up.
+		"GET /api/v1/items/{id}/images":                admin(itemParam),
+		"POST /api/v1/items/{id}/images/{type}":        admin(itemImageParam),
+		"DELETE /api/v1/items/{id}/images/{type}":      admin(itemImageParam),
+		"POST /api/v1/items/{id}/images/{type}/lock":   admin(itemImageParam),
+		"POST /api/v1/items/{id}/images/{type}/unlock": admin(itemImageParam),
+		"GET /images/{type}/{id}":                      {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
+		"HEAD /images/{type}/{id}":                     {mode: leakByID, params: map[string]string{"type": "image-type", "id": "item"}, control: true},
 
 		// Accounts.
 		"POST /api/v1/auth/login":                        exempt("credential exchange; takes no media identifiers and returns only a session grant"),
@@ -391,27 +403,56 @@ func leakRouteTable() map[string]leakRoute {
 		"POST /api/v1/libraries/{id}/schedule/run": admin(libParam),
 		"POST /api/v1/libraries/{id}/scan":         admin(libParam),
 		// G50.4 repair actions: administrator only; the run ID is opaque.
-		"POST /api/v1/admin/repairs":                                                admin(noParams),
-		"GET /api/v1/admin/logging/levels":                                          admin(noParams),
-		"PUT /api/v1/admin/logging/levels":                                          admin(noParams),
-		"GET /api/v1/admin/logging/retention":                                       admin(noParams),
-		"PUT /api/v1/admin/logging/retention":                                       admin(noParams),
-		"POST /api/v1/admin/repairs/{id}/revert":                                    admin(webhookParam),
-		"GET /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),
-		"PUT /api/v1/libraries/{id}/catalog-sync":                                   admin(libParam),
-		"POST /api/v1/libraries/{id}/catalog-sync":                                  admin(libParam),
-		"GET /api/v1/libraries/{id}/catalog-sync/pending":                           admin(libParam),
-		"POST /api/v1/libraries/{id}/probe/rebuild":                                 admin(libParam),
-		"POST /api/v1/items/{id}/probe/rebuild":                                     admin(itemParam),
-		"GET /api/v1/libraries/{id}/nfo/policy":                                     admin(libParam),
-		"PUT /api/v1/libraries/{id}/nfo/policy":                                     admin(libParam),
-		"POST /api/v1/libraries/{id}/nfo/validate":                                  admin(libParam),
-		"PUT /api/v1/libraries/{id}/nfo/write-policy":                               admin(libParam),
-		"POST /api/v1/libraries/{id}/nfo/writes":                                    admin(libParam),
-		"POST /api/v1/libraries/{id}/nfo/apply":                                     admin(libParam),
-		"GET /api/v1/jobs/{id}/nfo-apply":                                           admin(jobParam),
-		"POST /api/v1/libraries/{id}/nfo/export":                                    admin(libParam),
-		"GET /api/v1/jobs/{id}/nfo-export":                                          admin(jobParam),
+		"POST /api/v1/admin/repairs":                                      admin(noParams),
+		"GET /api/v1/admin/logging/levels":                                admin(noParams),
+		"PUT /api/v1/admin/logging/levels":                                admin(noParams),
+		"GET /api/v1/admin/logging/retention":                             admin(noParams),
+		"PUT /api/v1/admin/logging/retention":                             admin(noParams),
+		"POST /api/v1/admin/repairs/{id}/revert":                          admin(webhookParam),
+		"GET /api/v1/libraries/{id}/catalog-sync":                         admin(libParam),
+		"PUT /api/v1/libraries/{id}/catalog-sync":                         admin(libParam),
+		"POST /api/v1/libraries/{id}/catalog-sync":                        admin(libParam),
+		"GET /api/v1/libraries/{id}/catalog-sync/pending":                 admin(libParam),
+		"POST /api/v1/libraries/{id}/catalog-sync/pending/{entry}/accept": admin(map[string]string{"id": "library", "entry": "opaque"}),
+		"POST /api/v1/libraries/{id}/catalog-sync/pending/{entry}/reject": admin(map[string]string{"id": "library", "entry": "opaque"}),
+		"GET /api/v1/libraries/{id}/naming":                               admin(libParam),
+		"PUT /api/v1/libraries/{id}/naming":                               admin(libParam),
+		"GET /api/v1/items/{id}/identity":                                 admin(itemParam),
+		"PUT /api/v1/items/{id}/identity":                                 admin(itemParam),
+		"POST /api/v1/libraries/{id}/probe/rebuild":                       admin(libParam),
+		"POST /api/v1/items/{id}/probe/rebuild":                           admin(itemParam),
+		"GET /api/v1/libraries/{id}/nfo/policy":                           admin(libParam),
+		"PUT /api/v1/libraries/{id}/nfo/policy":                           admin(libParam),
+		"POST /api/v1/libraries/{id}/nfo/validate":                        admin(libParam),
+		"PUT /api/v1/libraries/{id}/nfo/write-policy":                     admin(libParam),
+		"POST /api/v1/libraries/{id}/nfo/writes":                          admin(libParam),
+		"POST /api/v1/libraries/{id}/nfo/apply":                           admin(libParam),
+		"GET /api/v1/jobs/{id}/nfo-apply":                                 admin(jobParam),
+		"POST /api/v1/libraries/{id}/nfo/export":                          admin(libParam),
+		"GET /api/v1/jobs/{id}/nfo-export":                                admin(jobParam),
+		"POST /api/v1/libraries/{id}/images/refresh":                      admin(libParam),
+		"GET /api/v1/jobs/{id}/image-refresh":                             admin(jobParam),
+		"POST /api/v1/libraries/{id}/metadata/refresh":                    admin(libParam),
+		"GET /api/v1/jobs/{id}/metadata-refresh":                          admin(jobParam),
+		"GET /api/v1/libraries/{id}/metadata/refresh/settings":            admin(libParam),
+		"PUT /api/v1/libraries/{id}/metadata/refresh/settings":            admin(libParam),
+		"GET /api/v1/libraries/{id}/metadata/refresh/reviews":             admin(libParam),
+		"POST /api/v1/items/{id}/metadata/refresh/accept":                 admin(itemParam),
+		"POST /api/v1/items/{id}/metadata/refresh/reject":                 admin(itemParam),
+		"POST /api/v1/maintenance/subtitle-cache/cleanup":                 admin(noParams),
+		"GET /api/v1/jobs/{id}/subtitle-cache-cleanup":                    admin(jobParam),
+		"POST /api/v1/maintenance/backup-reminder":                        admin(noParams),
+		"GET /api/v1/jobs/{id}/backup-reminder":                           admin(jobParam),
+		"GET /api/v1/maintenance/backup-status":                           admin(noParams),
+		// Generic job schedules (G13.1); a schedule ID names no media.
+		"GET /api/v1/schedules":                                                     admin(noParams),
+		"POST /api/v1/schedules":                                                    admin(noParams),
+		"GET /api/v1/schedules/{id}":                                                admin(webhookParam),
+		"PUT /api/v1/schedules/{id}":                                                admin(webhookParam),
+		"DELETE /api/v1/schedules/{id}":                                             admin(webhookParam),
+		"POST /api/v1/schedules/{id}/run":                                           admin(webhookParam),
+		"POST /api/v1/libraries/{id}/metadata/external/remove":                      admin(libParam),
+		"GET /api/v1/jobs/{id}/external-metadata-removal":                           admin(jobParam),
 		"POST /api/v1/items/{id}/nfo/write-preparations":                            admin(itemParam),
 		"GET /api/v1/libraries/{id}/nfo/current-validations":                        admin(libParam),
 		"GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues": admin(map[string]string{"id": "library", "observationId": "opaque"}),
@@ -583,6 +624,13 @@ func leakHandlerWithAccounts(t *testing.T, store *postgres.Store, cfg config.Con
 	}
 	if err == nil {
 		images, err = images.WithSummaries(store)
+	}
+	if err == nil {
+		// A renderer that also ingests uploads (the real processor) backs the
+		// administrator image API; the fake renderer leaves uploads unwired.
+		ingester, _ := renderer.(app.ItemImageIngester)
+		cleaner, _ := renderer.(app.ImageVariantCleaner)
+		images, err = images.WithManagement(store, ingester, cleaner)
 	}
 	if err != nil {
 		t.Fatal(err)

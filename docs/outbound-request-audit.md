@@ -25,3 +25,7 @@
 採用[服務端出站防護設計](specs/2026-10-02-outbound-request-design.md)，先以實際需求的遠端抓取適配器接入統一 client，再驗證初次 URL、DNS、連線、重定向、憑證與錯誤輸出。每個能力的整合證據須指出正式入口、受控 client 的注入位置、成功路徑及阻擋路徑。公網部署驗收仍獨立待做。
 
 本輪只改文件，沒有 runtime 測試或安全功能的完成宣稱。
+
+## 後續接線：遠端圖片（G40.9）
+
+`image_refresh` 任務是遠端圖片的正式入口（[圖片刷新任務](image-refresh-jobs.md)）：受控 client 在 `internal/platform/runtime/image_refresh.go` 以 `outbound.New` 建立後注入 `images.RemoteFetcher`，只在 `JELEE_ENABLE_IMAGE_FETCH=true` 時建立（預設不建立，不發出任何圖片請求）。成功路徑與阻擋路徑（非公網位址、重新導向、非圖片內容、超過大小、無法解碼）的覆蓋見該文件「驗證」；`outbound` 層的 DNS 固定與逐次重新導向檢查沿用 `internal/platform/outbound/image_fetch_integration_test.go`。對真實外部主機的實測仍待擁有者執行。

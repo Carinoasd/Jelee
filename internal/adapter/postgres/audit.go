@@ -71,6 +71,17 @@ var auditEvents = map[string]string{
 	"image.added":                          domain.AuditCategoryAudit,
 	"image.deleted":                        domain.AuditCategoryAudit,
 	"image.locked":                         domain.AuditCategoryAudit,
+	"image.refresh_submitted":              domain.AuditCategoryAudit,
+	"metadata_refresh.submitted":           domain.AuditCategoryAudit,
+	"subtitle_cache_cleanup.submitted":     domain.AuditCategoryAudit,
+	"backup_reminder.submitted":            domain.AuditCategoryAudit,
+	"backup.reminder":                      domain.AuditCategoryAudit,
+	"external_metadata_removal.submitted":  domain.AuditCategoryAudit,
+	"external_metadata_removal.finished":   domain.AuditCategoryAudit,
+	"metadata_refresh.deferred":            domain.AuditCategoryAudit,
+	"metadata_refresh.review_accepted":     domain.AuditCategoryAudit,
+	"metadata_refresh.review_rejected":     domain.AuditCategoryAudit,
+	"library.metadata_refresh_changed":     domain.AuditCategoryAudit,
 	"image.replaced":                       domain.AuditCategoryAudit,
 	"image.unlocked":                       domain.AuditCategoryAudit,
 	"item.external_metadata_removed":       domain.AuditCategoryAudit,
@@ -100,10 +111,14 @@ var auditEvents = map[string]string{
 	"client_control.rule_updated":          domain.AuditCategoryAudit,
 	"client_control.session_revoked":       domain.AuditCategorySecurity,
 	"library.catalog_sync_changed":         domain.AuditCategoryAudit,
+	"library.catalog_naming_changed":       domain.AuditCategoryAudit,
 	"catalog_sync.batch":                   domain.AuditCategoryAudit,
 	"catalog_sync.removed":                 domain.AuditCategoryAudit,
 	"catalog_sync.finished":                domain.AuditCategoryAudit,
 	"catalog_sync.deferred":                domain.AuditCategoryAudit,
+	"catalog_sync.pending_accepted":        domain.AuditCategoryAudit,
+	"catalog_sync.pending_rejected":        domain.AuditCategoryAudit,
+	"item.identity_changed":                domain.AuditCategoryAudit,
 	"item.metadata_changed":                domain.AuditCategoryAudit,
 	"item.version_split":                   domain.AuditCategoryAudit,
 	"item.versions_merged":                 domain.AuditCategoryAudit,
@@ -139,6 +154,8 @@ var auditEvents = map[string]string{
 	"playback.history_cleared":             domain.AuditCategoryAudit,
 	"probe.item_invalidated":               domain.AuditCategoryAudit,
 	"probe.library_invalidated":            domain.AuditCategoryAudit,
+	"schedule.created":                     domain.AuditCategoryAudit,
+	"schedule.deleted":                     domain.AuditCategoryAudit,
 	"schedule.updated":                     domain.AuditCategoryAudit,
 	"session.created":                      domain.AuditCategoryAudit,
 	"setup.admin_created":                  domain.AuditCategoryAudit,
@@ -328,6 +345,11 @@ func appendAudit(ctx context.Context, tx auditExecer, e AuditEntry) error {
 	request := ""
 	if validAuditRequestID(e.RequestID) {
 		request = e.RequestID
+	}
+	// The system actor has no actor_id; its source ("system:schedule:<id>"
+	// or "system:catalog_sync:<job>") is the row's request ID.
+	if e.Actor.IsSystem() {
+		request = e.Actor.System
 	}
 	// Columns added with the append-only schema are named only when they carry
 	// a non-default value, so an ordinary entry is the same statement the

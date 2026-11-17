@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -21,21 +22,41 @@ import (
 // any file below it is open, and a reader may hold one at any time), and a
 // pinned file, one held open elsewhere without FILE_SHARE_DELETE or left
 // delete-pending by a filesystem without POSIX semantics, can be neither
-// renamed nor removed.
+// renamed nor removed. A removal also leaves its name delete-pending until
+// it completes, as NTFS does until the deleting handle closes even with
+// POSIX semantics: meanwhile opening or renaming the name is refused.
 type storeWindowsRules struct {
 	mu         sync.Mutex
 	pinned     map[string]bool
+	pending    map[string]int
 	dirRenames int
+	// opening runs before every open and deleting while a removal holds its
+	// name delete-pending; both run without mu held.
+	opening, deleting func(name string)
 }
 
 func newStoreWindowsRules() *storeWindowsRules {
-	return &storeWindowsRules{pinned: make(map[string]bool)}
+	return &storeWindowsRules{pinned: make(map[string]bool), pending: make(map[string]int)}
 }
 
 func (r *storeWindowsRules) install(s *Store) {
 	root := s.root
 	refused := func(op, name string) error {
 		return &fs.PathError{Op: op, Path: name, Err: fs.ErrPermission}
+	}
+	s.openName = func(name string) (*os.File, error) {
+		r.mu.Lock()
+		opening := r.opening
+		r.mu.Unlock()
+		if opening != nil {
+			opening(name)
+		}
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if r.pending[filepath.ToSlash(name)] > 0 {
+			return nil, refused("open", name)
+		}
+		return root.Open(name)
 	}
 	s.renameName = func(oldName, newName string) error {
 		r.mu.Lock()
@@ -44,18 +65,49 @@ func (r *storeWindowsRules) install(s *Store) {
 			r.dirRenames++
 			return refused("rename", oldName)
 		}
-		if r.pinned[filepath.ToSlash(oldName)] || r.pinned[filepath.ToSlash(newName)] {
-			return refused("rename", oldName)
+		for _, name := range []string{filepath.ToSlash(oldName), filepath.ToSlash(newName)} {
+			if r.pinned[name] || r.pending[name] > 0 {
+				return refused("rename", oldName)
+			}
 		}
 		return root.Rename(oldName, newName)
 	}
 	s.removeName = func(name string) error {
+		slash := filepath.ToSlash(name)
 		r.mu.Lock()
-		defer r.mu.Unlock()
-		if r.pinned[filepath.ToSlash(name)] {
+		if r.pinned[slash] {
+			r.mu.Unlock()
 			return refused("remove", name)
 		}
+		r.pending[slash]++
+		deleting := r.deleting
+		r.mu.Unlock()
+		if deleting != nil {
+			deleting(name)
+		}
+		runtime.Gosched() // Widen the delete-pending window for concurrent tests.
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if r.pending[slash]--; r.pending[slash] == 0 {
+			delete(r.pending, slash)
+		}
 		return root.Remove(name)
+	}
+}
+
+func (r *storeWindowsRules) hooks(opening, deleting func(name string)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.opening, r.deleting = opening, deleting
+}
+
+func (r *storeWindowsRules) holdPending(name string, held bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if held {
+		r.pending[name]++
+	} else if r.pending[name]--; r.pending[name] <= 0 {
+		delete(r.pending, name)
 	}
 }
 
@@ -267,5 +319,62 @@ func TestStoreGenerationNames(t *testing.T) {
 		if _, ok := storeParseGeneration(name); ok {
 			t.Fatal("accepted generation name", name)
 		}
+	}
+}
+
+// A reader that looked a variant up just before a concurrent removal opens a
+// delete-pending name on Windows. That is the miss Unix reports as ENOENT,
+// not a store failure; a current entry that cannot be opened still fails.
+func TestStoreOpenVariantRacingRemovalUnderWindowsRulesMisses(t *testing.T) {
+	fixture := newStoreFixture(t)
+	rules := newStoreWindowsRules()
+	store, err := openStoreWith(context.Background(), fixture.options(1<<20, 1<<20, 16), rules.install)
+	if err != nil {
+		t.Fatal("open store", err)
+	}
+	t.Cleanup(func() { _ = store.Close(context.Background()) })
+	source := sha256.Sum256([]byte("source"))
+	raced, held := StoreVariantKey("primary-v1", "jpeg", 1, 1, 85), StoreVariantKey("primary-v1", "jpeg", 2, 2, 85)
+	storePutTestVariant(t, store, source, raced, "raced")
+	storePutTestVariant(t, store, source, held, "held")
+	racedPath, heldPath := storeVariantPath(store, source, raced), storeVariantPath(store, source, held)
+
+	inDelete, finishDelete, removed := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	var once sync.Once
+	rules.hooks(func(name string) {
+		// The lookup is done; remove the variant before the reader opens it.
+		if filepath.ToSlash(name) == racedPath {
+			once.Do(func() {
+				go func() { removed <- store.RemoveVariant(context.Background(), source, raced) }()
+				<-inDelete
+			})
+		}
+	}, func(name string) {
+		if filepath.ToSlash(name) == racedPath {
+			close(inDelete)
+			<-finishDelete
+		}
+	})
+	_, err = store.OpenVariant(context.Background(), source, raced)
+	close(finishDelete)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Fatal("reader racing a removal did not miss", err)
+	}
+	if err := <-removed; err != nil {
+		t.Fatal("removal under a racing reader", err)
+	}
+	rules.hooks(nil, nil)
+
+	// The entry is still indexed: the refusal is not a lost race.
+	rules.holdPending(heldPath, true)
+	if _, err := store.OpenVariant(context.Background(), source, held); !errors.Is(err, domain.ErrImageUnavailable) {
+		t.Fatal("refused open of an indexed variant was hidden", err)
+	}
+	rules.holdPending(heldPath, false)
+	if got, err := storeVariantContent(t, store, source, held); err != nil || got != "held" {
+		t.Fatal("indexed variant after the refusal", got, err)
+	}
+	if stats := store.Stats(); stats.VariantEntries != 1 || stats.Corrupt != 0 || stats.RemoveErrors != 0 {
+		t.Fatalf("racing reader changed accounting %+v", stats)
 	}
 }

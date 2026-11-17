@@ -82,7 +82,7 @@ func (m *Metadata) ItemFields(ctx context.Context, actor domain.Actor, item stri
 	if err := ctx.Err(); err != nil {
 		return domain.ItemMetadata{}, err
 	}
-	if !domain.ValidID(actor.UserID) || !domain.ValidID(actor.SessionID) {
+	if !workerActor(actor) {
 		return domain.ItemMetadata{}, domain.ErrUnauthenticated
 	}
 	if !domain.ValidID(item) {

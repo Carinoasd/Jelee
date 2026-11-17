@@ -14,6 +14,10 @@ type versionRepositoryStub struct {
 	set   domain.TrackPreferenceSet
 	err   error
 	last  domain.TrackPreference
+	// version is the stored version preference; session the recorded
+	// session track choices.
+	version domain.VersionPreference
+	session []recordedSession
 }
 
 func (s *versionRepositoryStub) record(name string) error {
@@ -55,6 +59,22 @@ func (s *versionRepositoryStub) SetUserTrackPreference(_ context.Context, _ doma
 }
 func (s *versionRepositoryStub) EffectiveTrackPreferences(context.Context, domain.Actor, string) (domain.TrackPreferenceSet, error) {
 	return s.set, s.record("effective")
+}
+func (s *versionRepositoryStub) VersionPreference(context.Context, domain.Actor) (domain.VersionPreference, error) {
+	return s.version, s.record("version-preference")
+}
+func (s *versionRepositoryStub) SetVersionPreference(_ context.Context, _ domain.Actor, p domain.VersionPreference) (domain.VersionPreference, error) {
+	s.version = p
+	return p, s.record("set-version-preference")
+}
+func (s *versionRepositoryStub) RecordSessionTracks(_ context.Context, _ domain.Actor, item, playKey string, tracks domain.SessionTracks) error {
+	s.session = append(s.session, recordedSession{item: item, playKey: playKey, tracks: tracks})
+	return s.record("session-tracks")
+}
+
+type recordedSession struct {
+	item, playKey string
+	tracks        domain.SessionTracks
 }
 
 func TestCatalogVersionsValidationAndWiring(t *testing.T) {

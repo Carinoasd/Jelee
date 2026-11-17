@@ -27,6 +27,8 @@ PostgreSQL 是唯一的持久狀態（服務不寫本機狀態檔），所以「
 | `JELEE_MATROSKA_CACHE_ROOT` | 不需要 | — | 只是內嵌字幕與字型的擷取快取，刪除後下次請求重新擷取 |
 | `JELEE_SUBTITLE_OCR_CACHE_ROOT` | 不需要 | — | 只是點陣字幕 OCR 結果的快取，刪除後下次查詢重新辨識（耗時，受每分鐘上限） |
 
+備份提醒：`GET /api/v1/maintenance/backup-status` 顯示最後一次元資料匯出距今多久；設定 `JELEE_JOB_BACKUP_REMINDER_DAYS`（例如 `7`）後每天檢查一次，逾期或從未匯出時寫 `backup.reminder` 稽核。Jelee 看不到在外部執行的 `pg_dump`，提醒只依元資料匯出判斷，見[維護任務](maintenance-jobs.md#備份提醒backup_reminder)。
+
 ## PostgreSQL 備份
 
 ### 建議參數
@@ -134,18 +136,19 @@ $dc up -d jelee
 | 帳號與設定（管理員、停用、隱藏、顯示名稱、語系、原生用戶端許可、串流與頻寬上限、分級上限、刪除標記） | 工作階段、權杖、使用者建立金鑰、登入失敗計數與鎖定 |
 | 密碼雜湊——**僅在 `--include-password-hashes` 時** | 預設不匯出；匯入後這些帳號沒有密碼，用 `jelee-cli account set-password` 重設 |
 | — | 雙因素驗證（封存的驗證器密鑰、復原碼摘要、登入挑戰）與應用程式密碼：屬於憑據，一律不匯出。匯入後的帳號沒有第二因素，使用者需重新啟用並重建應用程式密碼；若同時匯入了密碼雜湊，這些帳號在重新啟用前只憑密碼即可登入，請通知使用者（見 [two-factor.md](two-factor.md#元資料備份)） |
-| 媒體庫與設定（NFO 模式、中繼資料語言與圖片語言、自動同步）、媒體根、媒體庫授權 | 各種世代計數器（探測、NFO、盤點） |
-| 目錄識別：條目、媒體檔、劇集／季資料夾、父子關係、掃描群組與掃描來源 | 盤點、盤點快照、掃描待處理清單、外掛字幕／音軌（掃描會重建） |
+| 媒體庫與設定（NFO 模式、中繼資料語言與圖片語言、自動同步、命名選項：日期型與絕對集數，G21.3，遷移 102）、媒體根、媒體庫授權 | 各種世代計數器（探測、NFO、盤點） |
+| 目錄識別：條目、媒體檔、劇集／季資料夾、父子關係、掃描群組與掃描來源（含跨季結束季、絕對集數、播出日、特別篇類別） | 盤點、盤點快照、掃描待處理清單、外掛字幕／音軌（掃描會重建） |
 | 條目中繼資料欄位與事實（含手動編輯、TMDB 與 NFO 來源）、欄位鎖、獨立 NFO 欄位鎖、修訂號 | 探測快取、NFO 快取、NFO 寫回工作與日誌 |
 | **鎖定**的條目圖片（來源與內容摘要） | 未鎖定的圖片（掃描與重新整理會重建）、圖片檔本身 |
 | 多版本人工決定：被合併的掃描群組別名、排除誤合併的檔案、主版本、人工放置標記（[多版本](item-versions.md)） | 版本操作紀錄與撤銷資料（只為 30 天內撤銷服務） |
-| 播放進度、已播放、播放次數、音軌／字幕偏好（使用者預設、條目層、版本層） | 播放工作階段與取樣、觀看統計 |
+| 識別修正與鎖定（類型／所屬鎖、鎖定的季號與集號、修訂號，G21.5，遷移 100；目的地已有修正的條目保留自己的） | 待確認項目的拒絕紀錄（隨掃描待處理清單一起不匯出） |
+| 播放進度、已播放、播放次數、音軌／字幕偏好（使用者預設、條目層、版本層）、版本偏好（G20.2，遷移 099） | 播放工作階段與取樣、觀看統計、會話選軌（G20.4，30 天內有效） |
 | 內容存取政策、分級對照表、條目允許／隱藏規則、封鎖標籤、封鎖關鍵字與限制時段（遷移 084） | — |
 | 存取模板與其媒體庫（G48.7，遷移 084；媒體庫沒有一起匯入時只略過該庫） | — |
 | 用戶端管控政策與規則（含 `restrict_libraries` 的媒體庫，匯入時換成目的地的媒體庫） | 命中計數、已知用戶端、命中紀錄 |
 | 媒體庫網路規則（G48.5；媒體庫沒有一起匯入時略過） | 分享連結與其訪客帳號、訪客的進度與規則（G48.6：持權杖即可存取，還原等於讓舊連結復活） |
 | Webhook 端點（密鑰與標頭**保持封存**） | outbox、投遞紀錄 |
-| 掃描排程與監看開關 | 排程的上次執行與錯誤、監看租約 |
+| 掃描排程與監看開關（遷移 000107 起由 `scan_schedules` 與該媒體庫的 `inventory_scan` 排程 `job_schedules` 組合，紀錄形狀不變） | 排程的上次執行與錯誤、監看租約；帶窗口或 `once` 的掃描排程與其他種類的任務排程（自動化開關，還原後重新設定，見[任務排程](job-schedules.md#與既有掃描排程的關係)） |
 | 合集（名稱、簡介、NFO 連結名稱、建立者）與手動成員（遷移 081；NFO 連結的成員跟著中繼資料走，不另外複製） | — |
 | 播放清單與項目（順序、重複項目）；擁有者是分享訪客的不匯出 | — |
 | 使用者介面偏好（主題、密度、版面與預設組；遷移 073、075） | — |
@@ -156,16 +159,17 @@ $dc up -d jelee
 
 #### 不匯出的資料表
 
-每一張資料表不是由某個紀錄種類匯出，就是列在 `internal/adapter/postgres/metadata_backup.go` 的 `metadataBackupExcluded` 並附理由。守門測試 `TestMetadataBackupClassifiesEveryTable`（重播遷移，不需資料庫）與 `TestMetadataBackupClassifiesEveryTablePostgres`（讀實際 schema）會在新增資料表卻忘了分類時失敗。不匯出的理由分成六類，這些資料都只在 `pg_dump` 裡：
+每一張資料表不是由某個紀錄種類匯出，就是列在 `internal/adapter/postgres/metadata_backup.go` 的 `metadataBackupExcluded` 並附理由。守門測試 `TestMetadataBackupClassifiesEveryTable`（重播遷移，不需資料庫）與 `TestMetadataBackupClassifiesEveryTablePostgres`（讀實際 schema）會在新增資料表卻忘了分類時失敗。不匯出的理由如下，這些資料都只在 `pg_dump` 裡：
 
 | 理由 | 資料表 |
 | --- | --- |
 | 憑據或一次性祕密：還原等於讓存取復活 | 工作階段、使用者建立金鑰、開發者模式權杖、雙因素（`user_totp`、`user_recovery_codes`、`login_challenges`）、應用程式密碼、分享連結 |
 | 只能附加的稽核軌跡 | `audit_logs`（匯入本身另寫 `metadata.imported`） |
-| 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending` |
-| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建） |
-| 觀察值與統計，不是設定 | 播放工作階段與取樣、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
+| 工作佇列、租約與工作進度：只對寫入它的資料庫的工作者有意義 | `jobs` 及各 `job_*`、探測／NFO／圖片工作狀態、`catalog_import_*`、`catalog_sync_requests`、`nfo_write_*`、`webhook_outbox`、`legacy_import_pending`、`metadata_refresh_job_state` |
+| 快取、配額與衍生狀態：掃描、探測、NFO 讀取與圖片處理會重建 | 探測與 NFO 快取與配額、`tool_versions`、`item_nfo_observations`、盤點基準與快照、`catalog_scan_pending`、`image_variants`、外掛字幕／音軌、內嵌封面嘗試、`scan_watch_state`（匯入依排程重建）、元資料刷新的待確認與拒絕紀錄（`metadata_refresh_reviews`，再跑一次刷新會重新產生）、多分片版本（`media_source_parts`，匯入後下一次同步依檔名重建；人工凍結的條目要等解除後才會重組） |
+| 觀察值與統計，不是設定 | 播放工作階段與取樣、會話選軌（`session_track_selections`）、觀看統計、已知用戶端與其工作階段、命中紀錄、webhook 投遞與嘗試、工作指標 |
 | 這個資料庫的操作歷史 | `consistency_runs`、`consistency_run_checks`、`consistency_fix_journal`、`repair_runs`、`repair_journal`、`item_version_operations`、`legacy_import_runs`／`checkpoints`／`map` |
+| 自動化開關：自動元資料刷新在還原後預設關閉，避免還原出的目錄在管理員重新開啟前被提供者資料改寫 | `metadata_refresh_settings`（[元資料刷新任務](metadata-refresh-jobs.md)） |
 | 實例自己的狀態 | `setup_state`（匯入另行處理）、`dev_mode_state`、`log_settings`（執行期日誌級別覆寫與日誌檔保留）、`schema_migrations` |
 
 **修復紀錄為什麼不備份**：修復與一致性檢查的日誌記錄的是**來源資料庫裡**某些列的修改前後值（`user_item_data.last_source_id`、`playback_sessions.source_id`、`watch_stats_daily` 計數），其中播放工作階段與觀看統計本來就不匯出，ID 在目的地也可能被重新對應。`jelee-cli repair revert`／`consistency revert` 只有在同一個資料庫、該列仍是修復後的值時才有意義；把日誌搬到別的資料庫既不能還原也無法驗證，反而會讓報告指向不存在的列。它們留在 `pg_dump` 裡，隨完整備份還原。

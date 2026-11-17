@@ -78,7 +78,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 
 啟用 `enableImages` 時，正式端點另以 OTel observable instruments 讀取圖片處理器與持久存放區的 `Stats()`。每次收集各取一次快照，只讀程序內計數，不執行 I/O；metrics 關閉後不再讀取。圖片功能關閉時不註冊任何 `jelee_images_*` 指標。Counter 是程序啟動後的累計值，重啟歸零；超過 int64 上限時飽和而不回繞。
 
-處理器指標（12 個 family，無 labels）：
+處理器指標（13 個 family，無 labels）：
 
 | Prometheus 名稱 | 型別 | 意義 |
 | --- | --- | --- |
@@ -91,6 +91,7 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_decodes_total` | counter | 實際解碼來源圖片次數 |
 | `jelee_images_cache_hits_total` | counter | 記憶體變體快取命中 |
 | `jelee_images_cache_misses_total` | counter | 記憶體變體快取未命中；命中率 = hits /(hits + misses) |
+| `jelee_images_variants_generated_total` | counter | 記憶體與存放區都沒有、由原圖解碼後新產生的變體（G40.13） |
 | `jelee_images_cache_evictions_total` | counter | 記憶體快取淘汰數 |
 | `jelee_images_cache_entries` | gauge | 記憶體快取項目數 |
 | `jelee_images_cache_usage_bytes` | gauge | 記憶體快取佔用 bytes |
@@ -114,7 +115,9 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 | `jelee_images_index_failures_total` | counter | 變體索引寫入失敗；請求本身仍成功 |
 | `jelee_images_index_evictions_total` | counter | 經索引淘汰的變體 |
 
-沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 56 個 families（原 30 個加 26 個）；只開圖片不開存放區時為 42 個。
+沒有路徑、內容摘要、項目、使用者或媒體庫 labels。圖片與存放區全開時正式端點共 57 個 families（原 30 個加 27 個）；只開圖片不開存放區時為 43 個。
+
+**命中率怎麼算（G40.13）。** `/images` 與相容層的縮放請求共用同一個處理器，每個准入且成功的請求恰好是三者之一：記憶體命中（`cache_hits`）、記憶體未命中但由存放區供應（`store_served`）、兩者皆無而新產生（`variants_generated`）；所以 `cache_misses = store_served + variants_generated + 未命中後失敗的請求`。記憶體命中率 = `cache_hits / (cache_hits + cache_misses)`；整體命中率（不必重新產生）= `(cache_hits + store_served) / (cache_hits + cache_misses)`；沒有存放區時 `store_served` 不輸出，整體即記憶體命中率。PromQL 範例見[圖片資產：快取命中率](image-assets.md#缓存命中率g4013)。`variants_generated` 在解碼與編碼都成功後才加一，所以它不大於 `decodes`（`decodes` 也計入解碼後失敗的請求）。重複請求命中由 `TestImageVariantCountersShowRepeatedRequestsHit` 與真 PG `TestImageResizeRequestsHitCachePostgres`（`/images` 與相容層）驗證。
 
 ## 維運告警指標（G50.6）
 
@@ -162,6 +165,6 @@ vet、三命令 build、模組 checksum、格式、增量品牌與 gitignore 通
 
 `volume` 是設定鍵名而非路徑，與 `jelee-cli doctor` 的磁碟檢查一致：`tempdir`、`images.tempRoot`、`images.storeRoot`、`logging.file`（只列出已設定者）。檔案系統讀數在收集之外的背景更新，每個目錄最多每 30 秒讀一次、同時只有一個讀取在進行；檔案系統卡住時抓取照常回應、沿用上次讀數，讀不到的目錄不輸出。
 
-工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074）、`nfo_apply`（遷移 000088）與 `nfo_export`（遷移 000089），共用工作指標固定 14 組 kind／priority、42 個 outcome 點；測試中的工作 exposition 為 22 families／533 series、約 52 KiB，仍在 64 KiB 上限內。匯出任務每次讓出後回到佇列不計入等待或完成，只在首次領取與終止時各記一次。
+工作指標的 `kind` 標籤增加 `consistency_check`（遷移 000074）、`nfo_apply`（遷移 000088）與 `nfo_export`（遷移 000089），共用工作指標固定 14 組 kind／priority、42 個 outcome 點；測試中的工作 exposition 為 22 families／533 series、約 52 KiB，仍在 64 KiB 上限內。匯出任務每次讓出後回到佇列不計入等待或完成，只在首次領取與終止時各記一次。之後 `image_refresh`（遷移 000096）使共用工作指標成為固定 16 組 kind／priority、48 個 outcome 點，測試中的工作 exposition 為 22 families／607 series；最大測試刻度（每個計數 2^40）時約 68 KiB，測試上限因此由 64 KiB 調為 80 KiB。再之後 `metadata_refresh`（遷移 000103，暫定編號）使共用工作指標成為固定 18 組 kind／priority、54 個 outcome 點，測試中的工作 exposition 為 22 families／681 series；最大測試刻度時約 76 KiB，工作與資源 exposition 測試上限調為 96 KiB，執行期整合測試讀取上限同為 96 KiB。再之後 `subtitle_cache_cleanup`、`backup_reminder` 與 `external_metadata_removal`（遷移 000105，暫定編號）使共用工作指標成為固定 24 組 kind／priority、72 個 outcome 點，測試中的工作 exposition 為 22 families／903 series；最大測試刻度時約 88 KiB，工作、資源與圖片 exposition 測試上限與執行期整合測試讀取上限調為 128 KiB（[維護任務](maintenance-jobs.md)）。
 
 `internal/platform/telemetry/alerts_test.go` 以與正式端點相同的註冊組合抓取一次 `/metrics`，確認規則檔中每個指標名稱、`by` 分組標籤與註解中引用的標籤都存在。

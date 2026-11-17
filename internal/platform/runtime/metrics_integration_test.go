@@ -205,8 +205,10 @@ func TestMetricsRuntimePostgresIntegration(t *testing.T) {
 			t.Fatal("request production metrics endpoint")
 		}
 		defer response.Body.Close()
-		body, err := io.ReadAll(io.LimitReader(response.Body, (64<<10)+1))
-		if err != nil || len(body) > 64<<10 {
+		// The fixed job groups (about 3.6 KiB per kind and priority) plus the
+		// process and pool metrics exceed 64 KiB; 128 KiB keeps the bound.
+		body, err := io.ReadAll(io.LimitReader(response.Body, (128<<10)+1))
+		if err != nil || len(body) > 128<<10 {
 			t.Fatal("read bounded metrics response")
 		}
 		if response.StatusCode != want {

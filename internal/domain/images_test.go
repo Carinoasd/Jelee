@@ -21,9 +21,19 @@ func TestImageRequestAcceptsEveryG40TypeAndGalleryIndex(t *testing.T) {
 		t.Fatal("default type", err)
 	}
 	for _, bad := range []ImageRequest{{Type: "Poster"}, {Type: "primary"}, {Type: "Backdrop", Index: -1}, {Type: "Chapter", Index: ItemImageMaxIndex + 1},
-		{Type: "Logo", Index: 2}, {Format: "webp"}, {Format: "avif"}, {Width: 2049}, {Quality: 101}} {
+		{Type: "Logo", Index: 2}, {Format: "png"}, {Format: "JPEG"}, {Width: 2049}, {Quality: 101},
+		{Crop: true, Width: 100}, {Crop: true, Height: 100}, {Crop: true}} {
 		if _, err := NormalizeImageRequest(bad); err != ErrInvalid {
 			t.Fatalf("accepted %+v", bad)
+		}
+	}
+	if _, err := NormalizeImageRequest(ImageRequest{Format: ImageFormatAVIF}); err != ErrImageUnsupported {
+		t.Fatal("avif output must be unsupported", err)
+	}
+	for _, format := range []string{"", ImageFormatJPEG, ImageFormatWebP} {
+		value, err := NormalizeImageRequest(ImageRequest{Format: format, Crop: true, Width: 300, Height: 200})
+		if err != nil || !value.Crop || value.Width != 300 || value.Height != 200 || value.Format == "" {
+			t.Fatalf("format %q: %+v %v", format, value, err)
 		}
 	}
 }

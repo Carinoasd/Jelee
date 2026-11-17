@@ -64,7 +64,7 @@ func (s *Store) SubmitCatalogImport(ctx context.Context, actor domain.Actor, sou
 	if active >= policy.QueueLimit {
 		return domain.Job{}, false, domain.ErrJobQueueFull
 	}
-	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation) VALUES($1,$2,$3,'catalog_import',$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING `+jobColumns, first.LibraryID, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit, first.Generation))
+	job, err := scanJob(tx.QueryRow(ctx, `INSERT INTO jobs(library_id,actor_id,idempotency_key,kind,priority,queue_limit,history_limit,max_entries,max_directories,max_attempts,missing_count_limit,missing_percent_limit,inventory_generation,progress_total,progress_total_at) VALUES($1,$2,$3,'catalog_import',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,clock_timestamp()) RETURNING `+jobColumns, first.LibraryID, actor.UserID, key, priority, policy.QueueLimit, policy.HistoryLimit, policy.MaxEntries, policy.MaxDirectories, policy.MaxAttempts, policy.MissingCountLimit, policy.MissingPercentLimit, first.Generation, len(items)))
 	if err != nil {
 		return domain.Job{}, false, err
 	}

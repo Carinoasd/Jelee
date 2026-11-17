@@ -39,7 +39,7 @@ func ValidateProbeCachePolicy(p ProbeCachePolicy) error {
 }
 
 func ValidateProbeIdentity(v ProbeIdentity) error {
-	if v.Platform != "linux-amd64" || !probeText(v.VendorVersion, 256) || !probeText(v.UpstreamVersion, 64) || !probeHex(v.SourceRevision, 40) ||
+	if (v.Platform != "linux-amd64" && v.Platform != "windows-amd64") || !probeText(v.VendorVersion, 256) || !probeText(v.UpstreamVersion, 64) || !probeHex(v.SourceRevision, 40) ||
 		!probeHex(v.ExecutableSHA256, 64) || !probeHex(v.RuntimeSHA256, 64) || !probeHex(v.ArgumentsSHA256, 64) ||
 		v.ParserVersion != ProbeParserVersion || v.MetadataSchemaVersion != ProbeMetadataSchemaVersion || v.FingerprintVersion != ProbeFingerprintVersion ||
 		!probeText(v.SandboxVersion, 64) {

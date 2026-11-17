@@ -38,19 +38,25 @@ type catalogSyncRequest struct {
 	cursorRoot, cursorPath, missingCursor      *string
 	examined, created, updated, unchanged      int64
 	protected, pending, markedMissing, removed int64
+	// versionsCursor and aggregated belong to the versions phase, which
+	// first assembles multi-part versions (partsCursor, partsDone; G21.1).
+	versionsCursor *string
+	aggregated     int64
+	partsCursor    *string
+	partsDone      bool
 }
 
 func readCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string) (catalogSyncRequest, error) {
 	var r catalogSyncRequest
-	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
+	err := tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,expected_snapshot,expected_revision,inventory_generation,publish_snapshot,publish_total,publish_copied,publish_cursor::text,publish_cleaned,target_snapshot,target_revision,cursor_root::text,cursor_path,missing_cursor::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,versions_cursor::text,aggregated,parts_cursor::text,parts_done FROM catalog_sync_requests WHERE job_id=$1::uuid FOR UPDATE`, job).Scan(
 		&r.library, &r.mode, &r.phase, &r.source, &r.expectedSnapshot, &r.expectedRevision, &r.epoch, &r.publishSnapshot, &r.publishTotal, &r.publishCopied, &r.publishCursor, &r.publishCleaned, &r.targetSnapshot, &r.targetRevision, &r.cursorRoot, &r.cursorPath, &r.missingCursor,
-		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed)
+		&r.examined, &r.created, &r.updated, &r.unchanged, &r.protected, &r.pending, &r.markedMissing, &r.removed, &r.versionsCursor, &r.aggregated, &r.partsCursor, &r.partsDone)
 	return r, storageError(err)
 }
 
 func writeCatalogSyncRequest(ctx context.Context, tx pgx.Tx, job string, r catalogSyncRequest) error {
-	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19 WHERE job_id=$1::uuid`,
-		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed)
+	_, err := tx.Exec(ctx, `UPDATE catalog_sync_requests SET phase=$2,publish_snapshot=$3,publish_copied=$4,publish_cursor=$5::uuid,publish_cleaned=$6,target_snapshot=$7,target_revision=$8,cursor_root=$9::uuid,cursor_path=$10,missing_cursor=$11::uuid,examined=$12,created=$13,updated=$14,unchanged=$15,protected=$16,pending=$17,marked_missing=$18,removed=$19,versions_cursor=$20::uuid,aggregated=$21,parts_cursor=$22::uuid,parts_done=$23 WHERE job_id=$1::uuid`,
+		job, r.phase, r.publishSnapshot, r.publishCopied, r.publishCursor, r.publishCleaned, r.targetSnapshot, r.targetRevision, r.cursorRoot, r.cursorPath, r.missingCursor, r.examined, r.created, r.updated, r.unchanged, r.protected, r.pending, r.markedMissing, r.removed, r.versionsCursor, r.aggregated, r.partsCursor, r.partsDone)
 	return storageError(err)
 }
 
@@ -100,6 +106,8 @@ func (s *Store) AdvanceCatalogSync(ctx context.Context, l domain.JobLease) (bool
 		err = syncCatalogMissingBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "pending":
 		err = syncCatalogPendingBatch(ctx, tx, current, &r)
+	case "versions":
+		err = syncCatalogVersionsBatch(ctx, tx, current, &r, s.webhooksOn())
 	case "done":
 		return true, storageError(tx.Commit(ctx))
 	default:
@@ -224,6 +232,8 @@ type syncCandidate struct {
 	missing, external            bool
 	pendingSize, pendingModified *int64
 	pendingVersion               *string
+	// pendingRejected holds an administrator's rejection of the unchanged file.
+	pendingRejected bool
 }
 
 func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobLease, r *catalogSyncRequest, events bool) error {
@@ -233,7 +243,7 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	rows, err := tx.Query(ctx, `SELECT b.root_id::text,b.path,b.size,b.modified_unix_nano,
  s.source_id::text,s.item_id::text,s.size,s.modified_unix_nano,s.parser_version,COALESCE(s.missing_since IS NOT NULL,false),
  EXISTS(SELECT 1 FROM media_sources m WHERE m.root_id=b.root_id AND m.relative_path=b.path),
- p.size,p.modified_unix_nano,p.parser_version
+ p.size,p.modified_unix_nano,p.parser_version,COALESCE(p.rejected_at IS NOT NULL,false)
  FROM library_inventory_baseline_data b
  JOIN library_roots r ON r.id=b.root_id AND r.library_id=b.library_id
  LEFT JOIN catalog_scan_sources s ON s.root_id=b.root_id AND s.relative_path=b.path
@@ -247,7 +257,7 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	candidates := make([]syncCandidate, 0, catalogSyncReadLimit)
 	for rows.Next() {
 		var c syncCandidate
-		if err = rows.Scan(&c.root, &c.path, &c.size, &c.modified, &c.trackedSource, &c.trackedItem, &c.trackedSize, &c.trackedModified, &c.trackedVersion, &c.missing, &c.external, &c.pendingSize, &c.pendingModified, &c.pendingVersion); err != nil {
+		if err = rows.Scan(&c.root, &c.path, &c.size, &c.modified, &c.trackedSource, &c.trackedItem, &c.trackedSize, &c.trackedModified, &c.trackedVersion, &c.missing, &c.external, &c.pendingSize, &c.pendingModified, &c.pendingVersion, &c.pendingRejected); err != nil {
 			rows.Close()
 			return storageError(err)
 		}
@@ -262,7 +272,11 @@ func syncCatalogSourcesBatch(ctx context.Context, tx pgx.Tx, current domain.JobL
 	if err != nil {
 		return err
 	}
-	w := catalogWriter{tx: tx, library: r.library, snapshot: *r.targetSnapshot, now: time.Now().UTC(), events: events}
+	naming, err := readCatalogNaming(ctx, tx, r.library)
+	if err != nil {
+		return err
+	}
+	w := catalogWriter{tx: tx, library: r.library, snapshot: *r.targetSnapshot, now: time.Now().UTC(), events: events, naming: naming, version: domain.CatalogSyncParserVersionFor(naming)}
 	writes, processed, sidecarSources := 0, 0, 0
 	for _, c := range candidates {
 		if writes >= catalogSyncWriteLimit {
@@ -313,6 +327,18 @@ type catalogWriter struct {
 	now      time.Time
 	// events raises media.added for items this writer creates (G12.1).
 	events bool
+	// naming holds the library's naming options (G21.3); version is the
+	// parser version they produce, stored with every row this writer plans.
+	naming  domain.CatalogNamingOptions
+	version string
+}
+
+// readCatalogNaming reads a library's naming options inside the caller's
+// transaction, which already holds the library row.
+func readCatalogNaming(ctx context.Context, tx pgx.Tx, library string) (domain.CatalogNamingOptions, error) {
+	var o domain.CatalogNamingOptions
+	err := tx.QueryRow(ctx, `SELECT naming_date_episodes,naming_absolute_episodes FROM libraries WHERE id=$1::uuid`, library).Scan(&o.DateEpisodes, &o.AbsoluteEpisodes)
+	return o, storageError(err)
 }
 
 // syncCandidate applies one baseline video. It reports whether the catalog
@@ -333,7 +359,7 @@ func (w catalogWriter) syncCandidate(ctx context.Context, c syncCandidate, r *ca
 }
 
 func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *catalogSyncRequest, created *string) (bool, error) {
-	version := domain.CatalogSyncParserVersion
+	version := w.version
 	switch {
 	case c.trackedSource != nil:
 		if *c.trackedSize == c.size && *c.trackedModified == c.modified && *c.trackedVersion == version {
@@ -367,11 +393,13 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 		}
 		r.unchanged++
 		return false, nil
-	case c.pendingSize != nil && *c.pendingSize == c.size && *c.pendingModified == c.modified && *c.pendingVersion == version:
+	// A rejection holds for the file it was made for, even across a parser
+	// change (G21.5); a changed file is planned again.
+	case c.pendingSize != nil && *c.pendingSize == c.size && *c.pendingModified == c.modified && (*c.pendingVersion == version || c.pendingRejected):
 		r.unchanged++
 		return false, nil
 	}
-	plan := app.PlanCatalogScan(c.path)
+	plan := app.PlanCatalogScan(c.path, w.naming)
 	if !plan.Auto {
 		r.pending++
 		return true, w.putPending(ctx, c, plan, plan.Reason)
@@ -380,7 +408,8 @@ func (w catalogWriter) applyCandidate(ctx context.Context, c syncCandidate, r *c
 	if err != nil {
 		return false, storageError(err)
 	}
-	inner := catalogWriter{tx: savepoint, library: w.library, snapshot: w.snapshot, now: w.now, events: w.events}
+	inner := w
+	inner.tx = savepoint
 	source, err := inner.create(ctx, c, plan)
 	if errors.Is(err, errCatalogConflict) {
 		if rollback := savepoint.Rollback(ctx); rollback != nil {
@@ -428,8 +457,8 @@ func (w catalogWriter) putPending(ctx context.Context, c syncCandidate, plan app
 		title = ""
 	}
 	_, err := w.tx.Exec(ctx, `INSERT INTO catalog_scan_pending(library_id,root_id,relative_path,size,modified_unix_nano,parser_version,reason,kind,confidence,title,year,season,episode,episode_end,absolute,special) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
- ON CONFLICT(root_id,relative_path) DO UPDATE SET size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano,parser_version=EXCLUDED.parser_version,reason=EXCLUDED.reason,kind=EXCLUDED.kind,confidence=EXCLUDED.confidence,title=EXCLUDED.title,year=EXCLUDED.year,season=EXCLUDED.season,episode=EXCLUDED.episode,episode_end=EXCLUDED.episode_end,absolute=EXCLUDED.absolute,special=EXCLUDED.special,updated_at=clock_timestamp()`,
-		w.library, c.root, c.path, c.size, c.modified, domain.CatalogSyncParserVersion, reason, kind, p.Confidence.String(), title, year, season, episode, episodeEnd, absolute, p.Special.String())
+ ON CONFLICT(root_id,relative_path) DO UPDATE SET size=EXCLUDED.size,modified_unix_nano=EXCLUDED.modified_unix_nano,parser_version=EXCLUDED.parser_version,reason=EXCLUDED.reason,kind=EXCLUDED.kind,confidence=EXCLUDED.confidence,title=EXCLUDED.title,year=EXCLUDED.year,season=EXCLUDED.season,episode=EXCLUDED.episode,episode_end=EXCLUDED.episode_end,absolute=EXCLUDED.absolute,special=EXCLUDED.special,updated_at=clock_timestamp(),rejected_at=NULL,rejected_by=NULL`,
+		w.library, c.root, c.path, c.size, c.modified, w.version, reason, kind, p.Confidence.String(), title, year, season, episode, episodeEnd, absolute, p.Special.String())
 	return storageError(err)
 }
 
@@ -438,30 +467,95 @@ func (w catalogWriter) putPending(ctx context.Context, c syncCandidate, plan app
 // only an unlocked scan value. It reports whether a higher-priority value
 // protected the field.
 func (w catalogWriter) refreshTracked(ctx context.Context, c syncCandidate) (bool, error) {
-	if _, err := w.tx.Exec(ctx, `UPDATE catalog_scan_sources SET size=$2,modified_unix_nano=$3,parser_version=$4,missing_since=NULL WHERE source_id=$1::uuid`, *c.trackedSource, c.size, c.modified, domain.CatalogSyncParserVersion); err != nil {
+	if _, err := w.tx.Exec(ctx, `UPDATE catalog_scan_sources SET size=$2,modified_unix_nano=$3,parser_version=$4,missing_since=NULL WHERE source_id=$1::uuid`, *c.trackedSource, c.size, c.modified, w.version); err != nil {
 		return false, storageError(err)
 	}
-	plan := app.PlanCatalogScan(c.path)
+	plan := app.PlanCatalogScan(c.path, w.naming)
 	if !plan.Auto {
 		return false, nil
 	}
-	// A version an administrator placed never renames its item.
+	// A version an administrator placed never renames its item. A kind an
+	// administrator corrected no longer matches the file name's kind, so the
+	// file name changes nothing of that item.
 	var kind, title string
-	err := w.tx.QueryRow(ctx, `SELECT kind,scan_title FROM catalog_scan_items WHERE item_id=$1::uuid AND library_id=$2::uuid
- AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources WHERE source_id=$3::uuid AND manual) FOR UPDATE`, *c.trackedItem, w.library, *c.trackedSource).Scan(&kind, &title)
+	var stored scanNumbers
+	var numbersLocked bool
+	err := w.tx.QueryRow(ctx, `SELECT c.kind,c.scan_title,c.season,c.episode,c.episode_end,c.season_end,c.absolute,to_char(c.air_date,'YYYY-MM-DD'),c.special,COALESCE(k.season IS NOT NULL OR k.episode IS NOT NULL,false)
+ FROM catalog_scan_items c LEFT JOIN item_identity_corrections k ON k.item_id=c.item_id
+ WHERE c.item_id=$1::uuid AND c.library_id=$2::uuid
+ AND NOT EXISTS(SELECT 1 FROM catalog_scan_sources WHERE source_id=$3::uuid AND manual) FOR UPDATE OF c`, *c.trackedItem, w.library, *c.trackedSource).Scan(&kind, &title, &stored.season, &stored.episode, &stored.episodeEnd, &stored.seasonEnd, &stored.absolute, &stored.airDate, &stored.special, &numbersLocked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, storageError(err)
 	}
-	if kind != plan.Kind || title == plan.Title {
+	if kind != plan.Kind {
 		return false, nil
+	}
+	// Episode numbers are file-name values like the title. They are always
+	// refreshed underneath; a locked correction keeps winning when read
+	// (G21.5), which counts as protected. The naming facts (cross-season end,
+	// absolute number, air date, special kind) follow the same rule.
+	protected := false
+	planned := plannedScanNumbers(plan)
+	if !stored.same(planned) {
+		if kind == "Episode" {
+			if _, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET season=$2,episode=$3,episode_end=$4,season_end=$5,absolute=$6,air_date=$7::date,special=$8,parser_version=$9 WHERE item_id=$1::uuid`, *c.trackedItem, planned.season, planned.episode, planned.episodeEnd, planned.seasonEnd, planned.absolute, planned.airDate, planned.special, w.version); err != nil {
+				return false, storageError(err)
+			}
+			protected = numbersLocked && (!sameNumbers(stored.season, planned.season) || !sameNumbers(stored.episode, planned.episode) || !sameNumbers(stored.episodeEnd, planned.episodeEnd) || !sameNumbers(stored.seasonEnd, planned.seasonEnd))
+		} else if _, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET special=$2,parser_version=$3 WHERE item_id=$1::uuid`, *c.trackedItem, planned.special, w.version); err != nil {
+			return false, storageError(err)
+		}
+	}
+	if title == plan.Title {
+		return protected, nil
 	}
 	if _, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET scan_title=$2,parser_version=$3 WHERE item_id=$1::uuid`, *c.trackedItem, plan.Title, domain.CatalogSyncParserVersion); err != nil {
 		return false, storageError(err)
 	}
-	return w.applyScanTitle(ctx, *c.trackedItem, plan.Title)
+	titleProtected, err := w.applyScanTitle(ctx, *c.trackedItem, plan.Title)
+	return protected || titleProtected, err
+}
+
+// scanNumbers are the file-name identity values of a catalog_scan_items row.
+type scanNumbers struct {
+	season, episode, episodeEnd, seasonEnd, absolute *int
+	airDate, special                                 *string
+}
+
+func sameNumbers(a, b *int) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+
+func sameText(a, b *string) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+
+func (n scanNumbers) same(o scanNumbers) bool {
+	return sameNumbers(n.season, o.season) && sameNumbers(n.episode, o.episode) && sameNumbers(n.episodeEnd, o.episodeEnd) &&
+		sameNumbers(n.seasonEnd, o.seasonEnd) && sameNumbers(n.absolute, o.absolute) && sameText(n.airDate, o.airDate) && sameText(n.special, o.special)
+}
+
+// plannedScanNumbers maps a plan onto stored columns: absent values are NULL.
+func plannedScanNumbers(plan app.CatalogScanPlan) scanNumbers {
+	var n scanNumbers
+	positive := func(v int) *int {
+		if v <= 0 {
+			return nil
+		}
+		return &v
+	}
+	text := func(v string) *string {
+		if v == "" {
+			return nil
+		}
+		return &v
+	}
+	if plan.Kind == "Episode" {
+		season, episode, end := plan.Season, plan.Episode, plan.EpisodeEnd
+		n.season, n.episode, n.episodeEnd = &season, &episode, &end
+		n.seasonEnd, n.absolute, n.airDate = positive(plan.SeasonEnd), positive(plan.Absolute), text(plan.AirDate)
+	}
+	n.special = text(plan.Special)
+	return n
 }
 
 // applyScanTitle writes a file-name title with source scan unless a lock,
@@ -489,14 +583,19 @@ func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.Cat
 	var err error
 	switch plan.Kind {
 	case "Movie":
-		item, err = w.groupItem(ctx, c, "Movie", domain.CatalogGroupDigest("movie", c.root, plan.Directory, domain.NormalizeCatalogTitle(plan.Title), strconv.Itoa(plan.Year)), scanItem{title: plan.Title, year: plan.Year})
+		item, err = w.groupItem(ctx, c, "Movie", domain.CatalogGroupDigest("movie", c.root, plan.Directory, domain.NormalizeCatalogTitle(plan.Title), strconv.Itoa(plan.Year)), scanItem{title: plan.Title, year: plan.Year, naming: plannedScanNumbers(plan)})
 	case "Episode":
 		var season string
 		season, err = w.season(ctx, c, plan)
 		if err != nil {
 			return "", err
 		}
-		item, err = w.groupItem(ctx, c, "Episode", domain.CatalogGroupDigest("episode", season, plan.Directory, strconv.Itoa(plan.Episode), strconv.Itoa(plan.EpisodeEnd)), scanItem{title: plan.Title, season: &plan.Season, episode: &plan.Episode, episodeEnd: &plan.EpisodeEnd, parent: season, parentKind: "Season", childRoot: c.root, childPath: c.path})
+		parts := []string{"episode", season, plan.Directory, strconv.Itoa(plan.Episode), strconv.Itoa(plan.EpisodeEnd)}
+		if plan.SeasonEnd > 0 {
+			// A cross-season file is never a version of a same-season range.
+			parts = append(parts, "season-end", strconv.Itoa(plan.SeasonEnd))
+		}
+		item, err = w.groupItem(ctx, c, "Episode", domain.CatalogGroupDigest(parts...), scanItem{title: plan.Title, season: &plan.Season, episode: &plan.Episode, episodeEnd: &plan.EpisodeEnd, naming: plannedScanNumbers(plan), parent: season, parentKind: "Season", childRoot: c.root, childPath: c.path})
 	default:
 		return "", errCatalogConflict
 	}
@@ -507,7 +606,7 @@ func (w catalogWriter) create(ctx context.Context, c syncCandidate, plan app.Cat
 	if err = w.tx.QueryRow(ctx, `INSERT INTO media_sources(item_id,library_id,root_id,relative_path,content_type) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5) RETURNING id::text`, item, w.library, c.root, c.path, plan.ContentType).Scan(&source); err != nil {
 		return "", storageError(err)
 	}
-	if _, err = w.tx.Exec(ctx, `INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8)`, source, w.library, item, c.root, c.path, c.size, c.modified, domain.CatalogSyncParserVersion); err != nil {
+	if _, err = w.tx.Exec(ctx, `INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8)`, source, w.library, item, c.root, c.path, c.size, c.modified, w.version); err != nil {
 		return "", storageError(err)
 	}
 	_, err = w.tx.Exec(ctx, `DELETE FROM catalog_scan_pending WHERE root_id=$1::uuid AND relative_path=$2`, c.root, c.path)
@@ -518,6 +617,9 @@ type scanItem struct {
 	title                       string
 	year                        int
 	season, episode, episodeEnd *int
+	// naming carries the cross-season end, absolute number, air date and
+	// special kind of a Movie or Episode item; empty for structure items.
+	naming scanNumbers
 	// Optional folder registered for the item, and the parent link with the
 	// child location the link legality rules check.
 	directory, directoryRoot string
@@ -526,15 +628,19 @@ type scanItem struct {
 }
 
 // groupItem returns the item a file version belongs to: same directory and
-// same parsed identity (G20.1 first step). NFO identity wins over the file
+// same parsed identity (G20.1 first step; versions in other directories are
+// folded later by the versions phase). NFO identity wins over the file
 // name: a file with its own NFO is not merged into an item that already
-// carries NFO provider IDs, because its NFO may name a different title. A
-// manual exclusion keeps a file out of the item the same way.
+// carries NFO provider IDs, because its NFO may name a different title, and
+// a file is not merged into an episode whose NFO numbers name another
+// episode than the file name does (G21.2). A manual exclusion keeps a file
+// out of the item the same way.
 func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind string, digest []byte, spec scanItem) (string, error) {
 	item, err := w.findScanItem(ctx, kind, digest)
 	if err != nil {
 		return "", err
 	}
+	reason := ""
 	if item != "" {
 		separate, err := w.nfoIdentityConflict(ctx, item, c)
 		if err != nil {
@@ -547,6 +653,14 @@ func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind stri
 				return "", err
 			}
 		}
+		if !separate && spec.season != nil && spec.episode != nil {
+			if separate, err = w.nfoNumbersDisagree(ctx, item, *spec.season, *spec.episode); err != nil {
+				return "", err
+			}
+			if separate {
+				reason = domain.VersionGroupingNFONumbersDiffer
+			}
+		}
 		if !separate {
 			return item, nil
 		}
@@ -555,7 +669,26 @@ func (w catalogWriter) groupItem(ctx context.Context, c syncCandidate, kind stri
 			return item, err
 		}
 	}
-	return w.createScanItem(ctx, kind, digest, spec)
+	if item, err = w.createScanItem(ctx, kind, digest, spec); err != nil || reason == "" {
+		return item, err
+	}
+	// Recorded on the new item so the reason it stands apart is kept.
+	_, err = w.tx.Exec(ctx, `UPDATE catalog_scan_items SET grouping_reason=$2 WHERE item_id=$1::uuid`, item, reason)
+	return item, storageError(err)
+}
+
+// nfoNumbersDisagree reports an episode whose NFO season or episode number
+// differs from a new file's name, unless an identity lock holds the numbers
+// (a lock describes the group; its versions join it, G21.5).
+func (w catalogWriter) nfoNumbersDisagree(ctx context.Context, item string, season, episode int) (bool, error) {
+	var nfoSeason, nfoEpisode *int
+	var lockedNumbers bool
+	err := w.tx.QueryRow(ctx, `SELECT `+factNumberSQL("$1", "seasonNumber")+`,`+factNumberSQL("$1", "episodeNumber")+`,
+ EXISTS(SELECT 1 FROM item_identity_corrections WHERE item_id=$1::uuid AND (season IS NOT NULL OR episode IS NOT NULL))`, item).Scan(&nfoSeason, &nfoEpisode, &lockedNumbers)
+	if err != nil {
+		return false, storageError(err)
+	}
+	return !lockedNumbers && domain.CatalogNumbersDisagree(nfoSeason, nfoEpisode, season, episode), nil
 }
 
 func (w catalogWriter) nfoIdentityConflict(ctx context.Context, item string, c syncCandidate) (bool, error) {
@@ -589,7 +722,7 @@ func (w catalogWriter) createScanItem(ctx context.Context, kind string, digest [
 	if spec.year > 0 {
 		year = &spec.year
 	}
-	if _, err := w.tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10)`, item, w.library, kind, digest, domain.CatalogSyncParserVersion, spec.title, year, spec.season, spec.episode, spec.episodeEnd); err != nil {
+	if _, err := w.tx.Exec(ctx, `INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::date,$14)`, item, w.library, kind, digest, w.version, spec.title, year, spec.season, spec.episode, spec.episodeEnd, spec.naming.seasonEnd, spec.naming.absolute, spec.naming.airDate, spec.naming.special); err != nil {
 		return "", storageError(err)
 	}
 	if _, err := w.tx.Exec(ctx, `INSERT INTO item_metadata_state(item_id,revision) VALUES($1::uuid,2)`, item); err != nil {
@@ -831,7 +964,8 @@ func sourcesWithSidecars[T any](ctx context.Context, tx pgx.Tx, batch []T, selec
 
 // pruneScanItem deletes scan-created items that no longer hold media or
 // children, walking up to the season and series. Items carrying any value
-// from a person, NFO or TMDB, any lock, or any fact are kept.
+// from a person, NFO or TMDB, any lock (including an identity lock), or any
+// fact are kept.
 func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string, events bool) error {
 	for depth := 0; depth < 3 && item != ""; depth++ {
 		var removable bool
@@ -841,7 +975,8 @@ func pruneScanItem(ctx context.Context, tx pgx.Tx, library, item string, events 
  AND NOT EXISTS(SELECT 1 FROM item_parent_links WHERE parent_id=$1::uuid)
  AND NOT EXISTS(SELECT 1 FROM item_metadata_fields WHERE item_id=$1::uuid AND (source<>'scan' OR locked))
  AND NOT EXISTS(SELECT 1 FROM item_metadata_facts WHERE item_id=$1::uuid)
- AND NOT EXISTS(SELECT 1 FROM item_nfo_field_locks WHERE item_id=$1::uuid),
+ AND NOT EXISTS(SELECT 1 FROM item_nfo_field_locks WHERE item_id=$1::uuid)
+ AND NOT EXISTS(SELECT 1 FROM item_identity_corrections WHERE item_id=$1::uuid AND (kind_locked OR parent_locked OR season IS NOT NULL OR episode IS NOT NULL)),
  (SELECT parent_id::text FROM item_parent_links WHERE item_id=$1::uuid)`, item, library).Scan(&removable, &parent)
 		if err != nil {
 			return storageError(err)
@@ -878,7 +1013,7 @@ func syncCatalogPendingBatch(ctx context.Context, tx pgx.Tx, _ domain.JobLease, 
 	}
 	r.missingCursor = last
 	if count < catalogSyncPendingLimit {
-		r.phase, r.missingCursor = "done", nil
+		r.phase, r.missingCursor = "versions", nil
 	}
 	return nil
 }
@@ -911,8 +1046,16 @@ func (s *Store) FinishCatalogSync(ctx context.Context, l domain.JobLease, state,
 	if err = guardedJobUpdate(ctx, tx, current, `UPDATE jobs SET state=$2,error_code=$3,finished_at=clock_timestamp(),owner=NULL,lease_until=NULL WHERE id=$1::uuid`, l.Job.ID, state, code); err != nil {
 		return err
 	}
-	if err = auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "phase": r.phase, "created": r.created, "updated": r.updated, "pending": r.pending, "markedMissing": r.markedMissing, "removed": r.removed, "protected": r.protected}); err != nil {
+	if err = auditAccount(ctx, tx, domain.Actor{}, "catalog_sync.finished", l.Job.ID, nil, map[string]any{"state": state, "errorCode": code, "phase": r.phase, "created": r.created, "updated": r.updated, "pending": r.pending, "markedMissing": r.markedMissing, "removed": r.removed, "protected": r.protected, "aggregated": r.aggregated}); err != nil {
 		return err
+	}
+	// G13.6: an opted-in library refreshes its metadata after every
+	// successful synchronisation. The refresh is only queued here; it never
+	// delays or fails the synchronisation.
+	if state == domain.JobSucceeded {
+		if err = enqueueAutoMetadataRefresh(ctx, tx, current); err != nil {
+			return err
+		}
 	}
 	if err = trimJobs(ctx, tx, current.Policy.HistoryLimit); err != nil {
 		return err

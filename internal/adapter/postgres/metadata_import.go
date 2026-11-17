@@ -158,15 +158,18 @@ const portableNFO = `(m.dst=m.src AND (o.root IS NULL OR EXISTS(SELECT 1 FROM bk
 
 var metadataApply = []metadataApplyStep{
 	{kind: "library", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='library' AND m.src=s.ref WHERE s.kind='library' AND m.state IN ('existing','new')),
-ins AS (INSERT INTO libraries(id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto)
- SELECT id,doc->>'name',doc->>'nfo_mode',doc->>'metadata_language',pg_temp.bk_texts(doc->'metadata_image_languages'),(doc->>'metadata_preferences_revision')::integer,(doc->>'catalog_sync_auto')::boolean FROM x WHERE state='new' RETURNING 1),
+ins AS (INSERT INTO libraries(id,name,nfo_mode,metadata_language,metadata_image_languages,metadata_preferences_revision,catalog_sync_auto,naming_date_episodes,naming_absolute_episodes)
+ SELECT id,doc->>'name',doc->>'nfo_mode',doc->>'metadata_language',pg_temp.bk_texts(doc->'metadata_image_languages'),(doc->>'metadata_preferences_revision')::integer,(doc->>'catalog_sync_auto')::boolean,
+ COALESCE((doc->>'naming_date_episodes')::boolean,false),COALESCE((doc->>'naming_absolute_episodes')::boolean,false) FROM x WHERE state='new' RETURNING 1),
 upd AS (UPDATE libraries l SET name=x.doc->>'name',nfo_mode=x.doc->>'nfo_mode',nfo_write_enabled=l.nfo_write_enabled AND x.doc->>'nfo_mode'='read-only',
  nfo_generation=l.nfo_generation+CASE WHEN l.nfo_mode<>x.doc->>'nfo_mode' THEN 1 ELSE 0 END,
  metadata_language=x.doc->>'metadata_language',metadata_image_languages=pg_temp.bk_texts(x.doc->'metadata_image_languages'),
  metadata_preferences_revision=l.metadata_preferences_revision+CASE WHEN (l.metadata_language,l.metadata_image_languages) IS DISTINCT FROM (x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages')) THEN 1 ELSE 0 END,
- catalog_sync_auto=(x.doc->>'catalog_sync_auto')::boolean
- FROM x WHERE x.state='existing' AND l.id=x.id AND (l.name,l.nfo_mode,l.metadata_language,l.metadata_image_languages,l.catalog_sync_auto)
- IS DISTINCT FROM (x.doc->>'name',x.doc->>'nfo_mode',x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages'),(x.doc->>'catalog_sync_auto')::boolean) RETURNING 1)
+ catalog_sync_auto=(x.doc->>'catalog_sync_auto')::boolean,
+ naming_date_episodes=COALESCE((x.doc->>'naming_date_episodes')::boolean,false),naming_absolute_episodes=COALESCE((x.doc->>'naming_absolute_episodes')::boolean,false)
+ FROM x WHERE x.state='existing' AND l.id=x.id AND (l.name,l.nfo_mode,l.metadata_language,l.metadata_image_languages,l.catalog_sync_auto,l.naming_date_episodes,l.naming_absolute_episodes)
+ IS DISTINCT FROM (x.doc->>'name',x.doc->>'nfo_mode',x.doc->>'metadata_language',pg_temp.bk_texts(x.doc->'metadata_image_languages'),(x.doc->>'catalog_sync_auto')::boolean,
+ COALESCE((x.doc->>'naming_date_episodes')::boolean,false),COALESCE((x.doc->>'naming_absolute_episodes')::boolean,false)) RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),(SELECT count(*) FROM upd),0`},
 	{kind: "library_root", sql: `WITH x AS (SELECT m.dst id,m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='library_root' AND m.src=s.ref WHERE s.kind='library_root' AND m.state IN ('existing','new')),
 ins AS (INSERT INTO library_roots(id,library_id,path) SELECT id,pg_temp.bk_dst('library',doc->>'library_id'),doc->>'path' FROM x WHERE state='new' RETURNING 1)
@@ -215,9 +218,10 @@ ins AS (INSERT INTO item_parent_links(item_id,library_id,item_kind,parent_id,par
  SELECT pg_temp.bk_dst('item',doc->>'item_id'),pg_temp.bk_dst('library',doc->>'library_id'),doc->>'item_kind',parent,doc->>'parent_kind' FROM ok WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	{kind: "catalog_scan_item", sql: `WITH x AS (SELECT m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='item' AND m.src=(s.doc->>'item_id')::uuid WHERE s.kind='catalog_scan_item' AND m.state IN ('existing','new')),
-ins AS (INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end)
+ins AS (INSERT INTO catalog_scan_items(item_id,library_id,kind,group_digest,parser_version,scan_title,year,season,episode,episode_end,season_end,absolute,air_date,special)
  SELECT pg_temp.bk_dst('item',doc->>'item_id'),pg_temp.bk_dst('library',doc->>'library_id'),doc->>'kind',(doc->>'group_digest')::bytea,doc->>'parser_version',doc->>'scan_title',
- (doc->>'year')::integer,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
+ (doc->>'year')::integer,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer,
+ (doc->>'season_end')::integer,(doc->>'absolute')::integer,(doc->>'air_date')::date,doc->>'special' FROM x WHERE state='new' ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM ins),0,0`},
 	{kind: "catalog_scan_source", sql: `WITH x AS (SELECT m.state,s.doc FROM bk_stage s JOIN bk_map m ON m.kind='media_source' AND m.src=(s.doc->>'source_id')::uuid WHERE s.kind='catalog_scan_source' AND m.state IN ('existing','new')),
 ins AS (INSERT INTO catalog_scan_sources(source_id,library_id,item_id,root_id,relative_path,size,modified_unix_nano,parser_version,missing_since,manual)
@@ -238,6 +242,14 @@ SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	{kind: "item_primary_version", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i,pg_temp.bk_dst('media_source',s.doc->>'source_id') m FROM bk_stage s WHERE s.kind='item_primary_version'),
 ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM media_sources t WHERE t.id=x.m AND t.item_id=x.i)),
 ins AS (INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) SELECT i,l,m,(doc->>'updated_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
+	// Identity locks are administrator choices like version decisions: they
+	// also reach items found in the target, and a target that already decided
+	// keeps its own row. The kind and parent they lock travel with the items.
+	{kind: "item_identity_correction", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('item',s.doc->>'item_id') i FROM bk_stage s WHERE s.kind='item_identity_correction'),
+ok AS (SELECT * FROM x WHERE l IS NOT NULL AND i IS NOT NULL AND EXISTS(SELECT 1 FROM items t WHERE t.id=x.i AND t.library_id=x.l)),
+ins AS (INSERT INTO item_identity_corrections(item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at)
+ SELECT i,l,(doc->>'revision')::integer,(doc->>'kind_locked')::boolean,(doc->>'parent_locked')::boolean,(doc->>'season')::integer,(doc->>'episode')::integer,(doc->>'episode_end')::integer,(doc->>'updated_at')::timestamptz FROM ok ON CONFLICT DO NOTHING RETURNING 1)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM ins),0,0`},
 	// New items take the exported revision; items found in the target get a
 	// state row when their metadata arrives and one revision bump at the end.
@@ -291,16 +303,16 @@ SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELEC
 usable AS (SELECT *,EXISTS(SELECT 1 FROM item_images g WHERE g.item_id=x.item AND g.image_type=x.doc->>'image_type' AND g.image_index=(x.doc->>'image_index')::integer AND g.locked AND g.source_kind<>x.doc->>'source_kind') blocked
  FROM x WHERE item IS NOT NULL AND lib IS NOT NULL AND (doc->>'root_id' IS NULL OR root IS NOT NULL)),
 ok AS (SELECT * FROM usable WHERE NOT blocked),
-up AS (INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,source_mtime_unix_nano,source_size,locked,created_at,updated_at)
+up AS (INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,root_id,relative_path,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,source_mtime_unix_nano,source_size,locked,manual,created_at,updated_at)
  SELECT CASE WHEN EXISTS(SELECT 1 FROM item_images g WHERE g.id=ok.ref) THEN gen_random_uuid() ELSE ok.ref END,item,lib,doc->>'image_type',(doc->>'image_index')::integer,doc->>'source_kind',root,doc->>'relative_path',doc->>'remote_url',
- (doc->>'content_sha256')::bytea,(doc->>'width')::integer,(doc->>'height')::integer,doc->>'format',(doc->>'byte_size')::bigint,(doc->>'average_color')::integer,(doc->>'fetched_at')::timestamptz,
- (doc->>'source_mtime_unix_nano')::bigint,(doc->>'source_size')::bigint,true,(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
+ (doc->>'content_sha256')::bytea,(doc->>'width')::integer,(doc->>'height')::integer,doc->>'format',(doc->>'byte_size')::bigint,(doc->>'average_color')::integer,(doc->>'dominant_color')::integer,(doc->>'fetched_at')::timestamptz,
+ (doc->>'source_mtime_unix_nano')::bigint,(doc->>'source_size')::bigint,true,doc->>'source_kind'='upload',(doc->>'created_at')::timestamptz,(doc->>'updated_at')::timestamptz FROM ok
  ON CONFLICT(item_id,image_type,image_index,source_kind) DO UPDATE SET root_id=EXCLUDED.root_id,relative_path=EXCLUDED.relative_path,remote_url=EXCLUDED.remote_url,content_sha256=EXCLUDED.content_sha256,
- width=EXCLUDED.width,height=EXCLUDED.height,format=EXCLUDED.format,byte_size=EXCLUDED.byte_size,average_color=EXCLUDED.average_color,fetched_at=EXCLUDED.fetched_at,
- source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,locked=true,updated_at=greatest(EXCLUDED.updated_at,item_images.created_at)
- WHERE (item_images.root_id,item_images.relative_path,item_images.remote_url,item_images.content_sha256,item_images.width,item_images.height,item_images.format,item_images.byte_size,item_images.average_color,
+ width=EXCLUDED.width,height=EXCLUDED.height,format=EXCLUDED.format,byte_size=EXCLUDED.byte_size,average_color=EXCLUDED.average_color,dominant_color=EXCLUDED.dominant_color,fetched_at=EXCLUDED.fetched_at,
+ source_mtime_unix_nano=EXCLUDED.source_mtime_unix_nano,source_size=EXCLUDED.source_size,locked=true,manual=item_images.manual OR EXCLUDED.manual,updated_at=greatest(EXCLUDED.updated_at,item_images.created_at)
+ WHERE (item_images.root_id,item_images.relative_path,item_images.remote_url,item_images.content_sha256,item_images.width,item_images.height,item_images.format,item_images.byte_size,item_images.average_color,item_images.dominant_color,
  item_images.fetched_at,item_images.source_mtime_unix_nano,item_images.source_size,item_images.locked)
- IS DISTINCT FROM (EXCLUDED.root_id,EXCLUDED.relative_path,EXCLUDED.remote_url,EXCLUDED.content_sha256,EXCLUDED.width,EXCLUDED.height,EXCLUDED.format,EXCLUDED.byte_size,EXCLUDED.average_color,
+ IS DISTINCT FROM (EXCLUDED.root_id,EXCLUDED.relative_path,EXCLUDED.remote_url,EXCLUDED.content_sha256,EXCLUDED.width,EXCLUDED.height,EXCLUDED.format,EXCLUDED.byte_size,EXCLUDED.average_color,EXCLUDED.dominant_color,
  EXCLUDED.fetched_at,EXCLUDED.source_mtime_unix_nano,EXCLUDED.source_size,true)
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM usable WHERE blocked)`},
@@ -431,15 +443,23 @@ SELECT (SELECT count(*) FROM x),(SELECT count(*) FROM up WHERE inserted),(SELECT
 	// A schedule already running in the target keeps its next due time.
 	{kind: "scan_schedule", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('library',s.doc->>'library_id') l,pg_temp.bk_dst('user',s.doc->>'owner_id') o FROM bk_stage s WHERE s.kind='scan_schedule'),
 ok AS (SELECT * FROM x WHERE l IS NOT NULL AND o IS NOT NULL),
-up AS (INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled)
- SELECT l,o,(doc->>'revision')::bigint,(doc->>'enabled')::boolean,doc->>'mode',(doc->>'interval_seconds')::integer,doc->>'cron',doc->>'timezone',(doc->>'probe')::boolean,(doc->>'nfo')::boolean,
- doc->>'ignore_mode',doc->>'ignore_case',(doc->>'next_due')::timestamptz,(doc->>'watch_enabled')::boolean FROM ok
- ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=scan_schedules.revision+1,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,
- timezone=EXCLUDED.timezone,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,
- next_due=CASE WHEN EXCLUDED.enabled THEN COALESCE(scan_schedules.next_due,EXCLUDED.next_due) END,watch_enabled=EXCLUDED.watch_enabled,retry_after=NULL,last_error='',updated_at=clock_timestamp()
- WHERE (scan_schedules.owner_id,scan_schedules.enabled,scan_schedules.mode,scan_schedules.interval_seconds,scan_schedules.cron,scan_schedules.timezone,scan_schedules.probe,scan_schedules.nfo,
- scan_schedules.ignore_mode,scan_schedules.ignore_case,scan_schedules.watch_enabled)
- IS DISTINCT FROM (EXCLUDED.owner_id,EXCLUDED.enabled,EXCLUDED.mode,EXCLUDED.interval_seconds,EXCLUDED.cron,EXCLUDED.timezone,EXCLUDED.probe,EXCLUDED.nfo,EXCLUDED.ignore_mode,EXCLUDED.ignore_case,EXCLUDED.watch_enabled)
+timed AS (INSERT INTO job_schedules(kind,library_id,revision,enabled,mode,interval_seconds,cron,timezone,params,next_due)
+ SELECT 'inventory_scan',l,1,(doc->>'enabled')::boolean,doc->>'mode',(doc->>'interval_seconds')::integer,doc->>'cron',doc->>'timezone',
+ jsonb_build_object('probe',(doc->>'probe')::boolean,'nfo',(doc->>'nfo')::boolean,'ignore',jsonb_build_object('mode',doc->>'ignore_mode','caseMode',doc->>'ignore_case')),
+ CASE WHEN (doc->>'enabled')::boolean THEN (doc->>'next_due')::timestamptz END FROM ok
+ ON CONFLICT(kind,COALESCE(library_id,'00000000-0000-0000-0000-000000000000'::uuid)) DO UPDATE SET revision=job_schedules.revision+1,enabled=EXCLUDED.enabled,mode=EXCLUDED.mode,
+ interval_seconds=EXCLUDED.interval_seconds,cron=EXCLUDED.cron,run_at=NULL,timezone=EXCLUDED.timezone,params=EXCLUDED.params,
+ next_due=CASE WHEN EXCLUDED.enabled THEN COALESCE(job_schedules.next_due,EXCLUDED.next_due) END,retry_after=NULL,last_error='',updated_at=clock_timestamp()
+ WHERE (job_schedules.enabled,job_schedules.mode,job_schedules.interval_seconds,job_schedules.cron,job_schedules.timezone,job_schedules.params)
+ IS DISTINCT FROM (EXCLUDED.enabled,EXCLUDED.mode,EXCLUDED.interval_seconds,EXCLUDED.cron,EXCLUDED.timezone,EXCLUDED.params)
+ RETURNING library_id),
+up AS (INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case,watch_enabled)
+ SELECT l,o,(doc->>'revision')::bigint,(doc->>'probe')::boolean,(doc->>'nfo')::boolean,doc->>'ignore_mode',doc->>'ignore_case',(doc->>'watch_enabled')::boolean FROM ok
+ ON CONFLICT(library_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,revision=scan_schedules.revision+1,probe=EXCLUDED.probe,nfo=EXCLUDED.nfo,ignore_mode=EXCLUDED.ignore_mode,ignore_case=EXCLUDED.ignore_case,
+ watch_enabled=EXCLUDED.watch_enabled,updated_at=clock_timestamp()
+ WHERE (scan_schedules.owner_id,scan_schedules.probe,scan_schedules.nfo,scan_schedules.ignore_mode,scan_schedules.ignore_case,scan_schedules.watch_enabled)
+ IS DISTINCT FROM (EXCLUDED.owner_id,EXCLUDED.probe,EXCLUDED.nfo,EXCLUDED.ignore_mode,EXCLUDED.ignore_case,EXCLUDED.watch_enabled)
+  OR EXISTS(SELECT 1 FROM timed WHERE timed.library_id=EXCLUDED.library_id)
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
 	// Collections are administrator configuration: like client rules and
@@ -480,6 +500,16 @@ up AS (INSERT INTO user_preferences AS p(user_id,theme,density,layout,updated_at
  ON CONFLICT(user_id) DO UPDATE SET theme=EXCLUDED.theme,density=EXCLUDED.density,layout=EXCLUDED.layout,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
  RETURNING (xmax=0) inserted)
 SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),0`},
+	// Version preferences (G20.2) keep whichever side was updated last too;
+	// the table's checks refuse values outside the accepted ranges.
+	{kind: "user_version_preference", sql: `WITH x AS (SELECT s.doc,pg_temp.bk_dst('user',s.doc->>'user_id') u FROM bk_stage s WHERE s.kind='user_version_preference'),
+ok AS (SELECT * FROM x WHERE u IS NOT NULL),
+up AS (INSERT INTO user_version_preferences AS p(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at)
+ SELECT u,(doc->>'max_height')::integer,doc->>'dynamic_range',(doc->>'prefer_smaller')::boolean,(doc->>'max_bitrate')::bigint,(doc->>'updated_at')::timestamptz FROM ok
+ ON CONFLICT(user_id) DO UPDATE SET max_height=EXCLUDED.max_height,dynamic_range=EXCLUDED.dynamic_range,prefer_smaller=EXCLUDED.prefer_smaller,
+  max_bitrate=EXCLUDED.max_bitrate,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at>p.updated_at
+ RETURNING (xmax=0) inserted)
+SELECT (SELECT count(*) FROM ok),(SELECT count(*) FROM up WHERE inserted),(SELECT count(*) FROM up WHERE NOT inserted),(SELECT count(*) FROM x)-(SELECT count(*) FROM ok)`},
 	// The single-row documents take the exported values, normalized and
 	// checked by validateMetadataSettings, with a new revision.
 	{kind: "site_appearance", sql: `WITH x AS (SELECT s.doc FROM bk_stage s WHERE s.kind='site_appearance' AND NOT EXISTS(SELECT 1 FROM bk_map b WHERE b.kind='site_appearance')),

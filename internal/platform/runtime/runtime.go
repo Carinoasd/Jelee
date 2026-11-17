@@ -167,6 +167,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				CacheBytes: p.CacheBytes, CacheEntries: p.CacheEntries,
 				Timeout:  time.Duration(p.TimeoutSeconds) * time.Second,
 				CacheTTL: time.Duration(p.CacheTTLSeconds) * time.Second, DefaultQuality: p.DefaultQuality,
+				OutputFormats: p.OutputFormats, Crop: p.Crop,
 			}
 			pictures, err := openImageStore(lifetime.ctx, p, store)
 			if err != nil {
@@ -207,6 +208,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if images, err = images.WithAssets(store, processor); err != nil {
 				return nil, err
 			}
+			// Uploads need the persistent store; without it the processor
+			// refuses them with image_unavailable.
+			if images, err = images.WithManagement(store, processor, processor); err != nil {
+				return nil, err
+			}
 			return images.WithSummaries(store)
 		},
 		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor) (*telemetry.Metrics, error) {
@@ -237,7 +243,7 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			lifetime.closeTelemetry = metrics.Shutdown
 			return metrics, nil
 		},
-		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor, l *slog.Logger) (*app.Jobs, error) {
+		func(c config.Config, store *postgres.Store, budget *resources.Budget, processor *imageadapter.Processor, l *slog.Logger, dev *devmode.Controller) (*app.Jobs, error) {
 			if !c.EnableJobs {
 				return nil, nil
 			}
@@ -293,6 +299,34 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 			if service, err = app.NewJobsWithNFOApply(service, store); err != nil {
 				return nil, err
 			}
+			// G40.9: refresh jobs are admitted only where remote fetching and
+			// the image store are configured; every runner claims them, so a
+			// job queued under another configuration fails instead of waiting.
+			refresher, err := prepareImageRefresh(c, processor, dev)
+			if err != nil {
+				return nil, err
+			}
+			if service, err = app.NewJobsWithImageRefresh(service, store, refresher != nil); err != nil {
+				return nil, err
+			}
+			// G13.6, G14.4: metadata refreshes are admitted only with a
+			// configured provider; every runner claims them, so a job queued
+			// under another configuration fails instead of blocking its
+			// library.
+			refreshMetadata, err := bindMetadata(metadataService, store)
+			if err != nil {
+				return nil, err
+			}
+			if service, err = app.NewJobsWithMetadataRefresh(service, store, refreshMetadata); err != nil {
+				return nil, err
+			}
+			// G13.6, G14.7: maintenance jobs. A cache cleanup is admitted
+			// only with a usable extraction cache; every runner claims all
+			// three kinds.
+			subtitleSweeper := prepareSubtitleCacheSweeper(c)
+			if service, err = app.NewJobsWithMaintenance(service, store, subtitleSweeper != nil, c.Jobs.BackupReminderDays); err != nil {
+				return nil, err
+			}
 			service, err = app.NewJobsWithInventoryImport(service, store, scan.New())
 			if err != nil {
 				return nil, err
@@ -310,6 +344,11 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 					return nil, err
 				}
 			}
+			if days := c.Jobs.BackupReminderDays; days > 0 {
+				if service, err = app.NewJobsWithBackupReminderSchedule(service, store, days); err != nil {
+					return nil, err
+				}
+			}
 			p := c.Jobs
 			opts := jobworker.Options{Budget: budget, Workers: p.Workers, PollInterval: time.Duration(p.PollMilliseconds) * time.Millisecond, LeaseDuration: time.Duration(p.LeaseSeconds) * time.Second, DBOperationTimeout: time.Duration(p.DatabaseTimeoutSeconds) * time.Second, MaxJobRuntime: time.Duration(p.MaxRuntimeSeconds) * time.Second, ScanConcurrency: p.ScanConcurrency}
 			window, err := calendar.ParseDailyWindow(p.WindowStart, p.WindowEnd, p.WindowTimezone)
@@ -320,13 +359,22 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				opts.Window = window
 			}
 			opts.CatalogImport = &jobworker.CatalogImportOptions{Repository: store, Verifier: scan.New()}
-			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}}
+			opts.CatalogSync = &jobworker.CatalogSyncOptions{Repository: store, Sidecars: store, Inspector: scan.SidecarInspector{}, Images: store}
 			covers, closeCovers := prepareEmbeddedCovers(startup, c.EnableEmbeddedCovers, probing, processor.OriginalStore(), store, l, prepareProductionCoverExtractor)
 			if closeCovers != nil {
 				closeProbe := lifetime.closeProbe
 				lifetime.closeProbe = func() error { return errors.Join(closeCovers(), closeProbe()) }
 			}
+			if covers != nil {
+				covers.Describer = processor
+			}
 			opts.CatalogSync.EmbeddedCovers = covers
+			chapters, closeChapters := prepareChapterImages(startup, c.EnableChapterImages, probing, processor.OriginalStore(), store, l, prepareProductionChapterExtractor)
+			if closeChapters != nil {
+				closeProbe := lifetime.closeProbe
+				lifetime.closeProbe = func() error { return errors.Join(closeChapters(), closeProbe()) }
+			}
+			opts.CatalogSync.ChapterImages = chapters
 			if goruntime.GOOS == "linux" || goruntime.GOOS == "windows" {
 				ignoreScanner := scan.NewIgnoreScanner()
 				opts.Ignore = &jobworker.IgnoreOptions{Repository: store, Scanner: ignoreScanner, Observer: ignoreScanner}
@@ -358,6 +406,19 @@ func newWithLifetime(cfg config.Config, logger *slog.Logger, lifetime *lifetime)
 				return nil, err
 			}
 			opts.NFOApply = &jobworker.NFOApplyOptions{Worker: applyWorker, Repository: store}
+			refreshWorker, err := app.NewImageRefreshWorker(refresher, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			opts.ImageRefresh = &jobworker.ImageRefreshOptions{Worker: refreshWorker, Repository: store}
+			metadataWorker, err := app.NewMetadataRefreshWorker(refreshMetadata, store, time.Duration(p.DatabaseTimeoutSeconds)*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			opts.MetadataRefresh = &jobworker.MetadataRefreshOptions{Worker: metadataWorker, Repository: store}
+			if opts.Kinds, err = maintenanceKinds(store, subtitleSweeper, time.Duration(p.DatabaseTimeoutSeconds)*time.Second); err != nil {
+				return nil, err
+			}
 			if c.EnableNFOWrite {
 				// G39.14: the export prepares like an administrator would and
 				// lets the nfo_write runner above write the files.

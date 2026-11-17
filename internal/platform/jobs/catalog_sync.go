@@ -19,22 +19,34 @@ import (
 // bounded read (edge fingerprint, text subtitle charset) outside any
 // transaction, and the results are stored in fenced pages.
 //
+// With Images set, the job then records the library's image references
+// (G40.2, G40.3): image files next to each item recognized by name and the
+// NFO art of each item, in fenced pages that read only the database. URLs
+// are recorded, never fetched, so no external service can fail the sync.
+//
 // With EmbeddedCovers set (G40.4, off by default), the job then copies the
-// attached pictures of probed media files into the image store.
+// attached pictures of probed media files into the image store. With
+// ChapterImages set (G40.1, off by default), it last copies the stored
+// chapter pictures of probed media files.
 type CatalogSyncOptions struct {
 	Repository     app.CatalogSyncExecutionRepository
 	Sidecars       app.SidecarInspectionRepository
 	Inspector      app.SidecarInspector
+	Images         app.ItemImageIngestRepository
 	EmbeddedCovers *EmbeddedCoverOptions
+	ChapterImages  *ChapterImageOptions
 }
 
 // EmbeddedCoverOptions is trusted local wiring of the embedded cover pass.
 // FileTimeout bounds one extraction including its sandboxed child; zero uses
 // 30 seconds. Available reports whether the sandboxed tool is still usable.
 type EmbeddedCoverOptions struct {
-	Repository  app.EmbeddedCoverRepository
-	Extractor   app.EmbeddedCoverExtractor
-	Store       app.EmbeddedCoverStore
+	Repository app.EmbeddedCoverRepository
+	Extractor  app.EmbeddedCoverExtractor
+	Store      app.EmbeddedCoverStore
+	// Describer optionally samples the G40.7 colors of each stored cover;
+	// a failure only leaves them unknown.
+	Describer   app.ImageContentDescriber
 	FileTimeout time.Duration
 	Available   func() bool
 }
@@ -61,9 +73,46 @@ func (r *Runner) executeCatalogSync(ctx context.Context, lease domain.JobLease) 
 			if err, storage := r.inspectSidecars(ctx, lease); err != nil {
 				return err, storage
 			}
-			storage, err := r.extractEmbeddedCovers(ctx, lease)
+			// Local and NFO rows go first: they outrank an embedded cover,
+			// whose pass skips a slot such a row already fills.
+			if err := r.ingestItemImages(ctx, lease); err != nil {
+				return err, true
+			}
+			if storage, err := r.extractEmbeddedCovers(ctx, lease); err != nil {
+				return err, storage
+			}
+			storage, err := r.extractChapterImages(ctx, lease)
 			return err, storage
 		}
+	}
+}
+
+// ingestItemImages walks the library's items once, by ID, one fenced page
+// per call. A page that finds the published baseline replaced ends the
+// pass: the sync of the newer baseline ingests it.
+func (r *Runner) ingestItemImages(ctx context.Context, lease domain.JobLease) error {
+	repository := r.options.CatalogSync.Images
+	if repository == nil {
+		return nil
+	}
+	after := ""
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var page domain.ItemImageIngestPage
+		err := r.ignoreDB(ctx, func(c context.Context) error {
+			var err error
+			page, err = repository.IngestItemImages(c, lease, after, domain.ItemImageIngestBatch)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		if page.Stale || page.Next == "" {
+			return nil
+		}
+		after = page.Next
 	}
 }
 
@@ -234,5 +283,12 @@ func (r *Runner) embeddedCover(ctx context.Context, options *EmbeddedCoverOption
 	}
 	result.Outcome = domain.EmbeddedCoverStored
 	result.Content = &domain.ItemImageContent{SHA256: digest[:], Width: cover.Width, Height: cover.Height, Format: cover.Format, Bytes: size, FetchedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	if options.Describer != nil {
+		if described, err := options.Describer.DescribeStoredImage(fileCtx, digest); err == nil {
+			result.Content.AverageColor, result.Content.DominantColor = described.AverageColor, described.DominantColor
+		} else if ctx.Err() != nil {
+			return domain.EmbeddedCoverResult{}, embeddedCoverStop, ctx.Err()
+		}
+	}
 	return result, embeddedCoverRecord, nil
 }

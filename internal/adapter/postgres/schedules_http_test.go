@@ -145,4 +145,35 @@ func TestScheduleActualTLS(t *testing.T) {
 		t.Fatal("watch report", status, string(body))
 	}
 
+	// Generic schedules (G13.1).
+	generic := `{"kind":"image_refresh","libraryId":"` + f.registration.Library.ID + `","expectedRevision":0,"enabled":true,"timing":{"mode":"cron","intervalSeconds":0,"cron":"0 3 * * *","timezone":"Asia/Taipei"},"window":{"start":"02:00","end":"05:00"},"params":{}}`
+	if status, _ = request("POST", "/api/v1/schedules", generic, viewer.Token); status != 403 {
+		t.Fatal("viewer created a schedule", status)
+	}
+	destructive := strings.Replace(generic, "image_refresh", "external_metadata_removal", 1)
+	if status, body = request("POST", "/api/v1/schedules", destructive, grant.Token); status != 400 || !strings.Contains(string(body), "schedule_kind_not_allowed") {
+		t.Fatal("destructive schedule", status, string(body))
+	}
+	var created struct{ Data domain.JobSchedule }
+	if status, body = request("POST", "/api/v1/schedules", generic, grant.Token); status != 201 || json.Unmarshal(body, &created) != nil || created.Data.Revision != 1 || created.Data.NextDue == nil {
+		t.Fatal("create schedule", status, string(body))
+	}
+	if status, _ = request("POST", "/api/v1/schedules", generic, grant.Token); status != 409 {
+		t.Fatal("duplicate schedule", status)
+	}
+	var list struct {
+		Data struct{ Schedules []domain.JobSchedule }
+	}
+	if status, body = request("GET", "/api/v1/schedules?libraryId="+f.registration.Library.ID, "", grant.Token); status != 200 || json.Unmarshal(body, &list) != nil || len(list.Data.Schedules) != 2 {
+		t.Fatal("list schedules", status, string(body))
+	}
+	if status, _ = request("DELETE", "/api/v1/schedules/"+created.Data.ID+"?expectedRevision=2", "", grant.Token); status != 409 {
+		t.Fatal("stale delete", status)
+	}
+	if status, _ = request("DELETE", "/api/v1/schedules/"+created.Data.ID+"?expectedRevision=1", "", grant.Token); status != 204 {
+		t.Fatal("delete", status)
+	}
+	if status, _ = request("GET", "/api/v1/schedules/"+created.Data.ID, "", grant.Token); status != 404 {
+		t.Fatal("deleted schedule readable", status)
+	}
 }

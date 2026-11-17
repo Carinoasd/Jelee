@@ -36,6 +36,7 @@ import (
 func (rt *router) playbackRoutes() {
 	rt.handle(http.MethodGet, "/Items/{itemId}/PlaybackInfo", true, rt.bounded(rt.playbackInfo))
 	rt.handle(http.MethodPost, "/Items/{itemId}/PlaybackInfo", true, rt.bounded(rt.playbackInfo))
+	rt.handle(http.MethodGet, "/Videos/{itemId}/AdditionalParts", true, rt.bounded(rt.additionalParts))
 	if rt.opts.Library.Delivery == nil {
 		return
 	}
@@ -221,14 +222,24 @@ func (rt *router) playbackInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if playableKind(item.Kind) {
-		sources, err := catalog.PlaybackSources(r.Context(), rt.playbackActor(r, principal), item.ID)
+		// Sources come in the user's default version order (G20.2); the
+		// declaration only removes what the client cannot play as it is,
+		// so the first listed source is the default version.
+		sources, err := rt.playbackChoice(r, principal, item.ID, req)
 		if err != nil {
 			rt.writeLibraryError(w, err)
 			return
 		}
 		for _, source := range sources {
-			if req.mediaSourceID != "" && source.ID != req.mediaSourceID || !rt.directPlayable(req, source) {
+			if rt.playbackExclusion(req, source) != nil {
 				continue
+			}
+			// A MediaSourceId naming a later part of a multi-part version
+			// (G21.1, listed by AdditionalParts) answers with that part.
+			if req.mediaSourceID != "" && req.mediaSourceID != source.ID {
+				if _, part, ok := domain.FindPart([]domain.PlaybackSource{source}, req.mediaSourceID); ok {
+					source = part.PlaybackSource
+				}
 			}
 			info, err := rt.mediaSource(itemID, source, item.Title)
 			if err != nil {
@@ -276,6 +287,17 @@ func playableKind(kind string) bool {
 func (rt *router) directPlayable(req playbackRequest, source domain.PlaybackSource) bool {
 	if !rt.opts.Library.DirectPlay || !req.directPlay {
 		return false
+	}
+	if len(source.Parts) > 1 {
+		// A multi-part version is offered only when every part is.
+		for _, part := range source.Parts {
+			single := part.PlaybackSource
+			single.Parts = nil
+			if !rt.directPlayable(req, single) {
+				return false
+			}
+		}
+		return true
 	}
 	if req.maxBitrate > 0 && source.BitRate != nil && *source.BitRate > req.maxBitrate {
 		return false
@@ -355,40 +377,14 @@ type externalSubtitle struct {
 }
 
 // externalSubtitles numbers the external subtitle files of a source after
-// every embedded stream, as upstream does, in the stable order storage
-// lists them. Files whose extension cannot appear in a route are left out.
+// every embedded stream, as upstream does (domain.UpstreamExternalSubtitles,
+// which also maps reported indexes back to files for G20.4).
 func externalSubtitles(source domain.PlaybackSource) []externalSubtitle {
-	next := 0
-	for _, v := range source.Video {
-		next = max(next, v.Index+1)
-	}
-	for _, a := range source.Audio {
-		next = max(next, a.Index+1)
-	}
-	for _, s := range source.Subtitles {
-		next = max(next, s.Index+1)
-	}
 	var out []externalSubtitle
-	for _, track := range source.External {
-		if track.Kind != domain.SidecarKindSubtitle || !routeToken(track.Format) {
-			continue
-		}
-		out = append(out, externalSubtitle{index: next, track: track})
-		next++
+	for _, e := range domain.UpstreamExternalSubtitles(source) {
+		out = append(out, externalSubtitle{index: e.Index, track: e.Track})
 	}
 	return out
-}
-
-func routeToken(s string) bool {
-	if s == "" || len(s) > 16 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9') {
-			return false
-		}
-	}
-	return true
 }
 
 // subtitleURL is the upstream form of an external subtitle URL, relative to
@@ -461,13 +457,70 @@ func (rt *router) findSource(w http.ResponseWriter, r *http.Request, itemID, sou
 		rt.writeLibraryError(w, err)
 		return domain.PlaybackSource{}, false
 	}
-	for _, source := range sources {
-		if sourceID == "" || source.ID == sourceID {
-			return source, true
-		}
+	if sourceID == "" && len(sources) > 0 {
+		// The best version; of a multi-part version, its first part.
+		return sources[0], true
+	}
+	// A later part of a multi-part version (G21.1) is delivered like a
+	// version of the item.
+	if _, part, ok := domain.FindPart(sources, sourceID); ok {
+		return part.PlaybackSource, true
 	}
 	writeError(w, rt.opts.Library.HiddenStatus)
 	return domain.PlaybackSource{}, false
+}
+
+// additionalParts answers GET /Videos/{itemId}/AdditionalParts (G21.1):
+// parts 2..n of the item's default version, each as an item whose only
+// MediaSource is that part, delivered as it is like any version (static
+// stream with its MediaSourceId). The item, the caller and the visibility
+// are checked exactly as for PlaybackInfo, so a missing and an invisible
+// item get the same answer. A single-file item, and an item that is not a
+// video, has no additional parts.
+func (rt *router) additionalParts(w http.ResponseWriter, r *http.Request) {
+	q := readQuery(r)
+	principal, userID, ok := rt.readAs(w, r, q.get("userid"))
+	if !ok {
+		return
+	}
+	id, err := ParseID(chi.URLParam(r, "itemId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest)
+		return
+	}
+	catalog := rt.opts.Library.Catalog
+	item, err := catalog.BrowseItem(r.Context(), userID, id)
+	if err != nil {
+		rt.writeLibraryError(w, err)
+		return
+	}
+	result := queryResult{Items: []baseItemDto{}}
+	if playableKind(item.Kind) {
+		sources, err := catalog.PlaybackSources(r.Context(), rt.playbackActor(r, principal), item.ID)
+		if err != nil {
+			rt.writeLibraryError(w, err)
+			return
+		}
+		if len(sources) > 0 && len(sources[0].Parts) > 1 {
+			for _, part := range sources[0].Parts[1:] {
+				dto, err := rt.itemDto(item, nil)
+				if err != nil {
+					writeError(w, http.StatusInternalServerError)
+					return
+				}
+				info, err := rt.mediaSource(dto.ID, part.PlaybackSource, item.Title)
+				if err != nil {
+					writeError(w, http.StatusInternalServerError)
+					return
+				}
+				dto.MediaSources = []mediaSourceInfo{info}
+				dto.RunTimeTicks = ticks(part.DurationMicros)
+				result.Items = append(result.Items, dto)
+			}
+		}
+	}
+	result.TotalRecordCount = len(result.Items)
+	writeJSON(w, result)
 }
 
 // sameContainer compares a requested container with the source's,

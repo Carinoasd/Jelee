@@ -2,6 +2,7 @@ package images
 
 import (
 	"encoding/binary"
+	"image"
 
 	"golang.org/x/image/math/f64"
 )
@@ -96,32 +97,9 @@ func (i inspectedImage) displaySize() (int, int) {
 // 4 mirror vertically, 5 transpose, 6 rotate 90° clockwise, 7 transverse,
 // 8 rotate 90° counter-clockwise.
 func orientationTransform(orientation, w, h, dstW, dstH int) f64.Aff3 {
-	fw, fh := float64(w), float64(h)
-	// (u, v) are upright coordinates before scaling: u = a*x + b*y + c,
-	// v = d*x + e*y + f.
-	var a, b, c, d, e, f float64
-	switch orientation {
-	case 2:
-		a, c, e = -1, fw, 1
-	case 3:
-		a, c, e, f = -1, fw, -1, fh
-	case 4:
-		a, e, f = 1, -1, fh
-	case 5:
-		b, d = 1, 1
-	case 6:
-		b, c, d = -1, fh, 1
-	case 7:
-		b, c, d, f = -1, fh, -1, fw
-	case 8:
-		b, d, f = 1, -1, fw
-	default:
-		a, e = 1, 1
-	}
-	uprightW, uprightH := fw, fh
+	upright := image.Rect(0, 0, w, h)
 	if orientation >= 5 {
-		uprightW, uprightH = fh, fw
+		upright = image.Rect(0, 0, h, w)
 	}
-	sx, sy := float64(dstW)/uprightW, float64(dstH)/uprightH
-	return f64.Aff3{sx * a, sx * b, sx * c, sy * d, sy * e, sy * f}
+	return cropTransform(orientation, w, h, upright, dstW, dstH)
 }

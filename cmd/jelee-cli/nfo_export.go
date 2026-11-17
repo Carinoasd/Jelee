@@ -180,7 +180,8 @@ func decodeCLINFOExportResponse(raw []byte, c nfoExportCLIRequest) (any, bool) {
 		return state, true
 	}
 	var job domain.Job
-	if !jobsCLIPublicObject(data, &job, []string{"id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt"}, "errorCode", "startedAt", "finishedAt") ||
+	if !jobsCLIPublicObject(data, &job, []string{"id", "libraryId", "kind", "state", "priority", "attempts", "cancelRequested", "files", "directories", "skipped", "bytes", "missing", "reviewRequired", "createdAt"}, "errorCode", "startedAt", "finishedAt", "progress") ||
+		!cliJobProgress(job.Progress) ||
 		!domain.ValidID(job.ID) || job.LibraryID != c.library || job.Kind != domain.JobNFOExport ||
 		job.Priority != domain.JobPriorityManual && job.Priority != domain.JobPriorityBackground || job.CreatedAt.IsZero() {
 		return nil, false

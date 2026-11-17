@@ -40,16 +40,18 @@ OpenAPI 中的 Jelee 扩展字段：
 | `/healthz`、`/readyz`、`/api/v1/system`、`/api-docs`、`/api/v1/openapi.json` | 存活、就绪（含依赖状态码）、服务能力标志、API 文档 | P01 |
 | `/api/v1/setup` | 初始设置向导，见[初始设置](setup-wizard.md) | P02 |
 | `/api/v1/auth` | 网页登录、原生登录、二次验证、注销、轮换令牌、CSRF 令牌 | P03、P04 |
-| `/api/v1/users`、`/api/v1/sessions` | 本人资料、偏好、两步验证、应用密码、会话、个人数据权利；用户管理；本人续播、观看统计、音轨偏好 | P05–P10、P14、P16、P19 |
+| `/api/v1/users`、`/api/v1/sessions` | 本人资料、偏好、两步验证、应用密码、会话、个人数据权利；用户管理；本人续播、观看统计、音轨偏好、版本偏好（`/api/v1/users/me/version-preferences`，见[多版本](item-versions.md#預設版本選擇g202)） | P05–P10、P14、P16、P19 |
 | `/api/v1/access` | 全局访问策略、分级表、网络规则，见[访问控制](access-control.md) | P10 |
-| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息、已播放标记、用户数据、音轨偏好、元数据编辑、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`；`create: true` 为新建尚不存在的 NFO，见[NFO 缺失档案的建立](nfo-create-target.md)）、版本拆分与合并、重新探测 | P11、P13、P14、P16、P20 |
-| `/images` | 条目图片（缩放、ETag），见[图片资产](image-assets.md) | P12 |
+| `/api/v1/items`、`/api/v1/version-operations` | 条目浏览与详情、媒体源、播放信息（含默认版本与理由码 `selection`）、已播放标记、用户数据、音轨偏好、元数据编辑、识别修正与锁定（`GET`／`PUT /api/v1/items/{id}/identity`，`scan` 另含跨季结束季、绝对集数、播出日与特别篇类别，见[条目元数据](item-metadata.md#識別修正與鎖定g215schema-100)）、NFO 写回准备（`POST /api/v1/items/{id}/nfo/write-preparations`；`create: true` 为新建尚不存在的 NFO，见[NFO 缺失档案的建立](nfo-create-target.md)）、版本拆分与合并、重新探测、图片管理（`/api/v1/items/{id}/images`，见[图片资产](image-assets.md#管理接口g4010g4011)） | P11、P13、P14、P16、P20 |
+| `/images` | 条目图片（等比缩放或填满裁切、JPEG／无损 WebP 输出、ETag），见[图片资产](image-assets.md) | P12 |
 | `/api/v1/sources` | 原文件直投与外挂/内嵌轨道、附件、OCR 字幕，见[直投](direct-delivery.md) | P13 |
-| `/api/v1/playback` | 播放开始/进度/停止上报；全站播放会话 | P14、P15 |
+| `/api/v1/playback` | 播放开始/进度/停止上报（可带 `audioTrack`／`subtitleTrack` 记录会话选轨）；全站播放会话 | P14、P15 |
 | `/api/v1/collections`、`/api/v1/playlists` | 合集与播放清单，见[合集与播放清单](collections-playlists.md) | P17、P18 |
 | `/api/v1/watch-stats` | 全站观看统计与导出 | P19 |
 | `/api/v1/metadata` | TMDB 候选搜索、预览与图片候选 | P21 |
-| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、探测重建；任务与任务报告，见[任务 API](jobs-api.md) | P22 |
+| `/api/v1/libraries`、`/api/v1/jobs` | 媒体库、扫描、排程、监看、目录同步（含待确认项目接受／拒绝 `POST …/catalog-sync/pending/{entry}/accept|reject`，见[目录同步](catalog-sync.md#識別修正與待確認決定g215schema-100)）、命名选项（`GET`／`PUT /api/v1/libraries/{id}/naming`，`{"dateEpisodes":bool,"absoluteEpisodes":bool}` 两栏必填，变更后下一次目录同步依新规则重新解析，见[命名选项](catalog-sync.md#命名選項跨季合訂與特別篇歸類g213schema-102)）、NFO 策略与校验、NFO 写回权限（`PUT …/nfo/write-policy`）与写回任务（`POST …/nfo/writes`，见[NFO 写回任务](nfo-write-jobs.md)）、NFO 全量导入任务（`POST …/nfo/apply`，进度 `GET /api/v1/jobs/{id}/nfo-apply`，见[NFO 全量导入任务](nfo-apply-jobs.md)）、NFO 匯出全部与仅导出缺失任务（`POST …/nfo/export`，可选 body `{"mode":"all"|"missing"}`，进度 `GET /api/v1/jobs/{id}/nfo-export`，见[NFO 匯出全部任务](nfo-export-jobs.md)）、元数据刷新（自动刮削）任务、设置与待确认（`POST …/metadata/refresh`，进度 `GET /api/v1/jobs/{id}/metadata-refresh`，`GET`／`PUT …/metadata/refresh/settings`，`GET …/metadata/refresh/reviews`，`POST /api/v1/items/{id}/metadata/refresh/accept|reject`，见[元数据刷新任务](metadata-refresh-jobs.md)）、按媒体库批次移除外部元数据任务（`POST …/metadata/external/remove`，必须 `{"confirm":true}`，进度 `GET /api/v1/jobs/{id}/external-metadata-removal`，见[维护任务](maintenance-jobs.md)）、探测重建；任务与任务报告，Job 的 `progress` 带 done／total／percent／etaSeconds／etaBasis（G13.3，总数或 ETA 未知时为 null），见[任务 API](jobs-api.md#总数百分比与-etag133) | P22 |
+| `/api/v1/maintenance` | 维护任务：字幕提取缓存清理（`POST /api/v1/maintenance/subtitle-cache/cleanup`，进度 `GET /api/v1/jobs/{id}/subtitle-cache-cleanup`）、备份提醒（`POST /api/v1/maintenance/backup-reminder`，结果 `GET /api/v1/jobs/{id}/backup-reminder`）、备份状态（`GET /api/v1/maintenance/backup-status`），见[维护任务](maintenance-jobs.md) | P22 |
+| `/api/v1/schedules` | 通用任务排程（G13.1）：`GET`（可选 `?libraryId=`）／`POST` 建立（`201`，同种类同范围已有则 `409`）、`GET`／`PUT`（`expectedRevision`）／`DELETE`（`?expectedRevision=`）`/api/v1/schedules/{id}`、`POST /api/v1/schedules/{id}/run`（以呼叫者身分手动送件，需 `Idempotency-Key`）。可排程种类：`inventory_scan`、`metadata_refresh`、`image_refresh`、`consistency_check`（需 `libraryId`），`subtitle_cache_cleanup`、`backup_reminder`（服务器层级）；`external_metadata_removal` 等需要确认或预先准备的种类回 `400 schedule_kind_not_allowed`。时间：`interval`／`cron`／`once`（`runAt`），明确 IANA 时区，可选每日窗口 `window`。到期任务以系统身分执行（稽核无 actor、`requestId` 为 `system:schedule:<id>`），不依赖管理员工作阶段，见[任务排程](job-schedules.md) | P22 |
 | `/api/v1/admin` | 自愈修复与回滚，见[修复](repair.md) | P23 |
 | `/api/v1/webhooks` | Webhook 端点、投递记录、重放，见 [Webhook](webhooks.md) | P24 |
 | `/api/v1/client-control` | 客户端管控策略、规则、命中记录、已知客户端，见[客户端管控](client-control.md) | P25 |
@@ -146,10 +148,12 @@ OpenAPI 中的 Jelee 扩展字段：
 | `GET /api/v1/access/parental-ratings` | 分级代码表作为一份文件：至多 500 个代码，由 PUT 整表替换（G48.4），不是可逐一寻址的资源集合 |
 | `GET /api/v1/client-control/hits/export` | 导出下载：按过滤条件一次给出全部（受命中记录保留期限制）并附 `count` |
 | `GET /api/v1/watch-stats/export` | NDJSON／CSV 导出下载；`limit` 只是调低导出行数上限 |
+| `GET /api/v1/schedules` | 任务排程（G13.1）：每个种类与媒体库（或服务器）至多一个，受媒体库数量限制，排程页整份读取 |
 | `GET /api/v1/libraries/{id}/nfo/current-validations/{observationId}/issues` | 单个观察结果的问题：最多保留 64 条、没有标识，只按偏移分页 |
 | `GET /api/v1/site/plugins`、`GET /api/v1/site/plugins/config` | 站点设置中的插件开关（固定的小映射），不是集合 |
 | `GET /api/v1/collections/{id}` | 单个合集及其成员：资源视图，内嵌列表受合集大小限制 |
-| `GET /api/v1/items/{id}/sources`、`GET /api/v1/items/{id}/playback` | 单个条目的媒体源（版本）与播放信息，属于条目资源本身 |
+| `GET /api/v1/items/{id}/sources`、`GET /api/v1/items/{id}/playback` | 单个条目的媒体源（版本）与播放信息，属于条目资源本身；多分片版本（G21.1）的各片内嵌在该版本的 `parts` 中，不单独分页 |
+| `GET /api/v1/items/{id}/images` | 单个条目的图片行（管理员），含宽高、格式、字节数、平均色与主色调（G40.7），属于条目资源本身，受槽位数与每槽最多 5 个来源限制 |
 
 ## 限流与重试
 
@@ -166,10 +170,12 @@ OpenAPI 中的 Jelee 扩展字段：
 | 字段风格 | camelCase，固定的 `data`/`error` 信封 | PascalCase，省略 null 成员 |
 | 错误 | 统一错误信封 | 比照上游生产行为：401/403/404/405/413/415/503 空响应体，400/500 为纯文本；只有 409 `transcode_disabled` 与 501 沿用原生信封 |
 | 路径匹配 | 大小写敏感 | 大小写不敏感 |
-| 范围 | 全部功能 | System、Users、UserViews/Items、PlaybackInfo、视频流与字幕、播放上报、UserData、图片；其余返回 404 |
+| 范围 | 全部功能 | System、Users、UserViews/Items、PlaybackInfo、AdditionalParts、视频流与字幕、播放上报、UserData、图片；其余返回 404 |
 | 隐私 | — | 比上游严格（[ADR 0004](adr/0004-compat-stricter-than-upstream.md)） |
 
 两者共用同一套会话、权限过滤器、直投处理器、限流与客户端管控，兼容层没有独立的账号或查询逻辑。
+
+多分片版本（G21.1，`movie.cd1.mkv`＋`movie.cd2.mkv`）在两边的表示：原生 API 把它作为一个版本，`sources[].parts` 依序列出每一片（各自可直放的容器、时长、流与外挂轨，以及在合计时间轴上的起点 `startMicros`），`totalDurationMicros` 为合计时长，每片从自己的 `/api/v1/sources/{id}/stream` 直投；播放进度是合计时间轴上的位置，上报后续片的 `sourceId` 时服务器自动加上前面各片的时长。兼容层沿用上游模型：条目 `PartCount`、`GET /compat/Videos/{itemId}/AdditionalParts` 返回第 2..n 片（每片一个以可直放 `MediaSource` 表示的条目，权限与主条目相同），PlaybackInfo 指向第 1 片。服务器从不串接或转码分片。细节见[多版本](item-versions.md#多分片版本g211schema-106)与[兼容矩阵](compat-matrix.md)。
 
 ## 错误码
 
@@ -236,6 +242,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `request_timeout` | 408 | 请求已取消或超时。 |
 | `scan_limit` | 409 | 扫描资源数量已达上限。 |
 | `scan_unavailable` | 503 | 无法访问扫描根目录。 |
+| `schedule_kind_not_allowed` | 400 | 此任务类型不能排程。 |
 | `session_limit` | 429 | 有效会话数量已达上限。 |
 | `setup_completed` | 410 | 初始引导已完成。 |
 | `setup_required` | 503 | 尚未完成初始引导。 |
@@ -248,6 +255,7 @@ OpenAPI 中的 Jelee 扩展字段：
 | `share_unavailable` | 404 | 此分享链接不存在、已撤销或已过期。 |
 | `stats_export_limit` | 409 | 导出超过行数上限，请缩小范围。 |
 | `stream_limit` | 429 | 同时播放数量已达上限。 |
+| `subtitle_cache_unavailable` | 503 | 此服务器没有配置字幕提取缓存。 |
 | `transcode_disabled` | 409 | 仅支持原始文件直投。 |
 | `two_factor_unavailable` | 409 | 双因素验证不可用：服务器未配置主密钥。 |
 | `unsupported_media_type` | 415 | 不支持此请求内容类型。 |

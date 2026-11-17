@@ -132,20 +132,31 @@ var namingCases = []struct {
 	{"Inception.2160p.UHD.BluRay.REMUX.HDR.HEVC.Atmos.mkv", false, "unknown t=Inception c=low"},
 	{"Inception (2010) 1920x1080.mkv", false, "movie t=Inception y=2010 c=high"},
 	{"The Movie 720p.mkv", false, "unknown t=The Movie c=low"},
-	{"Movie (2010) - Part 1.mkv", false, "movie t=Movie y=2010 part=1 c=high"},
-	{"Movie (2010) - Part 2.mkv", false, "movie t=Movie y=2010 part=2 c=high"},
-	{"Movie.2010.cd1.avi", false, "movie t=Movie y=2010 part=1 c=medium"},
-	{"Movie.2010.CD2.avi", false, "movie t=Movie y=2010 part=2 c=medium"},
-	{"Movie-part1.mkv", false, "unknown t=Movie part=1 c=low"},
-	{"Movie Part 2.mkv", false, "unknown t=Movie part=2 c=low"},
-	{"Movie.pt1.mkv", false, "unknown t=Movie part=1 c=low"},
-	{"Movie disc 1.mkv", false, "unknown t=Movie part=1 c=low"},
-	{"Movie.dvd2.mkv", false, "unknown t=Movie part=2 c=low"},
+	{"Movie (2010) - Part 1.mkv", false, "movie t=Movie y=2010 part=1 ps=movie (2010) - #.mkv c=high"},
+	{"Movie (2010) - Part 2.mkv", false, "movie t=Movie y=2010 part=2 ps=movie (2010) - #.mkv c=high"},
+	{"Movie.2010.cd1.avi", false, "movie t=Movie y=2010 part=1 ps=movie.2010.#.avi c=medium"},
+	{"Movie.2010.CD2.avi", false, "movie t=Movie y=2010 part=2 ps=movie.2010.#.avi c=medium"},
+	{"Movie-part1.mkv", false, "unknown t=Movie part=1 ps=movie-#.mkv c=low"},
+	{"Movie Part 2.mkv", false, "unknown t=Movie part=2 ps=movie #.mkv c=low"},
+	{"Movie.pt1.mkv", false, "unknown t=Movie part=1 ps=movie.#.mkv c=low"},
+	{"Movie disc 1.mkv", false, "unknown t=Movie part=1 ps=movie #.mkv c=low"},
+	{"Movie.dvd2.mkv", false, "unknown t=Movie part=2 ps=movie.#.mkv c=low"},
 	{"Harry Potter and the Deathly Hallows Part 2 (2011).mkv", false, "movie t=Harry Potter and the Deathly Hallows Part 2 y=2011 c=high"},
 	{"Harry.Potter.and.the.Deathly.Hallows.Part.2.2011.1080p.mkv", false, "movie t=Harry Potter and the Deathly Hallows Part 2 y=2011 c=medium"},
 	{"Kill Bill Vol. 1 (2003).mkv", false, "movie t=Kill Bill Vol. 1 y=2003 c=high"},
-	{"Movie Part 1 1080p.mkv", false, "unknown t=Movie part=1 c=low"},
-	{"Movie (2010)/Movie - cd1.mkv", false, "movie t=Movie y=2010 part=1 c=high"},
+	{"Movie Part 1 1080p.mkv", false, "unknown t=Movie part=1 ps=movie # 1080p.mkv c=low"},
+	{"Movie (2010)/Movie - cd1.mkv", false, "movie t=Movie y=2010 part=1 ps=movie - #.mkv c=high"},
+	// Part stems (G21.1 multi-part versions): equal stems differ only in
+	// the part number; a release tag outside the marker keeps stems apart.
+	{"Movie (2010)/Movie (2010) - CD2.mkv", false, "movie t=Movie y=2010 part=2 ps=movie (2010) - #.mkv c=high"},
+	{"Movie (2010) - Disc 2 - 1080p.mkv", false, "movie t=Movie y=2010 part=2 ps=movie (2010) - # - 1080p.mkv c=high"},
+	{"Movie (2010) 1080p - cd1.mkv", false, "movie t=Movie y=2010 part=1 ps=movie (2010) 1080p - #.mkv c=high"},
+	{"Movie (2010) 720p - cd2.mkv", false, "movie t=Movie y=2010 part=2 ps=movie (2010) 720p - #.mkv c=high"},
+	{"Movie (2010) - Part 10.mkv", false, "movie t=Movie y=2010 part=10 ps=movie (2010) - #.mkv c=high"},
+	{"電影 (2010) - CD1.mkv", false, "movie t=電影 y=2010 part=1 ps=電影 (2010) - #.mkv c=high"},
+	{"Movie (2010) - PT02.mkv", false, "movie t=Movie y=2010 part=2 ps=movie (2010) - #.mkv c=high"},
+	{"Movie (2010) - ＣＤ１.mkv", false, "movie t=Movie y=2010 part=1 ps=movie (2010) - #.mkv c=high"},
+	{"Show/Season 1/Show S01E02 - Disc 2.mp4", false, "episode t=Show s=1 e=2 part=2 ps=show s01e02 - #.mp4 c=high"},
 	{"Attack on Titan Final Season Part 2/[Group] Attack on Titan - 05 [1080p].mkv", false, "episode t=Attack on Titan e=5 abs=5 c=low"},
 	{"The Daily Show/The Daily Show 2024-01-31.mkv", true, "episode t=The Daily Show d=2024-01-31 c=high"},
 	{"The.Daily.Show.2024.01.31.mkv", true, "episode t=The Daily Show d=2024-01-31 c=high"},
@@ -193,8 +204,8 @@ var namingCases = []struct {
 	{"S01E01.mkv", false, "episode s=1 e=1 c=low"},
 	{"Show/S01E01.mkv", false, "episode t=Show s=1 e=1 c=high"},
 	{"E01.mkv", false, "episode e=1 abs=1 c=low"},
-	{"Show/Season 1/Show.S01E01.Pilot.Part.1.mkv", false, "episode t=Show s=1 e=1 part=1 c=high"},
-	{"Show.S01E01.Part.1.mkv", false, "episode t=Show s=1 e=1 part=1 c=high"},
+	{"Show/Season 1/Show.S01E01.Pilot.Part.1.mkv", false, "episode t=Show s=1 e=1 part=1 ps=show.s01e01.pilot.#.mkv c=high"},
+	{"Show.S01E01.Part.1.mkv", false, "episode t=Show s=1 e=1 part=1 ps=show.s01e01.#.mkv c=high"},
 	{"Mr. Robot S01E01.mkv", false, "episode t=Mr. Robot s=1 e=1 c=high"},
 	{"Mr.Robot.S01E01.mkv", false, "episode t=Mr Robot s=1 e=1 c=high"},
 	{"Marvel's Agents of S.H.I.E.L.D. S01E01.mkv", false, "episode t=Marvel's Agents of S.H.I.E.L.D s=1 e=1 c=high"},
@@ -277,12 +288,77 @@ var namingCases = []struct {
 	{"Show/Season 3/Show [07].mkv", false, "episode t=Show s=3 e=7 c=medium"},
 	{"Show/Season 3/Show 第7集.mkv", false, "episode t=Show s=3 e=7 c=high"},
 	{"Show/Season 3/Show 7話.mkv", false, "episode t=Show s=3 e=7 c=high"},
-	{"Show.S03E07.Part.2.1080p.mkv", false, "episode t=Show s=3 e=7 part=2 c=high"},
+	{"Show.S03E07.Part.2.1080p.mkv", false, "episode t=Show s=3 e=7 part=2 ps=show.s03e07.#.1080p.mkv c=high"},
 	{"Show/Season 1/Show S01E05 2024-01-31.mkv", true, "episode t=Show s=1 e=5 c=high"},
 	{"新闻联播/新闻联播 2024-01-31.mp4", true, "episode t=新闻联播 d=2024-01-31 c=high"},
 	{"Show 1999-12-31.mkv", true, "episode t=Show d=1999-12-31 c=high"},
 	{"Show 2100-01-01.mkv", true, "unknown t=Show 2100-01-01 c=low"},
 	{"2024-01-31.mkv", true, "episode d=2024-01-31 c=low"},
+	// G21.3 cross-season files: the range starts in one season and ends in a
+	// later one; the end episode belongs to the end season.
+	{"Show.S01E10-S02E01.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=1 c=high"},
+	{"Show.S01E10-S02E01.1080p.WEB-DL.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=1 c=high"},
+	{"Show - S01E12-S02E01v2.mkv", false, "episode t=Show s=1 s2=2 e=12 e2=1 c=high"},
+	{"Show S01E10~S02E02.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=2 c=high"},
+	{"Show.S01E09-E10-S02E01.mkv", false, "episode t=Show s=1 s2=2 e=9 e2=1 c=high"},
+	{"Show - 1x10-2x01.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=1 c=high"},
+	{"Show/Season 1/Show S01E10-S02E01.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=1 c=high"},
+	{"Show/Season 2/Show S01E10-S02E01.mkv", false, "episode t=Show s=1 s2=2 e=10 e2=1 conflict c=medium"},
+	{"进击的巨人 S03E22-S04E01 合集.mkv", false, "episode t=进击的巨人 s=3 s2=4 e=22 e2=1 c=high"},
+	{"鬼滅の刃 S01E26-S02E01 総集編.mkv", false, "episode t=鬼滅の刃 s=1 s2=2 e=26 e2=1 c=high"},
+	// A range that goes back to an earlier season is not a range.
+	{"Show.S02E10-S01E01.mkv", false, "episode t=Show s=2 e=10 c=high"},
+	{"Show - 2x10-1x01.mkv", false, "episode t=Show s=2 e=10 c=high"},
+	{"Show.S01E10-S02.mkv", false, "episode t=Show s=1 e=10 c=high"},
+	// A numbered special beside a bare season marker is a Season 0 special;
+	// an explicit SxxEyy keeps its numbers.
+	{"[Group] Title S01 OVA 02 [1080p].mkv", false, "episode t=Title s=0 e=2 sp=ova c=high"},
+	{"Title 第1季 OVA 2.mkv", false, "episode t=Title s=0 e=2 sp=ova c=high"},
+	{"Title S01 SP01.mkv", false, "episode t=Title s=0 e=1 sp=sp c=high"},
+	{"进击的巨人 第2季 番外篇1.mp4", false, "episode t=进击的巨人 s=0 e=1 sp=extra c=high"},
+	{"Title S01E05 OVA.mkv", false, "episode t=Title s=1 e=5 sp=ova c=high"},
+	{"Title S01 OVA.mkv", false, "episode t=Title s=1 sp=ova c=low"},
+}
+
+// optionCases covers library naming options (G21.3) other than dates.
+var optionCases = []struct {
+	path string
+	opts Options
+	want string
+}{
+	{"[SubsPlease] Frieren - 01 (1080p) [ABCD1234].mkv", Options{AbsoluteEpisodes: true}, "episode t=Frieren e=1 abs=1 c=high"},
+	{"[Group][Title][01][1080p].mkv", Options{AbsoluteEpisodes: true}, "episode t=Title e=1 abs=1 c=high"},
+	{"[Group] Title - 1071 [1080p].mkv", Options{AbsoluteEpisodes: true}, "episode t=Title e=1071 abs=1071 c=high"},
+	{"Show EP01.mkv", Options{AbsoluteEpisodes: true}, "episode t=Show e=1 abs=1 c=high"},
+	{"鬼滅の刃 第1話.mkv", Options{AbsoluteEpisodes: true}, "episode t=鬼滅の刃 e=1 abs=1 c=high"},
+	{"海贼王 第1071集.mp4", Options{AbsoluteEpisodes: true}, "episode t=海贼王 e=1071 abs=1071 c=high"},
+	{"名探偵コナン #1000.mkv", Options{AbsoluteEpisodes: true}, "episode t=名探偵コナン e=1000 abs=1000 c=high"},
+	{"[Group] Title - 05 [1080p].mkv", Options{AbsoluteEpisodes: true, DateEpisodes: true}, "episode t=Title e=5 abs=5 c=high"},
+	// A plain number stays a guess, a season context is not absolute and a
+	// name without a title cannot be trusted.
+	{"[Group] Title 05 [1080p].mkv", Options{AbsoluteEpisodes: true}, "episode t=Title e=5 abs=5 c=low"},
+	{"Show/Season 1/05.mkv", Options{AbsoluteEpisodes: true}, "episode t=Show s=1 e=5 c=medium"},
+	{"Title/Specials/Title - 03.mkv", Options{AbsoluteEpisodes: true}, "episode t=Title s=0 e=3 sp=season c=medium"},
+	{"- 05.mkv", Options{AbsoluteEpisodes: true}, "episode e=5 abs=5 c=low"},
+	{"Title OVA 2.mkv", Options{AbsoluteEpisodes: true}, "episode t=Title s=0 e=2 sp=ova c=high"},
+	{"Show.S01E10-S02E01.mkv", Options{AbsoluteEpisodes: true}, "episode t=Show s=1 s2=2 e=10 e2=1 c=high"},
+}
+
+func TestParsePathOptionTable(t *testing.T) {
+	for _, tc := range optionCases {
+		t.Run(tc.path, func(t *testing.T) {
+			if got := describe(ParsePath(tc.path, tc.opts)); got != tc.want {
+				t.Fatalf("ParsePath(%q, %+v)\n got: %s\nwant: %s", tc.path, tc.opts, got, tc.want)
+			}
+			// Without the option the same name never reaches High through
+			// absolute numbering alone.
+			off := tc.opts
+			off.AbsoluteEpisodes = false
+			if p := ParsePath(tc.path, off); p.Absolute > 0 && p.Confidence == ConfidenceHigh {
+				t.Fatalf("absolute name %q is high without the option", tc.path)
+			}
+		})
+	}
 }
 
 func TestParsePathNamingTable(t *testing.T) {

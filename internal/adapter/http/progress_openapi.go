@@ -24,6 +24,10 @@ func progressSpecification(paths, schemas map[string]any) {
 			"paused":        map[string]any{"type": "boolean"},
 			"failed":        map[string]any{"type": "boolean", "description": "Stop only: the playback failed. A failed playback never counts as watched."},
 			"failureReason": map[string]any{"type": "string", "enum": []string{"transcode_disabled", "codec_unsupported", "client_blocked", "permission_denied", "playback_error"}, "description": "Stop with failed only; playback_error when omitted."},
+			"audioTrack": map[string]any{"type": "string", "pattern": `^(e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`,
+				"description": "The audio track the client plays: e:<stream index> or x:<external track id> (G20.4). A change is recorded as the session track choice of the item and applied to the same version on resume and in later playback information; a track the version does not have is ignored."},
+			"subtitleTrack": map[string]any{"type": "string", "pattern": `^(off|e:(0|[1-9][0-9]{0,4})|x:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`,
+				"description": "The subtitle the client shows, or off (G20.4); recorded like audioTrack."},
 		},
 	}
 	schemas["ActivePlayback"] = objectSchema(map[string]any{

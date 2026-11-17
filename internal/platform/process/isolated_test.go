@@ -160,6 +160,12 @@ func TestIsolatedFactoryCannotRegisterAnArbitraryProgram(t *testing.T) {
 		if _, err := NewIsolatedFFprobeCover(config, launcher); err != ErrInvalid {
 			t.Fatal("unverified cover launcher accepted")
 		}
+		if _, err := NewIsolatedFFprobeChapters(config, launcher); err != ErrInvalid {
+			t.Fatal("unverified chapter launcher accepted")
+		}
+	}
+	if ChapterOperation(0) != "chapters-0" || ChapterOperation(sandbox.CoverMaxVideoIndex) != "chapters-15" || ChapterOperation(-1) != "" || ChapterOperation(sandbox.CoverMaxVideoIndex+1) != "" {
+		t.Fatal("chapter operation names")
 	}
 	executable, _ := os.Executable()
 	if _, err := New(config, []Tool{{ID: "ffprobe", Path: executable, Operations: map[string][]string{"metadata": {sandbox.HelperCommand, "descriptor"}}}}); err != ErrInvalid {

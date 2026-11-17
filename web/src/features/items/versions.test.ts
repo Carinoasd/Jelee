@@ -36,8 +36,8 @@ const overview: VersionOverview = {
   itemId,
   exclusions: [{ id: exclusionId, itemId, fileName: "Film.Trailer.mkv", createdAt: "2026-10-01T00:00:00Z" }],
   operations: [
-    { id: operationId, libraryId: itemId, kind: "split", itemId, sourceIds: [high], createdAt: "2026-10-02T00:00:00Z", undoUntil: "2026-11-01T00:00:00Z", undoable: true },
-    { id: exclusionId, libraryId: itemId, kind: "merge", itemId, sourceIds: [], createdAt: "2026-10-01T00:00:00Z", undoUntil: "2026-10-31T00:00:00Z", undoable: false, undoBlocked: "later_operation" },
+    { id: operationId, libraryId: itemId, kind: "split", itemId, sourceIds: [high], automatic: false, createdAt: "2026-10-02T00:00:00Z", undoUntil: "2026-11-01T00:00:00Z", undoable: true },
+    { id: exclusionId, libraryId: itemId, kind: "merge", itemId, sourceIds: [], automatic: true, createdAt: "2026-10-01T00:00:00Z", undoUntil: "2026-10-31T00:00:00Z", undoable: false, undoBlocked: "later_operation" },
   ],
 };
 

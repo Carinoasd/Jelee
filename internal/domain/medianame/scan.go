@@ -35,6 +35,7 @@ type mark struct {
 	start, end      int
 	season, ep      int
 	epEnd           int
+	seasonEnd       int // last season of a cross-season range, zero otherwise
 	hasNum          bool
 	special         Special
 	y, mo, d        int
@@ -447,8 +448,9 @@ func (s *segment) matchWord(i int, opts Options) (int, bool) {
 	return 0, false
 }
 
-// matchSE handles S01E02, s1e1, S01 E02, S01E01-E03, S01E01E02, S01E01-03 and
-// S01E01-S01E02. A lone S01 becomes a season marker.
+// matchSE handles S01E02, s1e1, S01 E02, S01E01-E03, S01E01E02, S01E01-03,
+// S01E01-S01E02 and the cross-season S01E10-S02E01. A lone S01 becomes a
+// season marker.
 func (s *segment) matchSE(i int) (int, bool) {
 	season, j, ok := s.readNum(i+1, 4)
 	if !ok {
@@ -461,9 +463,13 @@ func (s *segment) matchSE(i int) (int, bool) {
 			k++
 		}
 		if ep, k2, ok := s.readNum(k, 4); ok {
-			end, last := s.extendRange(k2, ep, season)
+			end, last, seasonEnd := s.extendRange(k2, ep, season)
 			if s.wordEnd(end) {
-				s.add(mark{kind: mkSE, start: i, end: end, season: season, ep: ep, epEnd: last, rule: "season-episode", active: true})
+				rule := "season-episode"
+				if seasonEnd != 0 {
+					rule = "season-episode-cross"
+				}
+				s.add(mark{kind: mkSE, start: i, end: end, season: season, ep: ep, epEnd: last, seasonEnd: seasonEnd, rule: rule, active: true})
 				return end, true
 			}
 		}
@@ -475,9 +481,11 @@ func (s *segment) matchSE(i int) (int, bool) {
 	return 0, false
 }
 
-// extendRange consumes multi-episode continuations and returns the new end and
-// the last episode. Continuations must strictly increase.
-func (s *segment) extendRange(i, first, season int) (int, int) {
+// extendRange consumes multi-episode continuations and returns the new end,
+// the last episode and, for a range that crosses into a later season
+// ("-S02E01"), that season. Continuations must strictly increase; a
+// cross-season continuation ends the range.
+func (s *segment) extendRange(i, first, season int) (int, int, int) {
 	end, last := s.skipVersion(i), first
 	for steps := 0; steps < 64; steps++ {
 		k := end
@@ -489,7 +497,18 @@ func (s *segment) extendRange(i, first, season int) (int, int) {
 		hasE := false
 		if dash && s.at(k) == 's' {
 			v, k2, ok := s.readNum(k+1, 4)
-			if !ok || v != season || s.at(k2) != 'e' {
+			if !ok || v < season || s.at(k2) != 'e' {
+				break
+			}
+			if v > season {
+				p := k2 + 1
+				if s.at(p) == 'p' {
+					p++
+				}
+				w, p2, ok := s.readNum(p, 4)
+				if p2 = s.skipVersion(p2); ok && s.wordEnd(p2) {
+					return p2, w, v
+				}
 				break
 			}
 			k = k2
@@ -518,7 +537,7 @@ func (s *segment) extendRange(i, first, season int) (int, int) {
 		}
 		last, end = v, k2
 	}
-	return end, last
+	return end, last, 0
 }
 
 func (s *segment) skipVersion(i int) int {
@@ -627,21 +646,30 @@ func (s *segment) matchDigitWord(i int, opts Options) (int, bool) {
 			return k, true
 		}
 	}
-	// 1x01, 1x01-1x03, 1x01-03.
+	// 1x01, 1x01-1x03, 1x01-03 and the cross-season 1x10-2x01.
 	if season, j, ok := s.readNum(i, 2); ok && s.at(j) == 'x' {
 		if ep, k, ok := s.readNum(j+1, 3); ok && k-j-1 >= 2 {
-			end, last := s.skipVersion(k), ep
+			end, last, seasonEnd := s.skipVersion(k), ep, 0
 			if s.at(end) == '-' {
-				p := end + 1
-				if v, p2, ok := s.readNum(p, 2); ok && v == season && s.at(p2) == 'x' {
-					p = p2 + 1
+				p, next := end+1, 0
+				if v, p2, ok := s.readNum(p, 2); ok && v >= season && s.at(p2) == 'x' {
+					p, next = p2+1, v
 				}
-				if w, p3, ok := s.readNum(p, 3); ok && p3-p >= 2 && w > ep && s.wordEnd(p3) {
-					end, last = p3, w
+				if w, p3, ok := s.readNum(p, 3); ok && p3-p >= 2 && s.wordEnd(p3) {
+					switch {
+					case next > season:
+						end, last, seasonEnd = p3, w, next
+					case w > ep:
+						end, last = p3, w
+					}
 				}
 			}
 			if s.wordEnd(end) {
-				s.add(mark{kind: mkSE, start: i, end: end, season: season, ep: ep, epEnd: last, rule: "cross", active: true})
+				rule := "cross"
+				if seasonEnd != 0 {
+					rule = "cross-season"
+				}
+				s.add(mark{kind: mkSE, start: i, end: end, season: season, ep: ep, epEnd: last, seasonEnd: seasonEnd, rule: rule, active: true})
 				return end, true
 			}
 		}

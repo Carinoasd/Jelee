@@ -18,31 +18,50 @@ import (
 // Callers must independently create and diagnose the protected runtime; a DB
 // identity record never selects an executable, arguments or sandbox policy.
 func Identity() (domain.ProbeIdentity, error) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	if runtime.GOARCH != "amd64" || (runtime.GOOS != "linux" && runtime.GOOS != "windows") {
 		return domain.ProbeIdentity{}, ErrUnavailable
 	}
-	return embeddedIdentity()
+	return identityFor(runtime.GOOS + "-" + runtime.GOARCH)
 }
 
-func embeddedIdentity() (domain.ProbeIdentity, error) {
-	executable, err := tools.FFprobeSpec("linux-amd64")
+func embeddedIdentity() (domain.ProbeIdentity, error) { return identityFor("linux-amd64") }
+
+// windowsStaticClosureLabel is hashed as the Windows runtime closure: the
+// vendor ffprobe.exe is a static build (ADR 0011), so there are no library
+// pins, and the executable digest is carried by its own identity field.
+const windowsStaticClosureLabel = "jelee-runtime-closure-windows-static-v1\x00"
+
+// identityFor builds the identity of one platform's fixed probe runtime. Only
+// ffprobe is covered: the platform string is part of the digest, so Linux and
+// Windows results never share a cache key.
+func identityFor(platform string) (domain.ProbeIdentity, error) {
+	executable, err := tools.FFprobeSpec(platform)
 	if err != nil {
 		return domain.ProbeIdentity{}, ErrUnavailable
 	}
-	libraries, err := tools.RuntimeSpec("linux-amd64")
-	if err != nil {
-		return domain.ProbeIdentity{}, ErrUnavailable
-	}
-	closure, err := runtimeClosureDigest(libraries.Libraries)
-	if err != nil {
+	var closure, sandboxVersion string
+	switch platform {
+	case "linux-amd64":
+		libraries, err := tools.RuntimeSpec(platform)
+		if err != nil {
+			return domain.ProbeIdentity{}, ErrUnavailable
+		}
+		if closure, err = runtimeClosureDigest(libraries.Libraries); err != nil {
+			return domain.ProbeIdentity{}, ErrUnavailable
+		}
+		sandboxVersion = sandbox.MetadataPolicyVersion
+	case "windows-amd64":
+		sum := sha256.Sum256([]byte(windowsStaticClosureLabel))
+		closure, sandboxVersion = hex.EncodeToString(sum[:]), sandbox.WindowsMetadataPolicyVersion
+	default:
 		return domain.ProbeIdentity{}, ErrUnavailable
 	}
 	identity := domain.ProbeIdentity{
-		Platform: "linux-amd64", VendorVersion: executable.VendorVersion,
+		Platform: platform, VendorVersion: executable.VendorVersion,
 		UpstreamVersion: executable.UpstreamVersion, SourceRevision: executable.SourceRevision,
 		ExecutableSHA256: executable.SHA256, RuntimeSHA256: closure,
 		ParserVersion: domain.ProbeParserVersion, MetadataSchemaVersion: domain.ProbeMetadataSchemaVersion,
-		ArgumentsSHA256: sandbox.MetadataArgumentsDigest(), SandboxVersion: sandbox.MetadataPolicyVersion,
+		ArgumentsSHA256: sandbox.MetadataArgumentsDigest(), SandboxVersion: sandboxVersion,
 		FingerprintVersion: domain.ProbeFingerprintVersion,
 	}
 	if err := domain.ValidateProbeIdentity(identity); err != nil {

@@ -39,6 +39,28 @@ func (s *Store) RemoveExternalMetadata(ctx context.Context, actor domain.Actor, 
 	if _, err = tx.Exec(ctx, `INSERT INTO item_metadata_state(item_id,revision) VALUES($1::uuid,$2) ON CONFLICT(item_id) DO UPDATE SET revision=EXCLUDED.revision`, item, expected+1); err != nil {
 		return domain.MetadataRemoveResult{}, storageError(err)
 	}
+	result, removedOrigins, err := removeExternalFields(ctx, tx, item, before)
+	if err != nil {
+		return domain.MetadataRemoveResult{}, err
+	}
+	result.Metadata, err = readItemMetadata(ctx, tx, item, false)
+	if err != nil {
+		return domain.MetadataRemoveResult{}, err
+	}
+	auditBefore := map[string]any{"revision": before.Revision, "provider": domain.ExternalMetadataSource, "removedOrigins": removedOrigins}
+	auditAfter := map[string]any{"metadata": result.Metadata, "removed": result.Removed, "skipped": result.Skipped}
+	if err = auditAccount(ctx, tx, actor, "item.external_metadata_removed", item, auditBefore, auditAfter); err != nil {
+		return domain.MetadataRemoveResult{}, err
+	}
+	return result, storageError(tx.Commit(ctx))
+}
+
+// removeExternalFields deletes the unlocked provider-sourced fields of a
+// locked item read as before and moves a removed title back to the local
+// name. It reports the removed and kept fields and, for the audit, the
+// provider records of the removed ones without their text. The caller
+// advances the revision and writes the audit.
+func removeExternalFields(ctx context.Context, tx pgx.Tx, item string, before domain.ItemMetadata) (domain.MetadataRemoveResult, []map[string]any, error) {
 	result := domain.MetadataRemoveResult{Removed: []string{}, Skipped: []domain.MetadataFieldSkip{}}
 	// The audit keeps which provider records were removed and when they were
 	// fetched, but not the removed provider text itself.
@@ -54,32 +76,23 @@ func (s *Store) RemoveExternalMetadata(ctx context.Context, actor domain.Actor, 
 		if field.Field == "title" {
 			title, found, err := localFallbackTitle(ctx, tx, item)
 			if err != nil {
-				return domain.MetadataRemoveResult{}, err
+				return domain.MetadataRemoveResult{}, nil, err
 			}
 			if !found {
 				result.Skipped = append(result.Skipped, domain.MetadataFieldSkip{Field: field.Field, Reason: "required"})
 				continue
 			}
 			if _, err = tx.Exec(ctx, `UPDATE items SET title=$2 WHERE id=$1::uuid`, item, title); err != nil {
-				return domain.MetadataRemoveResult{}, storageError(err)
+				return domain.MetadataRemoveResult{}, nil, storageError(err)
 			}
 		}
-		if _, err = tx.Exec(ctx, `DELETE FROM item_metadata_fields WHERE item_id=$1::uuid AND field=$2 AND source=$3`, item, field.Field, domain.ExternalMetadataSource); err != nil {
-			return domain.MetadataRemoveResult{}, storageError(err)
+		if _, err := tx.Exec(ctx, `DELETE FROM item_metadata_fields WHERE item_id=$1::uuid AND field=$2 AND source=$3`, item, field.Field, domain.ExternalMetadataSource); err != nil {
+			return domain.MetadataRemoveResult{}, nil, storageError(err)
 		}
 		result.Removed = append(result.Removed, field.Field)
 		removedOrigins = append(removedOrigins, map[string]any{"field": field.Field, "providerOrigin": field.ProviderOrigin})
 	}
-	result.Metadata, err = readItemMetadata(ctx, tx, item, false)
-	if err != nil {
-		return domain.MetadataRemoveResult{}, err
-	}
-	auditBefore := map[string]any{"revision": before.Revision, "provider": domain.ExternalMetadataSource, "removedOrigins": removedOrigins}
-	auditAfter := map[string]any{"metadata": result.Metadata, "removed": result.Removed, "skipped": result.Skipped}
-	if err = auditAccount(ctx, tx, actor, "item.external_metadata_removed", item, auditBefore, auditAfter); err != nil {
-		return domain.MetadataRemoveResult{}, err
-	}
-	return result, storageError(tx.Commit(ctx))
+	return result, removedOrigins, nil
 }
 
 // localFallbackTitle picks the first local source in a stable order: media

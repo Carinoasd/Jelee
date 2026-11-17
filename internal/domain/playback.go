@@ -62,6 +62,11 @@ type PlaybackSourceRecord struct {
 	Sidecars []SidecarTrackRecord
 	// Primary marks the administrator's main version of the item (G20.3).
 	Primary bool
+	// PartOf names the first part of the multi-part version this source
+	// belongs to (itself for the first part) and PartNumber its 1-based
+	// position (G21.1); empty and zero for a single-file version.
+	PartOf     string
+	PartNumber int
 }
 
 func (PlaybackSourceRecord) String() string   { return "playback source (redacted)" }
@@ -92,6 +97,13 @@ type PlaybackSource struct {
 	// DefaultTracks is the audio and subtitle the user's preferences pick
 	// (G16.5, G20.4); only playback information fills it.
 	DefaultTracks *DefaultTracks `json:"defaultTracks,omitempty"`
+	// Parts lists every file of a multi-part version in play order, the
+	// first being this source itself (G21.1); absent for a single file. The
+	// other members describe the first part.
+	Parts []PlaybackPart `json:"parts,omitempty"`
+	// TotalDurationMicros is the combined duration of all parts; absent for
+	// a single file or when a part's duration is unknown.
+	TotalDurationMicros *int64 `json:"totalDurationMicros,omitempty"`
 }
 
 type PlaybackVideoTrack struct {
@@ -481,7 +493,28 @@ func playbackFlag(v *bool) bool { return v != nil && *v }
 // be declared; when the source has audio, at least one embedded audio stream
 // must be declared. A declared MaxBitrate is exceeded only when the known bit
 // rate is strictly greater; an unknown bit rate is not reported.
+//
+// A multi-part version (G21.1) is direct playable only when every part is;
+// its reasons are the union over the parts, in the same order.
 func DecideDirectPlay(caps ClientCapabilities, source PlaybackSource) (bool, []string) {
+	if len(source.Parts) > 1 {
+		seen := map[string]bool{}
+		for _, part := range source.Parts {
+			single := part.PlaybackSource
+			single.Parts = nil
+			_, reasons := DecideDirectPlay(caps, single)
+			for _, r := range reasons {
+				seen[r] = true
+			}
+		}
+		reasons := make([]string, 0, len(seen))
+		for _, r := range directPlayReasonOrder {
+			if seen[r] {
+				reasons = append(reasons, r)
+			}
+		}
+		return len(reasons) == 0, reasons
+	}
 	caps, err := NormalizeClientCapabilities(caps)
 	if err != nil {
 		caps = ClientCapabilities{}
@@ -506,6 +539,9 @@ func DecideDirectPlay(caps ClientCapabilities, source PlaybackSource) (bool, []s
 	}
 	return len(reasons) == 0, reasons
 }
+
+// directPlayReasonOrder is the fixed order DecideDirectPlay reports in.
+var directPlayReasonOrder = []string{PlaybackReasonContainer, PlaybackReasonSourceNotProbe, PlaybackReasonVideoCodec, PlaybackReasonAudioCodec, PlaybackReasonBitrate}
 
 // supportedCodec matches a canonical codec. A declared "pcm" covers every
 // PCM sample format; an unknown codec is never supported.

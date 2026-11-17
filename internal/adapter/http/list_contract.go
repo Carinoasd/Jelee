@@ -112,10 +112,12 @@ var listContracts = func() map[string]*listContract {
 			Filters: []string{"libraryId", "parentId", "type", "q"}, Paging: pagingKeyset, DefaultLimit: 50, MaxLimit: itemsPageMax, OffsetMax: domain.BrowseOffsetMax},
 		keyset("/api/v1/users", "users", userFields, "id", "asc", 50, 100, "includeDeleted"),
 		keyset("/api/v1/sessions", "sessions", sessionFields, "id", "asc", 50, 100),
-		keyset("/api/v1/jobs", "jobs", []string{"attempts", "bytes", "cancelRequested", "createdAt", "directories", "errorCode", "files", "finishedAt", "id", "kind", "libraryId", "missing", "priority", "reviewRequired", "skipped", "startedAt", "state"}, "id", "asc", 50, 100, "state"),
+		keyset("/api/v1/jobs", "jobs", []string{"attempts", "bytes", "cancelRequested", "createdAt", "directories", "errorCode", "files", "finishedAt", "id", "kind", "libraryId", "missing", "priority", "progress", "reviewRequired", "skipped", "startedAt", "state"}, "id", "asc", 50, 100, "state"),
 		keyset("/api/v1/jobs/{id}/entries", "entries", []string{"id", "kind", "modifiedUnixNano", "path", "rootId", "size"}, "id", "asc", 50, 100),
 		keyset("/api/v1/libraries", "libraries", []string{"id", "name", "roots"}, "id", "asc", 50, 100),
-		keyset("/api/v1/libraries/{id}/catalog-sync/pending", "entries", []string{"absolute", "confidence", "episode", "episodeEnd", "id", "kind", "path", "reason", "rootId", "season", "special", "title", "year"}, "id", "asc", 50, 100),
+		keyset("/api/v1/libraries/{id}/catalog-sync/pending", "entries", []string{"absolute", "confidence", "decision", "episode", "episodeEnd", "id", "kind", "path", "reason", "rootId", "season", "special", "title", "year"}, "id", "asc", 50, 100),
+		{Path: "/api/v1/libraries/{id}/metadata/refresh/reviews", Items: "reviews", ID: "itemId", Fields: []string{"candidates", "confidence", "itemId", "jobId", "kind", "libraryId", "queryTitle", "queryYear", "reason", "resource", "revision", "state", "title", "updatedAt"},
+			Sorts: []string{"itemId"}, Orders: []string{"asc"}, Filters: []string{"state"}, Paging: pagingKeyset, DefaultLimit: 50, MaxLimit: 100, OffsetMax: listKeysetOffsetMax},
 		keyset("/api/v1/libraries/{id}/nfo/current-validations", "items", []string{"entries", "errorCount", "expiresAt", "failureCode", "id", "issueCount", "issuesTruncated", "observedAt", "path", "rootId", "status", "warningCount"}, "id", "asc", domain.NFOObservationPageDefault, domain.NFOObservationPageMax),
 		keyset("/api/v1/webhooks/{id}/deliveries", "deliveries", []string{"attempts", "createdAt", "eventId", "eventType", "id", "lastAttemptAt", "lastOutcome", "lastStatus", "nextAttemptAt", "occurredAt", "replays", "state", "webhookId"}, "createdAt", "desc", 50, 100, "state"),
 		keyset("/api/v1/client-control/hits", "hits", []string{"action", "appName", "bucket", "hits", "id", "mode", "network", "ruleId", "surface", "userAgent", "userId"}, "id", "desc", 50, 100, "ruleId", "mode", "since", "until"),
@@ -156,8 +158,10 @@ var listExemptions = map[string]string{
 	"/api/v1/site/plugins/config":                                           "administrator view of the same plugin switches; one settings document",
 	"/api/v1/collections/{id}":                                              "one collection with its member items: a resource view whose embedded list is bounded by the collection size",
 	"/api/v1/items/{id}/sources":                                            "media sources (versions) of one item, part of the item resource and bounded by its versions",
+	"/api/v1/items/{id}/images":                                             "image rows of one item (administrators), part of the item resource and bounded by its image slots with at most five sources each",
 	"/api/v1/items/{id}/playback":                                           "playback information of one item: its sources with tracks, part of the item resource",
 	"/api/v1/watch-stats/export":                                            "NDJSON or CSV export download; limit only lowers the export row cap (stats.exportMaxRows)",
+	"/api/v1/schedules":                                                     "job schedules (G13.1): at most one per kind and library or server, so bounded by the library count; read whole by the schedule page",
 }
 
 // listRequest is a parsed list query.

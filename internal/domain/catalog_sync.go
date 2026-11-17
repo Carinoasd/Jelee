@@ -13,8 +13,45 @@ const JobCatalogSync = "catalog_sync"
 
 // CatalogSyncParserVersion is stored with every derived row. Changing the
 // parser or the planning rules must change this value so tracked files are
-// planned again on the next synchronisation.
-const CatalogSyncParserVersion = "medianame-v1"
+// planned again on the next synchronisation. v2: cross-season ranges, Season 0
+// for numbered specials beside a season marker, date and absolute episodes
+// (G21.3).
+const CatalogSyncParserVersion = "medianame-v2"
+
+// CatalogNamingOptions are the per-library naming rules of G21.3. The zero
+// value is the conservative default every library starts with.
+type CatalogNamingOptions struct {
+	// DateEpisodes reads daily-show names (2024-03-15) as episodes: season
+	// is the year, the episode number is month*100+day.
+	DateEpisodes bool `json:"dateEpisodes"`
+	// AbsoluteEpisodes reads numbers without season context as absolute
+	// episode numbers (anime) and files them under season 1.
+	AbsoluteEpisodes bool `json:"absoluteEpisodes"`
+}
+
+// CatalogSyncParserVersionFor is the parser version a library's rows carry:
+// the parser version plus every enabled naming option, so changing a
+// library's options plans its tracked and pending files again on the next
+// synchronisation without touching other libraries.
+func CatalogSyncParserVersionFor(o CatalogNamingOptions) string {
+	v := CatalogSyncParserVersion
+	if o.DateEpisodes {
+		v += "+date"
+	}
+	if o.AbsoluteEpisodes {
+		v += "+absolute"
+	}
+	return v
+}
+
+// CatalogNamingSettings is the naming configuration of one library.
+type CatalogNamingSettings struct {
+	LibraryID string `json:"libraryId"`
+	CatalogNamingOptions
+	// ParserVersion is what the next synchronisation compares tracked files
+	// against; it changes whenever an option changes.
+	ParserVersion string `json:"parserVersion"`
+}
 
 const (
 	CatalogSyncModeSync   = "sync"
@@ -36,6 +73,9 @@ type CatalogSyncReport struct {
 	Pending       int64  `json:"pending"`
 	MarkedMissing int64  `json:"markedMissing"`
 	Removed       int64  `json:"removed"`
+	// Aggregated counts items the versions phase folded into another item
+	// as automatic merges (G20.1).
+	Aggregated int64 `json:"aggregated"`
 }
 
 type CatalogSyncSettings struct {
@@ -59,6 +99,8 @@ type CatalogPendingEntry struct {
 	EpisodeEnd *int   `json:"episodeEnd,omitempty"`
 	Absolute   int    `json:"absolute,omitempty"`
 	Special    string `json:"special"`
+	// Decision is pending until an administrator rejects the file.
+	Decision string `json:"decision"`
 }
 
 // SeasonTitle names a season created from file names.

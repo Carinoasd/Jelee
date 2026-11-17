@@ -6808,6 +6808,895 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the effective kind, parent, season and episode of an item with their sources and locks */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result; replay adds Idempotency-Replayed: true; accepted jobs add Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemIdentity"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Correct and lock kind, parent, season or episode with a revision check; locked values survive every rescan, unlocking returns a field to the scanner (G21.5) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object. Cancel and retry require an empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ItemIdentityInput"];
+                };
+            };
+            responses: {
+                /** @description Successful result; replay adds Idempotency-Replayed: true; accepted jobs add Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemIdentity"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the image rows of an item
+         * @description Administrator only; other users get 403 forbidden before any lookup. Every row of every slot, best source first within a slot (the lock, then G40.10 order). Rows that cannot be served yet (a URL without stored bytes) are included.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Image rows */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"][];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload or replace the artwork of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The body is the image itself. It is never trusted: the format is sniffed, the header inspected against the processing memory budget and the whole image decoded before its bytes enter the content-addressed image store. JPEG, PNG, WebP, GIF, BMP and TIFF are accepted; AVIF and anything else is 415 image_unsupported, a body above the source limit 413 image_too_large. The upload becomes the slot's upload row and is locked, so it wins over library, NFO, remote and embedded artwork, which stay as fallbacks. A slot that already has any row is a replacement and needs confirm=true, otherwise 400 confirmation_required and nothing is read or stored. Without a configured image store the request is 404 image_unavailable; a full processing pool is 503 image_busy. Library files are never written or removed. Audited as image.added or image.replaced, plus image.unlocked for a lock handed over. Variants generated from a previous upload that nothing references any more are cleared.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    /** @description Required true when the slot already has an image; otherwise 400 confirmation_required. */
+                    confirm?: boolean;
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description Raw image bytes with an image/* or application/octet-stream Content-Type and a Content-Length of at most the configured source limit. */
+            requestBody: {
+                content: {
+                    "application/octet-stream": string;
+                    "image/*": string;
+                };
+            };
+            responses: {
+                /** @description The slot's previous upload was replaced. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description The slot was empty; the upload is its first row. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Processing admission or storage is unavailable. Busy responses include Retry-After. */
+                503: {
+                    headers: {
+                        "Retry-After"?: number;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Delete the artwork references of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. Removes the slot's row of one source, or every row when source is omitted. Always needs confirm=true, otherwise 400 confirmation_required. Only references go: library files and stored originals are kept (G40.11); the variants Jelee generated from content nothing references any more are cleared. A library or NFO image is found again by the next scan. Audited as image.deleted per row.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    /** @description Required true; otherwise 400 confirmation_required. */
+                    confirm?: boolean;
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description Delete only this source's row; omit for every row of the slot. */
+                    source?: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock one source of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The row then wins the slot whatever its source, and scans and refreshes never rewrite it (G40.10). The lock is handed over from any other source of the slot. Audited as image.locked, plus image.unlocked for the previous lock. Unchanged when the row already has the requested state.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description The source kind whose row changes. */
+                    source: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description An empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description The row after the change */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/images/{type}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock one source of an item slot
+         * @description Administrator only; other users get 403 forbidden before any lookup. The slot falls back to the G40.10 order. Audited as image.unlocked. Unchanged when the row already has the requested state.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Gallery position, as for /images. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
+                    index?: number;
+                    /** @description The source kind whose row changes. */
+                    source: "local" | "nfo" | "remote" | "embedded" | "upload";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    /** @description Image type. Fanart is an alias of Backdrop. */
+                    type: "Primary" | "Backdrop" | "Fanart" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+                };
+                cookie?: never;
+            };
+            /** @description An empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description The row after the change */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ItemImage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item is missing or not visible to the administrator (both answered alike), the slot has no matching row, or image_unavailable. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/metadata": {
         parameters: {
             query?: never;
@@ -7367,6 +8256,294 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/metadata/refresh/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply one candidate of a pending review through the confirmed TMDB apply (locks, manual values and trusted NFO keep priority; revision checked) and remove the review; 400 for a candidate the review does not list, 409 for a rejected review or a stale revision */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MetadataRefreshAcceptance"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataApplyResult"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/metadata/refresh/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject every candidate of a pending review; later refreshes leave the item alone until a match is applied by hand; rejecting again returns 409 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataRefreshReview"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/metadata/tmdb": {
         parameters: {
             query?: never;
@@ -7667,7 +8844,7 @@ export type paths = {
         };
         /**
          * Describe the original resources of an item
-         * @description Native sessions only. Lists every media source of the item with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.
+         * @description Native sessions only. Lists every media source of the item, in the caller's default version order with the selection that explains the default (G20.2), with container, size, duration, bit rate, version labels, embedded video, audio and subtitle streams from the current probe result, and external subtitle and audio files. Sources without a current probe result are listed with probed=false. No query parameters are accepted; transformation parameters are rejected with 409 before anything else.
          */
         get: {
             parameters: {
@@ -7691,6 +8868,8 @@ export type paths = {
                                 delivery: components["schemas"]["PlaybackDelivery"];
                                 /** Format: uuid */
                                 itemId: string;
+                                selection: components["schemas"]["VersionSelection"];
+                                /** @description In the caller's default version order: the user's version preference, then the main version, the quality score and the source ID. */
                                 sources: components["schemas"]["PlaybackSource"][];
                             };
                         };
@@ -7838,6 +9017,8 @@ export type paths = {
                                 directPlayable: boolean;
                                 /** Format: uuid */
                                 itemId: string;
+                                /** @description The default version among the direct playable ones; the declaration only excludes, it never makes a conversion acceptable. */
+                                selection: components["schemas"]["VersionSelection"];
                             };
                         };
                     };
@@ -8555,7 +9736,7 @@ export type paths = {
         };
         /**
          * Replace one level of the caller's track preferences for an item
-         * @description sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick. Not audited: preferences change which original track a client starts with, nothing else.
+         * @description sourceId selects a version level; without it the item level. Named tracks exist on the version level only. Playback information (GET /api/v1/items/{id}/playback, compat PlaybackInfo) starts with the tracks the merged levels pick, after an unexpired session choice of the same version (G20.4); storing a level removes the item's session choice. Not audited: preferences change which original track a client starts with, nothing else.
          */
         put: {
             parameters: {
@@ -9482,7 +10663,7 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
-                    /** @description Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    /** @description Comma separated row members to return: attempts, bytes, cancelRequested, createdAt, directories, errorCode, files, finishedAt, id, kind, libraryId, missing, priority, progress, reviewRequired, skipped, startedAt, state. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
                     fields?: string;
                     limit?: number;
                     /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
@@ -9907,6 +11088,145 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{id}/backup-reminder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the result of a backup check; 404 for other job kinds */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["BackupReminderJobState"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10491,6 +11811,145 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{id}/external-metadata-removal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the cursor and counters of an external metadata removal; 404 for other job kinds */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ExternalMetadataRemovalJobState"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{id}/ignore": {
         parameters: {
             query?: never;
@@ -10582,6 +12041,148 @@ export type paths = {
                 };
                 /** @description HTTP 409 */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{id}/image-refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the cursor and counters of an image refresh; 404 for other job kinds
+         * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ImageRefreshJobState"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -11045,6 +12646,145 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{id}/metadata-refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the cursor and counters of a metadata refresh; 404 for other job kinds */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataRefreshJobState"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -11776,6 +13516,145 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{id}/subtitle-cache-cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the phase, cursor and counters of an extraction cache cleanup; 404 for other job kinds */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SubtitleCacheCleanupJobState"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/libraries": {
         parameters: {
             query?: never;
@@ -12347,7 +14226,7 @@ export type paths = {
             parameters: {
                 query?: {
                     cursor?: string;
-                    /** @description Comma separated row members to return: absolute, confidence, episode, episodeEnd, id, kind, path, reason, rootId, season, special, title, year. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    /** @description Comma separated row members to return: absolute, confidence, decision, episode, episodeEnd, id, kind, path, reason, rootId, season, special, title, year. id is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
                     fields?: string;
                     limit?: number;
                     /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
@@ -12479,6 +14358,456 @@ export type paths = {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/catalog-sync/pending/{entry}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept a pending file: register it as a Movie or Episode with the parsed values completed or corrected by the body; the new item's kind and numbers are locked (G21.5). The file must still match the accepted baseline (409 otherwise) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    entry: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object. Cancel and retry require an empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CatalogPendingDecision"];
+                };
+            };
+            responses: {
+                /** @description Successful result; replay adds Idempotency-Replayed: true; accepted jobs add Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CatalogPendingAcceptance"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/catalog-sync/pending/{entry}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a pending file: synchronisation leaves it out until the file changes; rejecting again returns 409 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    entry: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object. Cancel and retry require an empty JSON object. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description Successful result; replay adds Idempotency-Replayed: true; accepted jobs add Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CatalogPendingEntry"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/images/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue an image refresh: fetch the remote artwork of the library's unlocked, non-manual remote image rows that have no stored content yet into the image store; 404 image_unavailable unless remote image fetching and the image store are configured, 409 job_busy while the library has an active job
+         * @description Every request, including retained replay, checks live administrator authorization. Internal reader identities, absolute roots, hashes and original XML are never accepted as request parameters.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImageRefreshRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. Retained mutations may include Idempotency-Replayed: true. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -12660,6 +14989,1005 @@ export type paths = {
                 };
                 /** @description HTTP 409 */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/metadata/external/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue the removal of the external (TMDB) metadata of every item of a library with the rules of DELETE /items/{id}/metadata/external: locked and required fields are kept, manual and NFO values are untouched, pending automatic match reviews are deleted; needs confirm=true (400 confirmation_required), no provider key; 409 job_busy while the library has an active job */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalMetadataRemovalRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/metadata/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a metadata refresh: match the library's movies, home videos and series against TMDB (NFO identifiers first, then title and year), apply matches at or above the library's autoApply threshold through the confirmed TMDB apply and record the others for review; 503 metadata_unavailable without a provider, 409 job_busy while the library has an active job */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MetadataRefreshRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/metadata/refresh/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List matches awaiting review (and rejected ones) by item ID cursor; state filters pending or rejected */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    /** @description Comma separated row members to return: candidates, confidence, itemId, jobId, kind, libraryId, queryTitle, queryYear, reason, resource, revision, state, title, updatedAt. itemId is always included. Unknown names are 400 invalid_request. Selection only removes members of the rows after every visibility rule and mask applied; other required members may then be absent. */
+                    fields?: string;
+                    limit?: number;
+                    /** @description Compatibility paging: rows to skip from the start, walked through cursor pages (at most 1000); prefer cursor. Not combinable with cursor. */
+                    offset?: number;
+                    /** @description Direction of sort. */
+                    order?: "asc";
+                    /** @description Sort key. This list is read in storage order, so the whitelist holds only that key. */
+                    sort?: "itemId";
+                    state?: "pending" | "rejected";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataRefreshReviewPage"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/metadata/refresh/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read whether successful catalog synchronisations queue a metadata refresh, the automatic apply threshold and the source order; a library without settings reports the defaults */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataRefreshSettings"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Replace the metadata refresh settings of a library */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MetadataRefreshSettingsInput"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataRefreshSettings"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/naming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the library's naming options (G21.3) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current naming options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CatalogNaming"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Replace the library's naming options; the next catalog synchronisation plans tracked and pending files again with them, locked identification still wins (G21.5) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description Maximum 64 KiB; one strict JSON object with both options. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CatalogNamingInput"];
+                };
+            };
+            responses: {
+                /** @description Current naming options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CatalogNaming"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -14935,6 +18263,453 @@ export type paths = {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/maintenance/backup-reminder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a backup check: a metadata export older than thresholdDays, or none, records a backup.reminder audit entry; nothing is backed up; queued under the first library without an active job; 409 job_busy while a check is active or every library is busy */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BackupReminderRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/maintenance/backup-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compare the last metadata export with the configured threshold now, without queueing a job */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["BackupStatus"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/maintenance/subtitle-cache/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a cleanup of Jelee's embedded subtitle and font extraction cache: remove the directories of deleted sources, revisions idle longer than maxIdleDays and crashed staging, then trim the cache to its size bound; the cache is instance-wide and the job is queued under the first library without an active job; 503 subtitle_cache_unavailable without a configured cache, 409 job_busy while a cleanup is active or every library is busy */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SubtitleCacheCleanupRequest"];
+                };
+            };
+            responses: {
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. A replayed submission adds Idempotency-Replayed: true; an accepted job adds Location. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -17349,6 +21124,816 @@ export type paths = {
                 };
                 /** @description HTTP 415 */
                 415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List job schedules, optionally of one library (libraryId query) */
+        get: {
+            parameters: {
+                query?: {
+                    libraryId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["JobScheduleList"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a schedule for a schedulable kind; one per kind and library (or server); 409 when one exists; 400 schedule_kind_not_allowed for kinds that cannot run unattended */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["JobScheduleInput"];
+                };
+            };
+            responses: {
+                /** @description Successful result. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["JobSchedule"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a job schedule */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful result. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["JobSchedule"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Replace a schedule under its expected revision; kind and libraryId cannot change */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["JobScheduleInput"];
+                };
+            };
+            responses: {
+                /** @description Successful result. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["JobSchedule"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete a schedule under its expected revision (expectedRevision query); a library's scan options and directory watch stay */
+        delete: {
+            parameters: {
+                query: {
+                    expectedRevision: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 204 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit the schedule's job now as the calling administrator with manual priority, without advancing the schedule; consistency_check cannot be run this way (400 schedule_kind_not_allowed) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description One strict JSON object, at most 64 KiB. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["Empty"];
+                };
+            };
+            responses: {
+                /** @description Successful result. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description Successful result. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Job"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 429 */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -26132,7 +30717,7 @@ export type paths = {
         };
         /**
          * Replace the caller's default track preferences
-         * @description Used for every item without its own level. Named tracks are not allowed here.
+         * @description Used for every item without its own level. Named tracks are not allowed here. Also removes every session track choice of the caller (G20.4).
          */
         put: {
             parameters: {
@@ -26780,6 +31365,257 @@ export type paths = {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/version-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's version preference (G20.2)
+         * @description Every member is null until set.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserVersionPreference"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Replace the caller's version preference
+         * @description Orders the versions of every item in playback information (GET /api/v1/items/{id}/playback, POST /api/v1/items/{id}/playback/check, compat PlaybackInfo). A body without any member removes it. Not audited.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Maximum 4 KiB; exactly one object; unknown or duplicate keys rejected; null only where the schema allows it. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VersionPreference"];
+                };
+            };
+            responses: {
+                /** @description Successful response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["UserVersionPreference"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The item, version, exclusion or operation is missing or not visible to the caller; all are answered alike. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 413 */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 415 */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -28461,17 +33297,22 @@ export type paths = {
         };
         /**
          * Read authorized item artwork
-         * @description Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.
+         * @description Artwork of one item slot (G40.1), encoded as JPEG (or lossless WebP when format=webp is offered) without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported. fillWidth with fillHeight crops instead of fitting: the output covers that box, showing the largest part of the image with its aspect ratio (placed on the most detailed region, or centred, per configuration) and is never enlarged; when cropping is disabled the box is fitted instead. The ETag is the SHA-256 of the encoded bytes, so each format and crop has its own.
          */
         get: {
             parameters: {
                 query?: {
-                    format?: "jpeg";
+                    /** @description Height of a fill crop box. Requires fillWidth and excludes width and height. */
+                    fillHeight?: number;
+                    /** @description Width of a fill crop box. Requires fillHeight and excludes width and height. */
+                    fillWidth?: number;
+                    /** @description Output encoding among the configured ones; omit for the configured default. avif (no encoder) and a format that is not offered are 415 image_unsupported; any other name is 400. */
+                    format?: "jpeg" | "webp";
                     /** @description Maximum fitted height. The configured output dimension budget is also enforced. */
                     height?: number;
                     /** @description Gallery position. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
                     index?: number;
-                    /** @description Omit to select the configured JPEG quality. */
+                    /** @description Omit to select the configured JPEG quality. Lossless WebP ignores it. */
                     quality?: number;
                     /** @description Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: private, max-age=31536000, immutable; otherwise the private revalidated policy applies. */
                     tag?: string;
@@ -28490,7 +33331,7 @@ export type paths = {
             };
             requestBody?: never;
             responses: {
-                /** @description Authorized JPEG representation; HEAD returns its headers without a body. */
+                /** @description Authorized JPEG or WebP representation; HEAD returns its headers without a body. */
                 200: {
                     headers: {
                         "Cache-Control"?: string;
@@ -28499,6 +33340,7 @@ export type paths = {
                     };
                     content: {
                         "image/jpeg": string;
+                        "image/webp": string;
                     };
                 };
                 /** @description The authorized current representation matches If-None-Match. No body. */
@@ -28600,17 +33442,22 @@ export type paths = {
         options?: never;
         /**
          * Read authorized item artwork
-         * @description Artwork of one item slot (G40.1), encoded as JPEG without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported.
+         * @description Artwork of one item slot (G40.1), encoded as JPEG (or lossless WebP when format=webp is offered) without enlargement. The source is chosen per G40.10: a locked image first, then a library file, an NFO reference, a fetched remote image and embedded artwork. Remote images are never fetched while serving a request; one whose bytes are not stored yet is skipped. Without a usable image the Primary slot falls back to the poster next to the media file. Omitting both dimensions selects a 640×640 fit; omitting one leaves that direction unconstrained, subject to the configured output limit. Omitting quality selects the configured default. Source and live access are checked again after rendering, including cache hits and conditional requests. Responses are private and revalidated unless tag equals the SHA-256 of the original image, in which case they are cacheable for a year and immutable; Vary: Authorization, Cookie still applies. Byte ranges and legacy compatibility parameters are not supported. fillWidth with fillHeight crops instead of fitting: the output covers that box, showing the largest part of the image with its aspect ratio (placed on the most detailed region, or centred, per configuration) and is never enlarged; when cropping is disabled the box is fitted instead. The ETag is the SHA-256 of the encoded bytes, so each format and crop has its own.
          */
         head: {
             parameters: {
                 query?: {
-                    format?: "jpeg";
+                    /** @description Height of a fill crop box. Requires fillWidth and excludes width and height. */
+                    fillHeight?: number;
+                    /** @description Width of a fill crop box. Requires fillHeight and excludes width and height. */
+                    fillWidth?: number;
+                    /** @description Output encoding among the configured ones; omit for the configured default. avif (no encoder) and a format that is not offered are 415 image_unsupported; any other name is 400. */
+                    format?: "jpeg" | "webp";
                     /** @description Maximum fitted height. The configured output dimension budget is also enforced. */
                     height?: number;
                     /** @description Gallery position. Only Backdrop (Fanart) and Chapter accept a non-zero index. */
                     index?: number;
-                    /** @description Omit to select the configured JPEG quality. */
+                    /** @description Omit to select the configured JPEG quality. Lossless WebP ignores it. */
                     quality?: number;
                     /** @description Lowercase hexadecimal SHA-256 of the original image. When it matches, the response is served with Cache-Control: private, max-age=31536000, immutable; otherwise the private revalidated policy applies. */
                     tag?: string;
@@ -28629,7 +33476,7 @@ export type paths = {
             };
             requestBody?: never;
             responses: {
-                /** @description Authorized JPEG representation; HEAD returns its headers without a body. */
+                /** @description Authorized JPEG or WebP representation; HEAD returns its headers without a body. */
                 200: {
                     headers: {
                         "Cache-Control"?: string;
@@ -29030,6 +33877,39 @@ export type components = {
             /** @description Label of the device or client; no surrounding spaces or control characters. */
             name: string;
         };
+        BackupReminderJobState: {
+            /** Format: uuid */
+            jobId: string;
+            /** @description Null until the check ran. */
+            result: components["schemas"]["BackupStatus"] | null;
+            thresholdDays: number;
+            /** @enum {string} */
+            trigger: "manual" | "schedule";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BackupReminderRequest: {
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+            /** @description A metadata export older than this many days is overdue; 0 selects the configured threshold (jobs.backupReminderDays, 7 when unset). */
+            thresholdDays?: number;
+        };
+        /** @description The last jelee-cli metadata export compared with the threshold. Full PostgreSQL dumps are made outside Jelee and are not visible here. */
+        BackupStatus: {
+            ageSeconds: number | null;
+            /** Format: date-time */
+            checkedAt: string;
+            lastExportAt: string | null;
+            /**
+             * @description never: no metadata export is recorded (none made, or older than the security audit retention).
+             * @enum {string}
+             */
+            status: "ok" | "overdue" | "never";
+            thresholdDays: number;
+        };
         CatalogImportReport: {
             completed: number;
             entries: {
@@ -29138,10 +34018,50 @@ export type components = {
             tagline?: string;
             title: string;
         };
+        CatalogNaming: {
+            absoluteEpisodes: boolean;
+            dateEpisodes: boolean;
+            /** Format: uuid */
+            libraryId: string;
+            /** @description Parser version plus enabled options; tracked files whose stored version differs are planned again by the next synchronisation. */
+            parserVersion: string;
+        };
+        CatalogNamingInput: {
+            /** @description Read numbers without season context (anime absolute numbering) as episodes of season 1; explicit markers and " - 01" / "[01]" numbers only. */
+            absoluteEpisodes: boolean;
+            /** @description Read daily-show names such as 2024-03-15 as episodes: season is the year, the episode number is month*100+day. */
+            dateEpisodes: boolean;
+        };
+        CatalogPendingAcceptance: {
+            created: boolean;
+            /** Format: uuid */
+            entryId: string;
+            /** Format: uuid */
+            itemId: string;
+            /** @enum {string} */
+            kind: "Movie" | "Episode";
+            /** Format: uuid */
+            sourceId: string;
+        };
+        CatalogPendingDecision: {
+            episode?: number;
+            episodeEnd?: number;
+            /**
+             * @description Defaults to the parsed kind; required when it is unknown.
+             * @enum {string}
+             */
+            kind?: "movie" | "episode";
+            season?: number;
+            seriesTitle?: string;
+            title?: string;
+            year?: number;
+        };
         CatalogPendingEntry: {
             absolute?: number;
             /** @enum {string} */
             confidence: "none" | "low" | "medium" | "high";
+            /** @enum {string} */
+            decision: "pending" | "rejected";
             episode?: number;
             episodeEnd?: number;
             /** Format: uuid */
@@ -29170,6 +34090,8 @@ export type components = {
         };
         CatalogSyncReport: {
             /** Format: int64 */
+            aggregated: number;
+            /** Format: int64 */
             created: number;
             /** Format: int64 */
             examined: number;
@@ -29184,7 +34106,7 @@ export type components = {
             /** Format: int64 */
             pending: number;
             /** @enum {string} */
-            phase: "publish" | "sources" | "missing" | "pending" | "done";
+            phase: "publish" | "sources" | "missing" | "pending" | "versions" | "done";
             /** Format: int64 */
             protected: number;
             /** Format: int64 */
@@ -29601,7 +34523,39 @@ export type components = {
          * @description Stable machine-readable error code. x-jelee-statuses lists the HTTP status codes each value is sent with.
          * @enum {string}
          */
-        ErrorCode: "account_busy" | "app_password_required" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "custom_css_rejected" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "invalid_two_factor_code" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "log_component_mandatory" | "login_challenge_invalid" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "nfo_write_disabled" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "share_forbidden" | "share_playback_disabled" | "share_read_only" | "share_unavailable" | "stats_export_limit" | "stream_limit" | "transcode_disabled" | "two_factor_unavailable" | "unsupported_media_type" | "user_stream_limit" | "version_identity_conflict" | "version_item_busy" | "version_merge_incompatible" | "version_undo_unavailable" | "web_playback_disabled" | "webhook_target_denied";
+        ErrorCode: "account_busy" | "app_password_required" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "custom_css_rejected" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "invalid_two_factor_code" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "log_component_mandatory" | "login_challenge_invalid" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "nfo_write_disabled" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "schedule_kind_not_allowed" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "share_forbidden" | "share_playback_disabled" | "share_read_only" | "share_unavailable" | "stats_export_limit" | "stream_limit" | "subtitle_cache_unavailable" | "transcode_disabled" | "two_factor_unavailable" | "unsupported_media_type" | "user_stream_limit" | "version_identity_conflict" | "version_item_busy" | "version_merge_incompatible" | "version_undo_unavailable" | "web_playback_disabled" | "webhook_target_denied";
+        /** @description Committed counters of a library-wide external metadata removal; every item is checkpointed. removed items lost at least one provider field (fields counts them); kept items have provider fields left only because they are locked or required; skipped items had no provider field left or were deleted meanwhile; failed items were refused on their own and left unchanged; reviews counts deleted automatic match reviews. */
+        ExternalMetadataRemovalJobState: {
+            /** @description The last item the job finished with; items are visited in ascending ID order and a resumed job continues after it. */
+            cursorItemId: string | null;
+            dropRejectedReviews: boolean;
+            failed: number;
+            fields: number;
+            /** Format: uuid */
+            jobId: string;
+            kept: number;
+            /** Format: uuid */
+            libraryId: string;
+            removed: number;
+            reviews: number;
+            skipped: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ExternalMetadataRemovalRequest: {
+            /** @description Must be true; without it the request is refused with 400 confirmation_required. */
+            confirm: boolean;
+            /**
+             * @description Also delete the administrator's rejections of automatic matches. They hold provider candidate titles; without them later automatic refreshes may match the items again.
+             * @default false
+             */
+            dropRejectedReviews: boolean;
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+        };
         GuestShare: {
             allowPlayback: boolean;
             /** Format: date-time */
@@ -29681,6 +34635,28 @@ export type components = {
             /** Format: int64 */
             uncompared: number;
         };
+        /** @description Committed counters of an image refresh; every fetch is checkpointed. fetched stored content for a row, failed recorded a fetch failure (reason and retry time are kept per row, never the URL), deferred were still waiting for the retry time of an earlier failure of the same URL, skipped changed while they were fetched (locked, manual, another URL, content present or deleted) and were left alone. */
+        ImageRefreshJobState: {
+            /** @description The last image row the job finished with; null before the first checkpoint. Rows are visited in ascending ID order and a resumed job continues after it. */
+            cursorImageId: string | null;
+            deferred: number;
+            failed: number;
+            fetched: number;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            libraryId: string;
+            skipped: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ImageRefreshRequest: {
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+        };
         InventoryEntry: {
             /** Format: uuid */
             id: string;
@@ -29740,6 +34716,106 @@ export type components = {
              * @enum {string}
              */
             effect: "allow" | "hide";
+        };
+        ItemIdentity: {
+            episode?: number;
+            episodeEnd?: number;
+            episodeLocked: boolean;
+            /** @enum {string} */
+            episodeSource: "manual" | "nfo" | "scan" | "none";
+            /** Format: uuid */
+            itemId: string;
+            /** @enum {string} */
+            kind: "Movie" | "Series" | "Season" | "Episode" | "HomeVideo";
+            kindLocked: boolean;
+            /** Format: uuid */
+            libraryId: string;
+            /** Format: uuid */
+            parentId?: string;
+            /** @enum {string} */
+            parentKind?: "Movie" | "Series" | "Season" | "Episode" | "HomeVideo";
+            parentLocked: boolean;
+            revision: number;
+            scan?: {
+                /** @description Absolute episode number an absolute-numbered library filed under season 1. */
+                absolute?: number;
+                /**
+                 * Format: date
+                 * @description Air date of a daily episode.
+                 */
+                airDate?: string;
+                episode?: number;
+                episodeEnd?: number;
+                /** @enum {string} */
+                kind: "Movie" | "Series" | "Season" | "Episode" | "HomeVideo";
+                season?: number;
+                /** @description Last season of a cross-season file; episodeEnd numbers the episode in that season (G21.3). */
+                seasonEnd?: number;
+                /**
+                 * @description Season 0 classification of an episode, theatrical for a theatrical movie.
+                 * @enum {string}
+                 */
+                special?: "season" | "sp" | "ova" | "oad" | "extra" | "theatrical";
+            };
+            season?: number;
+            seasonLocked: boolean;
+            /** @enum {string} */
+            seasonSource: "manual" | "nfo" | "scan" | "none";
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        ItemIdentityInput: {
+            expectedRevision: number;
+            fields: ({
+                /** @enum {string} */
+                field: "kind" | "parent" | "season" | "episode";
+                /** @description true locks the current value when no value is given; false returns the field to the scanner and may not accompany a value. */
+                locked?: boolean;
+                /** @description kind: Movie, Episode or HomeVideo; parent: item UUID or null for none; season and episode: 0..100000. A value is always locked. */
+                value?: string | number | null;
+                /** @description Last episode of a multi-episode file; episode only, defaults to value. */
+                valueEnd?: number;
+            } | unknown | unknown)[];
+        };
+        ItemImage: {
+            /** @description Average color of the stored original composited on white (G40.7), once its bytes have been read. */
+            averageColor?: string;
+            /** Format: int64 */
+            bytes?: number;
+            /** @description SHA-256 of the stored original, once read or fetched; the immutable tag of /images. */
+            contentSha256?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Most frequent color (16 levels per channel) of the stored original composited on white (G40.7), once its bytes have been read. */
+            dominantColor?: string;
+            /** Format: date-time */
+            fetchedAt?: string;
+            /** @enum {string} */
+            format?: "jpeg" | "png" | "webp" | "avif" | "gif" | "bmp" | "tiff";
+            height?: number;
+            /** Format: uuid */
+            id: string;
+            index: number;
+            /** @description A locked row wins its slot and is never rewritten by a scan or refresh. At most one per slot. */
+            locked: boolean;
+            /**
+             * @description What the row points at: a library file, a URL, or bytes held only in the image store. Paths and URLs are never returned.
+             * @enum {string}
+             */
+            reference: "file" | "url" | "store";
+            /**
+             * @description G40.10 order after the lock: local, nfo, remote, embedded, upload.
+             * @enum {string}
+             */
+            sourceKind: "local" | "nfo" | "remote" | "embedded" | "upload";
+            /**
+             * @description Stored type; Fanart is stored as Backdrop.
+             * @enum {string}
+             */
+            type: "Primary" | "Backdrop" | "Logo" | "ClearLogo" | "Banner" | "ClearArt" | "Art" | "Disc" | "Thumb" | "Landscape" | "Chapter" | "Box" | "BoxRear" | "Menu" | "Profile";
+            /** Format: date-time */
+            updatedAt: string;
+            width?: number;
         };
         ItemMetadata: {
             facts: components["schemas"]["ItemMetadataFact"][];
@@ -29895,7 +34971,7 @@ export type components = {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "inventory_scan" | "catalog_import" | "catalog_sync" | "consistency_check" | "nfo_apply" | "nfo_export";
+            kind: "inventory_scan" | "catalog_import" | "catalog_sync" | "consistency_check" | "nfo_apply" | "nfo_export" | "image_refresh" | "metadata_refresh" | "subtitle_cache_cleanup" | "backup_reminder" | "external_metadata_removal";
             /** Format: uuid */
             libraryId: string;
             /** Format: int64 */
@@ -29905,6 +34981,7 @@ export type components = {
              * @enum {string}
              */
             priority: "manual" | "background";
+            progress?: components["schemas"]["JobProgress"];
             reviewRequired: boolean;
             /** Format: int64 */
             skipped: number;
@@ -29919,6 +34996,91 @@ export type components = {
                 limit: number;
                 nextCursor: string;
             };
+        };
+        JobProgress: {
+            /**
+             * Format: int64
+             * @description Completed work in the kind's unit: directories for inventory_scan, processed items (files plus skipped) for every other kind.
+             */
+            done: number;
+            /**
+             * @description Why etaSeconds is given or withheld: insufficient_samples before three throughput samples, paused when a started job is back in the queue, stalled after two minutes without progress, total_reached when done meets the total.
+             * @enum {string}
+             */
+            etaBasis: "throughput" | "total_unknown" | "insufficient_samples" | "not_started" | "paused" | "cancelling" | "stalled" | "total_reached" | "too_slow" | "finished";
+            /** @description Remaining work divided by an exponential moving average of recent checkpoint throughput. Present only when etaBasis is throughput. */
+            etaSeconds: number | null;
+            /** @description done/total capped at 100 with one decimal; null without a total. */
+            percent: number | null;
+            /** @description Total work in the same unit; null while unknown. inventory_scan learns it only when enumeration completes; catalog_sync and consistency_check never report one. Kinds that count at admission (catalog_import, nfo_write, nfo_apply, nfo_export, image_refresh) estimate it then, so the work list may change while the job runs. */
+            total: number | null;
+            totalKnownAt: string | null;
+        };
+        /** @description A persisted schedule (G13.1). Due occurrences queue a background job as the system actor (audited without an actor and with request ID system:schedule:<id>), so they need no administrator session; missed occurrences are coalesced into one. */
+        JobSchedule: {
+            /** Format: date-time */
+            createdAt: string;
+            /** @description A once schedule turns itself off after its run. */
+            enabled: boolean;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description subtitle_cache_cleanup and backup_reminder are server-wide (no libraryId); the others need libraryId. Kinds that need a confirmation or a prepared request, such as external_metadata_removal, are refused with 400 schedule_kind_not_allowed.
+             * @enum {string}
+             */
+            kind: "inventory_scan" | "metadata_refresh" | "image_refresh" | "consistency_check" | "subtitle_cache_cleanup" | "backup_reminder";
+            /**
+             * @description admission_unavailable: the library was busy or the queue full, retried every 30 seconds; kind_unavailable: this server cannot run the kind (no provider key, no image store or extraction cache), the occurrence was skipped; owner_unavailable: kept from scan schedules disabled before schedules ran as the system.
+             * @enum {string}
+             */
+            lastError?: "admission_unavailable" | "kind_unavailable" | "owner_unavailable";
+            /** Format: uuid */
+            lastJobId?: string;
+            /** Format: date-time */
+            lastRunAt?: string;
+            /** Format: uuid */
+            libraryId?: string;
+            /** Format: date-time */
+            nextDue?: string;
+            params: components["schemas"]["JobScheduleParams"];
+            /** Format: date-time */
+            retryAfter?: string;
+            /** Format: int64 */
+            revision: number;
+            timing: components["schemas"]["ScheduleTiming"];
+            /** Format: date-time */
+            updatedAt: string;
+            window: components["schemas"]["ScheduleWindow"];
+        };
+        JobScheduleInput: {
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description 0 when creating; the current revision when replacing (409 when stale).
+             */
+            expectedRevision: number;
+            /** @description subtitle_cache_cleanup and backup_reminder are server-wide (no libraryId); the others need libraryId. Kinds that need a confirmation or a prepared request, such as external_metadata_removal, are refused with 400 schedule_kind_not_allowed. */
+            kind: string;
+            /** Format: uuid */
+            libraryId?: string;
+            params?: components["schemas"]["JobScheduleParams"];
+            timing: components["schemas"]["ScheduleTiming"];
+            window?: components["schemas"]["ScheduleWindow"];
+        };
+        JobScheduleList: {
+            schedules: components["schemas"]["JobSchedule"][];
+        };
+        /** @description Options of the kind; options of other kinds must be absent or zero (400). */
+        JobScheduleParams: {
+            ignore?: components["schemas"]["ScheduleIgnore"];
+            /** @description subtitle_cache_cleanup: 0 selects 30 days. */
+            maxIdleDays?: number;
+            /** @description inventory_scan: read NFO files. */
+            nfo?: boolean;
+            /** @description inventory_scan: probe new and changed files. */
+            probe?: boolean;
+            /** @description backup_reminder: 0 selects jobs.backupReminderDays (7 when unset). */
+            thresholdDays?: number;
         };
         KnownClient: {
             activeSessions: number;
@@ -30139,6 +35301,106 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
+            parts?: {
+                attachments?: {
+                    fileName: string;
+                    font: boolean;
+                    /** @description 1-based Matroska attachment ID. */
+                    id: number;
+                    /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                    streamIndex?: number;
+                }[];
+                audioTracks: {
+                    atmos: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
+                    codec?: string;
+                    default: boolean;
+                    forced: boolean;
+                    index: number;
+                    language?: string;
+                    profile?: string;
+                    sampleRate?: number;
+                }[];
+                /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+                bitRate?: number;
+                /**
+                 * @description Container token derived from the stored content type.
+                 * @enum {string}
+                 */
+                container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+                contentType: string;
+                durationMicros?: number;
+                externalTracks: {
+                    /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
+                    charset?: string;
+                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    codec?: string;
+                    commentary: boolean;
+                    default: boolean;
+                    forced: boolean;
+                    /** @description File extension of the sidecar file. */
+                    format: string;
+                    /** Format: uuid */
+                    id: string;
+                    /** @enum {string} */
+                    kind: "subtitle" | "audio";
+                    language?: string;
+                    languages?: string[];
+                    sdh: boolean;
+                    sizeBytes: number;
+                    title?: string;
+                }[];
+                /** Format: uuid */
+                id: string;
+                /** @description 1-based play order; part 1 is the version itself. */
+                number: number;
+                /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
+                primary: boolean;
+                /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+                probed: boolean;
+                sizeBytes?: number;
+                /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
+                startMicros?: number;
+                subtitleTracks: {
+                    codec?: string;
+                    default: boolean;
+                    /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                    extractable?: boolean;
+                    forced: boolean;
+                    /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                    format?: string;
+                    index: number;
+                    language?: string;
+                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    title?: string;
+                }[];
+                /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
+                version: {
+                    displayName: string;
+                    qualityScore: number;
+                } & {
+                    [key: string]: unknown;
+                };
+                videoTracks: {
+                    bitRate?: number;
+                    codec?: string;
+                    default: boolean;
+                    frameRate?: {
+                        denominator: number;
+                        numerator: number;
+                    };
+                    height?: number;
+                    index: number;
+                    level?: number;
+                    /** @description The stream the direct play decision checks. Cover art is not listed. */
+                    primary: boolean;
+                    profile?: string;
+                    width?: number;
+                }[];
+            }[];
             /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
             primary: boolean;
             /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
@@ -30157,7 +35419,9 @@ export type components = {
                 /** @description Matroska track name from the optional MediaInfo supplement. */
                 title?: string;
             }[];
-            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            /** @description Combined duration of all parts; absent for a single file or when a part's duration is unknown. */
+            totalDurationMicros?: number;
+            /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;
                 qualityScore: number;
@@ -30269,6 +35533,107 @@ export type components = {
             resource: "movie" | "series";
             /** Format: uri */
             sourceUrl: string;
+        };
+        MetadataRefreshAcceptance: {
+            expectedRevision: number;
+            /**
+             * Format: int32
+             * @description One of the review's candidates.
+             */
+            providerId: number;
+        };
+        /** @description Committed counters of a metadata refresh; every item is checkpointed. applied changed at least one field through the confirmed TMDB apply, unchanged were applied without a change (every field locked, manual, NFO or equal), review were recorded for administrator review, unmatched had no provider candidate, skipped were not looked up (every field protected, a rejected review, a locked HomeVideo kind, deleted meanwhile), failed hit a provider or item-local error. */
+        MetadataRefreshJobState: {
+            applied: number;
+            /** @description The last item the job finished with; null before the first checkpoint. Items are visited in ascending ID order and a resumed job continues after it. */
+            cursorItemId: string | null;
+            failed: number;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            libraryId: string;
+            review: number;
+            skipped: number;
+            /** @enum {string} */
+            trigger: "manual" | "catalog_sync" | "schedule";
+            unchanged: number;
+            unmatched: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MetadataRefreshRequest: {
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+        };
+        MetadataRefreshReview: {
+            candidates: {
+                /** @description YYYY-MM-DD or empty */
+                date: string;
+                /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                originalTitle: string;
+                /** Format: int32 */
+                providerId: number;
+                similarity: number;
+                /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+                title: string;
+            }[];
+            /** @enum {string} */
+            confidence: "high" | "medium" | "low";
+            /** Format: uuid */
+            itemId: string;
+            jobId: string | null;
+            /** @enum {string} */
+            kind: "Movie" | "HomeVideo" | "Series";
+            /** Format: uuid */
+            libraryId: string;
+            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+            queryTitle: string;
+            queryYear: number | null;
+            /** @enum {string} */
+            reason: "nfo_tmdb_id" | "nfo_imdb_id" | "nfo_tvdb_id" | "existing_provider" | "title_year_unique" | "title_year_ambiguous" | "title_without_year" | "year_mismatch" | "low_similarity" | "external_ambiguous" | "external_conflict";
+            /** @enum {string} */
+            resource: "movie" | "series";
+            /** @description The item's metadata revision an accept names as expectedRevision. */
+            revision: number;
+            /** @enum {string} */
+            state: "pending" | "rejected";
+            /** @description The server also enforces the stated maximum in UTF-8 bytes. */
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MetadataRefreshReviewPage: {
+            pagination: {
+                limit: number;
+                nextCursor: string;
+            };
+            reviews: components["schemas"]["MetadataRefreshReview"][];
+        };
+        MetadataRefreshSettings: {
+            /** @description Queue a refresh after every successful catalog synchronisation; off by default. */
+            auto: boolean;
+            /**
+             * @description Lowest confidence applied without review: high applies identifier matches only (default), medium also unique title and year matches, never sends every match to review.
+             * @enum {string}
+             */
+            autoApply: "high" | "medium" | "never";
+            /** Format: uuid */
+            libraryId: string;
+            /** @description Ordered sources: nfo uses the local uniqueid identifiers (TMDB, IMDb, TVDB), every other entry is a remote provider and at least one is required. TMDB is the only provider; fallback providers register here (G14.1). */
+            sources: ("nfo" | "tmdb")[];
+        };
+        MetadataRefreshSettingsInput: {
+            auto: boolean;
+            /**
+             * @description Lowest confidence applied without review: high applies identifier matches only (default), medium also unique title and year matches, never sends every match to review.
+             * @enum {string}
+             */
+            autoApply: "high" | "medium" | "never";
+            /** @description Ordered sources: nfo uses the local uniqueid identifiers (TMDB, IMDb, TVDB), every other entry is a remote provider and at least one is required. TMDB is the only provider; fallback providers register here (G14.1). */
+            sources: ("nfo" | "tmdb")[];
         };
         MetadataRemoveResult: {
             metadata: components["schemas"]["ItemMetadata"];
@@ -30712,6 +36077,8 @@ export type components = {
         };
         /** @description A playback report. playSessionId is the identifier returned by start (or any client chosen key); without it the session is one per authenticated session and itemId. Reports are buffered and written in batches; repeated reports between two writes keep only the latest state. */
         PlaybackReport: {
+            /** @description The audio track the client plays: e:<stream index> or x:<external track id> (G20.4). A change is recorded as the session track choice of the item and applied to the same version on resume and in later playback information; a track the version does not have is ignored. */
+            audioTrack?: string;
             /** @description Stop only: the playback failed. A failed playback never counts as watched. */
             failed?: boolean;
             /**
@@ -30730,6 +36097,8 @@ export type components = {
              * @description Version being played; it must belong to the item. Start only; defaults to the best version.
              */
             sourceId?: string;
+            /** @description The subtitle the client shows, or off (G20.4); recorded like audioTrack. */
+            subtitleTrack?: string;
         };
         PlaybackSource: {
             attachments?: {
@@ -30819,6 +36188,121 @@ export type components = {
             }[];
             /** Format: uuid */
             id: string;
+            /** @description Every file of a multi-part version (G21.1: movie.cd1.mkv, movie.cd2.mkv in one directory) in play order; absent for a single file. The source's other members describe part 1. Parts are played one after the other, each delivered as it is from its own source routes; nothing is joined or converted. Playback progress of such a version is a position on the combined timeline. */
+            parts?: {
+                attachments?: {
+                    fileName: string;
+                    font: boolean;
+                    /** @description 1-based Matroska attachment ID. */
+                    id: number;
+                    /** @description Probe stream index of the same attachment, when the probe listed exactly as many attachment streams. */
+                    streamIndex?: number;
+                    /** @description Present for fonts when extraction is enabled and available: /api/v1/sources/{id}/attachments/{attachmentId}. Native sessions only. */
+                    url?: string;
+                }[];
+                audioTracks: {
+                    atmos: boolean;
+                    bitRate?: number;
+                    channelLayout?: string;
+                    channels?: number;
+                    codec?: string;
+                    default: boolean;
+                    forced: boolean;
+                    index: number;
+                    language?: string;
+                    profile?: string;
+                    sampleRate?: number;
+                }[];
+                /** @description Bits per second as probed, or size × 8 ÷ duration when the container states none. */
+                bitRate?: number;
+                /**
+                 * @description Container token derived from the stored content type.
+                 * @enum {string}
+                 */
+                container: "mp4" | "mkv" | "webm" | "mov" | "avi" | "mpegts";
+                contentType: string;
+                durationMicros?: number;
+                externalTracks: {
+                    /** @description Detected charset of a text subtitle. Reported only; the file is delivered unconverted. */
+                    charset?: string;
+                    /** @description Canonical subtitle format or audio codec implied by the extension; absent for mka, m4a, ogg, oga and .sub, which only probing can tell. */
+                    codec?: string;
+                    commentary: boolean;
+                    default: boolean;
+                    forced: boolean;
+                    /** @description File extension of the sidecar file. */
+                    format: string;
+                    /** Format: uuid */
+                    id: string;
+                    /** @enum {string} */
+                    kind: "subtitle" | "audio";
+                    language?: string;
+                    languages?: string[];
+                    sdh: boolean;
+                    sizeBytes: number;
+                    title?: string;
+                    /** @description Direct delivery route of the original file: /api/v1/sources/{id}/subtitles/{trackId} or /api/v1/sources/{id}/audio/{trackId}. Native sessions only. */
+                    url: string;
+                }[];
+                /** Format: uuid */
+                id: string;
+                /** @description 1-based play order; part 1 is the version itself. */
+                number: number;
+                /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
+                primary: boolean;
+                /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
+                probed: boolean;
+                sizeBytes?: number;
+                /** @description Where the part begins on the version's combined timeline (sum of the earlier parts' durations); absent when an earlier part's duration is unknown. */
+                startMicros?: number;
+                subtitleTracks: {
+                    codec?: string;
+                    default: boolean;
+                    /** @description A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5). */
+                    extractable?: boolean;
+                    forced: boolean;
+                    /** @description Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text. */
+                    format?: string;
+                    index: number;
+                    language?: string;
+                    /** @description Present on a PGS or VobSub track of a Matroska source once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the source for OCR; the bitmap track itself is unchanged and still delivered as it is. */
+                    ocr?: {
+                        /** @enum {string} */
+                        format: "srt";
+                        /** @description The bitmap track's title or language followed by " (OCR)", marking the text as recognized, not authored. */
+                        title: string;
+                        /** @description /api/v1/sources/{id}/ocr-subtitles/{index}. Native sessions only. */
+                        url: string;
+                    };
+                    /** @description Matroska track name from the optional MediaInfo supplement. */
+                    title?: string;
+                    /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
+                    url?: string;
+                }[];
+                /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
+                version: {
+                    displayName: string;
+                    qualityScore: number;
+                } & {
+                    [key: string]: unknown;
+                };
+                videoTracks: {
+                    bitRate?: number;
+                    codec?: string;
+                    default: boolean;
+                    frameRate?: {
+                        denominator: number;
+                        numerator: number;
+                    };
+                    height?: number;
+                    index: number;
+                    level?: number;
+                    /** @description The stream the direct play decision checks. Cover art is not listed. */
+                    primary: boolean;
+                    profile?: string;
+                    width?: number;
+                }[];
+            }[];
             /** @description The administrator's main version (G20.3); listed first, then by qualityScore. */
             primary: boolean;
             /** @description False when no current probe result exists (never probed, failed, expired, or the file changed since). Stream lists are then empty and the version labels come from the file name only. */
@@ -30848,7 +36332,9 @@ export type components = {
                 /** @description Present when extraction is enabled and available: /api/v1/sources/{id}/embedded-subtitles/{index}. Native sessions only. */
                 url?: string;
             }[];
-            /** @description G20.2 version labels with qualityScore and displayName; sources are listed by qualityScore descending. Other label fields may be added. */
+            /** @description Combined duration of all parts; absent for a single file or when a part's duration is unknown. */
+            totalDurationMicros?: number;
+            /** @description G20.2 version labels with qualityScore and displayName. Playback information lists sources in the caller's default version order (version preference, main version, qualityScore descending). Other label fields may be added. */
             version: {
                 displayName: string;
                 qualityScore: number;
@@ -31140,10 +36626,23 @@ export type components = {
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */
             cron: string;
             intervalSeconds: number;
-            /** @enum {string} */
-            mode: "interval" | "cron";
+            /**
+             * @description once (generic /schedules only): run at runAt; intervalSeconds 0 and cron empty.
+             * @enum {string}
+             */
+            mode: "interval" | "cron" | "once";
+            /**
+             * Format: date-time
+             * @description Instant of a once schedule; absent for interval and cron.
+             */
+            runAt?: string;
             /** @description The server also enforces the stated maximum in UTF-8 bytes. */
             timezone: string;
+        };
+        /** @description Occurrences start only between start (inclusive) and end (exclusive), HH:MM local time in the schedule's timezone; an end before the start crosses midnight. Both empty: no window. An occurrence due outside the window waits for its next opening; skipped DST minutes never match and repeated ones follow the wall clock. */
+        ScheduleWindow: {
+            end: string;
+            start: string;
         };
         SeasonCandidate: {
             airDate: string;
@@ -31581,6 +37080,39 @@ export type components = {
             /** @description Title of the new item; empty keeps the original's title. */
             title?: string;
         };
+        /** @description Committed counters of an extraction cache cleanup. sources counts source directories finished without a failed removal; orphaned whole directories of deleted sources; revisions idle, unreadable or crashed staging revisions of live sources; capacity revisions removed to fit the size bound; failed directories or revisions that could not be removed and stay for a later run. */
+        SubtitleCacheCleanupJobState: {
+            capacity: number;
+            cursorSource: string | null;
+            failed: number;
+            /** Format: int64 */
+            freedBytes: number;
+            /** Format: uuid */
+            jobId: string;
+            maxIdleDays: number;
+            orphaned: number;
+            /**
+             * @description sources walks the source directories in name order, capacity trims the cache to its size bound, done has nothing left.
+             * @enum {string}
+             */
+            phase: "sources" | "capacity" | "done";
+            revisions: number;
+            sources: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SubtitleCacheCleanupRequest: {
+            /**
+             * @description Revisions of live sources not used for longer are removed; 0 selects the default of 30 days.
+             * @default 30
+             */
+            maxIdleDays: number;
+            /**
+             * @default manual
+             * @enum {string}
+             */
+            priority: "manual" | "background";
+        };
         /** @description One preference level. A null or absent member inherits from the broader level (version, then item, then the user's defaults); the account language stands in for an unset subtitle language. Nothing is converted: preferences only choose among the original tracks. */
         TrackPreference: {
             audioCommentary?: boolean | null;
@@ -31664,7 +37196,7 @@ export type components = {
             /** @description The export record: format jelee.user-data, version, userId, userName and generatedAt (the snapshot time). A data record: the row with camelCase fields; null fields are left out. The end record: records, the number of data records. */
             data: Record<string, never>;
             /** @enum {string} */
-            type: "export" | "account" | "preferences" | "trackPreference" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
+            type: "export" | "account" | "preferences" | "trackPreference" | "versionPreference" | "sessionTrack" | "blockedTag" | "libraryAccess" | "itemAccessRule" | "itemData" | "playbackSession" | "playbackSample" | "watchStatsDay" | "watchStatsItem" | "session" | "appPassword" | "shareLink" | "clientControlHit" | "auditEvent" | "end";
         };
         UserItemData: {
             /** Format: uuid */
@@ -31718,9 +37250,14 @@ export type components = {
         UserTrackPreference: {
             preference: components["schemas"]["TrackPreference"] | null;
         };
+        UserVersionPreference: {
+            preference: components["schemas"]["VersionPreference"];
+        };
         VersionOperation: {
             /** Format: uuid */
             actorId?: string;
+            /** @description A merge catalog synchronisation made from matching NFO provider IDs, episode numbers and runtimes; it has no actor and is undone like any other merge. */
+            automatic: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -31778,6 +37315,32 @@ export type components = {
              * @description The administrator's main version, if any.
              */
             primarySourceId?: string;
+        };
+        /** @description The caller's default version preference (G20.2). Applied after the client's declared capabilities excluded what it cannot play as it is, in the order bandwidth, resolution, dynamic range, size; equal versions keep the main version, quality score, source ID order. A null or absent member sets no rule. Nothing is converted. */
+        VersionPreference: {
+            dynamicRange?: ("sdr" | "hdr") | null;
+            maxBitrate?: number | null;
+            maxHeight?: (480 | 576 | 720 | 1080 | 1440 | 2160 | 4320) | null;
+            preferSmaller?: boolean | null;
+        };
+        VersionSelection: {
+            /**
+             * Format: uuid
+             * @description The version a client should start with; absent when no version is playable.
+             */
+            defaultSourceId?: string;
+            excluded: {
+                reasons: ("container_unsupported" | "source_not_probed" | "video_codec_unsupported" | "audio_codec_unsupported" | "bitrate_exceeds_client")[];
+                /** Format: uuid */
+                sourceId: string;
+            }[];
+            /** @description The caller's version preference rules that are set. */
+            preferences: ("bandwidth" | "resolution" | "dynamic_range" | "size")[];
+            /**
+             * @description The rule that put the default ahead of the next playable version (G20.2), in precedence order: the client's declared capabilities (only_playable), the user's bandwidth, resolution, dynamic range and size preferences, the main version, the quality score, the source ID.
+             * @enum {string}
+             */
+            reason: "only_version" | "only_playable" | "bandwidth_preference" | "resolution_preference" | "dynamic_range_preference" | "size_preference" | "primary_version" | "quality_score" | "stable_order" | "none_playable" | "no_version";
         };
         WatchStatsReport: {
             /** Format: date */

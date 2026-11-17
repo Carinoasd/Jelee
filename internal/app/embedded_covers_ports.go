@@ -25,6 +25,13 @@ type EmbeddedCoverExtractor interface {
 	ExtractCover(ctx context.Context, candidate domain.EmbeddedCoverCandidate) (domain.EmbeddedCover, error)
 }
 
+// ImageContentDescriber reads one stored original and returns its G40.7
+// metadata (size, format, bytes and sampled colors), leaving FetchedAt to
+// the caller. It may fail with ErrImageBusy; the metadata is best effort.
+type ImageContentDescriber interface {
+	DescribeStoredImage(ctx context.Context, digest [32]byte) (domain.ItemImageContent, error)
+}
+
 // EmbeddedCoverStore keeps original bytes under their SHA-256 (G40.5).
 type EmbeddedCoverStore interface {
 	PutOriginal(ctx context.Context, input io.Reader, limit int64) ([32]byte, int64, error)

@@ -99,3 +99,39 @@ func TestImagesConfigurationRejectsUnsafeBudgets(t *testing.T) {
 		})
 	}
 }
+
+func TestImagesConfigurationOutputFormatsAndCrop(t *testing.T) {
+	values := map[string]string{"JELEE_DATABASE_URL": "postgres://localhost/jelee", "JELEE_ENABLE_IMAGES": "true", "JELEE_ENABLE_ACCOUNTS": "true",
+		"JELEE_ENABLE_CATALOG": "true", "JELEE_IMAGE_TEMP_ROOT": t.TempDir()}
+	lookup := func(key string) (string, bool) { value, ok := values[key]; return value, ok }
+	cfg, err := LoadWith(lookup)
+	if err != nil || len(cfg.Images.OutputFormats) != 2 || cfg.Images.DefaultFormat != "jpeg" || cfg.Images.Crop != ImageCropSmart ||
+		!cfg.Images.AllowsFormat("webp") || cfg.Images.AllowsFormat("avif") {
+		t.Fatal("output defaults", cfg.Images, err)
+	}
+	values["JELEE_IMAGE_OUTPUT_FORMATS"], values["JELEE_IMAGE_DEFAULT_FORMAT"], values["JELEE_IMAGE_CROP"] = " WebP ", "webp", "Center"
+	cfg, err = LoadWith(lookup)
+	if err != nil || len(cfg.Images.OutputFormats) != 1 || cfg.Images.DefaultFormat != "webp" || cfg.Images.Crop != ImageCropCenter || cfg.Images.AllowsFormat("jpeg") {
+		t.Fatal("output overrides", cfg.Images, err)
+	}
+	for name, bad := range map[string]map[string]string{
+		"avif listed":         {"JELEE_IMAGE_OUTPUT_FORMATS": "jpeg,avif", "JELEE_IMAGE_DEFAULT_FORMAT": "jpeg"},
+		"unknown format":      {"JELEE_IMAGE_OUTPUT_FORMATS": "jpeg,png", "JELEE_IMAGE_DEFAULT_FORMAT": "jpeg"},
+		"duplicate format":    {"JELEE_IMAGE_OUTPUT_FORMATS": "jpeg,jpeg", "JELEE_IMAGE_DEFAULT_FORMAT": "jpeg"},
+		"empty list":          {"JELEE_IMAGE_OUTPUT_FORMATS": "", "JELEE_IMAGE_DEFAULT_FORMAT": "jpeg"},
+		"default not offered": {"JELEE_IMAGE_OUTPUT_FORMATS": "jpeg", "JELEE_IMAGE_DEFAULT_FORMAT": "webp"},
+		"unknown crop":        {"JELEE_IMAGE_OUTPUT_FORMATS": "jpeg", "JELEE_IMAGE_DEFAULT_FORMAT": "jpeg", "JELEE_IMAGE_CROP": "edges"},
+	} {
+		for key, value := range bad {
+			values[key] = value
+		}
+		if _, err := LoadWith(lookup); err == nil {
+			t.Fatal(name, "accepted")
+		}
+		delete(values, "JELEE_IMAGE_CROP")
+	}
+	values["JELEE_IMAGE_OUTPUT_FORMATS"], values["JELEE_IMAGE_DEFAULT_FORMAT"], values["JELEE_IMAGE_CROP"] = "jpeg", "jpeg", "off"
+	if cfg, err = LoadWith(lookup); err != nil || cfg.Images.Crop != ImageCropOff {
+		t.Fatal("crop off", err)
+	}
+}

@@ -101,6 +101,7 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"manual scan source", `UPDATE catalog_scan_sources SET manual=true WHERE source_id='` + bkSrcMovie + `'`},
 		{"version exclusion", `INSERT INTO item_version_exclusions(item_id,library_id,root_id,relative_path,created_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkRootMov + `','Film (2020)/Film.Trailer.mkv','2026-09-01T01:00:00Z')`},
 		{"primary version", `INSERT INTO item_primary_versions(item_id,library_id,source_id,updated_at) VALUES ('` + bkMovie + `','` + bkLibMovies + `','` + bkSrcMovie + `','2026-09-01T02:00:00Z')`},
+		{"identity correction", `INSERT INTO item_identity_corrections(item_id,library_id,revision,kind_locked,parent_locked,season,episode,episode_end,updated_at) VALUES ('` + bkEpisode + `','` + bkLibShows + `',3,true,true,1,4,5,'2026-09-02T00:00:00Z')`},
 		{"track preferences", `INSERT INTO user_track_preferences(user_id,item_id,source_id,audio_language,audio_commentary,audio_track,subtitle_mode,subtitle_language,subtitle_sdh,subtitle_track,updated_at) VALUES
  ('` + bkKid + `',NULL,NULL,'zh-Hant',NULL,NULL,'auto','zh-Hant',false,NULL,'2026-09-03T00:00:00Z'),
  ('` + bkKid + `','` + bkEpisode + `',NULL,'ja',true,NULL,NULL,NULL,NULL,NULL,'2026-09-03T00:00:01Z'),
@@ -113,8 +114,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"episode field", `INSERT INTO item_metadata_fields(item_id,field,value,source,updated_at) VALUES ('` + bkEpisode + `','overview','Pilot episode.','manual','2026-09-01T00:00:04Z')`},
 		{"facts", `INSERT INTO item_metadata_facts(item_id,field,value,source,locked,updated_at) VALUES ('` + bkMovie + `','genres','["Drama","Sci-Fi"]','manual',true,'2026-09-01T00:00:03Z')`},
 		{"nfo lock", `INSERT INTO item_nfo_field_locks(item_id,field,origin) VALUES ('` + bkEpisode + `','seasonNumber','` + lockOrigin + `')`},
-		{"locked image", `INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,remote_url,content_sha256,width,height,format,byte_size,average_color,fetched_at,locked,created_at,updated_at)
- VALUES ('` + bkImage + `','` + bkMovie + `','` + bkLibMovies + `','Primary',0,'remote','https://image.example/poster.jpg',decode(repeat('cd',32),'hex'),1000,1500,'jpeg',2048,123456,'2026-09-01T00:00:00Z',true,'2026-09-01T00:00:00Z','2026-09-02T00:00:00Z')`},
+		{"locked image", `INSERT INTO item_images(id,item_id,library_id,image_type,image_index,source_kind,remote_url,content_sha256,width,height,format,byte_size,average_color,dominant_color,fetched_at,locked,created_at,updated_at)
+ VALUES ('` + bkImage + `','` + bkMovie + `','` + bkLibMovies + `','Primary',0,'remote','https://image.example/poster.jpg',decode(repeat('cd',32),'hex'),1000,1500,'jpeg',2048,123456,654321,'2026-09-01T00:00:00Z',true,'2026-09-01T00:00:00Z','2026-09-02T00:00:00Z')`},
 		{"unlocked image", `INSERT INTO item_images(item_id,library_id,image_type,image_index,source_kind,root_id,relative_path) VALUES ('` + bkMovie + `','` + bkLibMovies + `','Backdrop',1,'local','` + bkRootMov + `','Film (2020)/fanart.jpg')`},
 		{"progress", `INSERT INTO user_item_data(user_id,item_id,resume_ticks,played,play_count,last_played_at,last_source_id,updated_at) VALUES
  ('` + bkKid + `','` + bkEpisode + `',123450000,false,1,'2026-09-03T20:00:00Z','` + bkSrcEp + `','2026-09-03T20:00:00Z'),('` + bkAdmin + `','` + bkMovie + `',0,true,3,'2026-09-04T20:00:00Z',NULL,'2026-09-04T20:00:00Z')`},
@@ -145,8 +146,10 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"webhook", `INSERT INTO webhooks(id,name,url,events,header_names,headers_sealed,timeout_ms,max_attempts,base_delay_ms,max_delay_ms,jitter,secret_sealed,previous_secret_sealed,previous_until,created_at,updated_at)
  VALUES ('` + bkWebhook + `','notify','https://hooks.example/jelee',ARRAY['media.added','playback.started'],ARRAY['X-Token'],decode(repeat('a1',40),'hex'),5000,5,2000,60000,0.25,
  decode(repeat('b2',48),'hex'),decode(repeat('c3',48),'hex'),'2026-10-10T00:00:00Z','2026-09-08T00:00:00Z','2026-09-09T00:00:00Z')`},
-		{"schedule", `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case,next_due,watch_enabled)
- VALUES ('` + bkLibMovies + `','` + bkAdmin + `',4,true,'interval',3600,'','Asia/Tokyo',true,false,'jeleeignore','sensitive','2026-10-05T00:00:00Z',true)`},
+		{"schedule", `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case,watch_enabled)
+ VALUES ('` + bkLibMovies + `','` + bkAdmin + `',4,true,false,'jeleeignore','sensitive',true)`},
+		{"timed schedule", `INSERT INTO job_schedules(kind,library_id,revision,enabled,mode,interval_seconds,cron,timezone,params,next_due)
+ VALUES ('inventory_scan','` + bkLibMovies + `',4,true,'interval',3600,'','Asia/Tokyo','{"probe":true,"nfo":false,"ignore":{"mode":"jeleeignore","caseMode":"sensitive"}}','2026-10-05T00:00:00Z')`},
 		{"watch", `INSERT INTO scan_watch_state(library_id) VALUES ('` + bkLibMovies + `')`},
 		// Collections, playlists and preferences (format version 2).
 		{"collections", `INSERT INTO collections(id,name,overview,nfo_name,created_by,created_at,updated_at) VALUES
@@ -160,6 +163,8 @@ func seedMetadataBackup(t testing.TB, ctx context.Context, s *Store, episodes in
 		{"preferences", `INSERT INTO user_preferences(user_id,theme,density,layout,updated_at) VALUES ('` + bkKid + `','dark','compact','` + bkLayout + `','2026-09-13T00:00:00Z'),
  ('` + bkAdmin + `','light','comfortable',NULL,'2026-09-13T00:00:01Z')`},
 		{"guest preferences", `INSERT INTO user_preferences(user_id,theme) SELECT id,'light' FROM users WHERE share_id='` + bkShare + `'`},
+		{"version preferences", `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range,prefer_smaller,max_bitrate,updated_at) VALUES ('` + bkKid + `',1080,'sdr',true,20000000,'2026-09-13T00:00:00Z')`},
+		{"guest version preferences", `INSERT INTO user_version_preferences(user_id,max_height) SELECT id,720 FROM users WHERE share_id='` + bkShare + `'`},
 		{"site appearance", `UPDATE site_appearance SET default_theme='dark',tokens='{"light":{"color-primary":"#336699"},"dark":{"color-primary":"#88aaff"}}',
  custom_css='.jelee-home { margin: 0; }',allow_external_fonts=true,font_hosts=ARRAY['fonts.example.com'],default_layout='{"home":[{"id":"latest","visible":true}],"detail":[]}'`},
 		{"site plugins", `UPDATE site_plugins SET plugins='[{"id":"acme.clock","enabled":true},{"id":"acme.weather","enabled":false}]',settings='{"acme.clock":{"format":"24h","seconds":false}}'`},
@@ -295,6 +300,9 @@ func TestMetadataBackupDrillPostgres(t *testing.T) {
 	}
 	if n := len(metadataRecordsByKind(t, doc)["user_preference"]); n != 2 {
 		t.Fatalf("user preferences exported: %d, want 2 (guests stay out)", n)
+	}
+	if records := metadataRecordsByKind(t, doc)["user_version_preference"]; len(records) != 1 {
+		t.Fatalf("version preferences exported: %d (guests stay out)", len(records))
 	}
 
 	// Dry run first: a full import that leaves nothing behind.

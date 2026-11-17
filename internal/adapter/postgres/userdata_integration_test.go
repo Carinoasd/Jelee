@@ -22,29 +22,33 @@ import (
 // a table added later cannot keep a deleted user's rows unnoticed.
 var userReferenceColumns = map[string]string{
 	// ON DELETE CASCADE from users.
-	"app_passwords.user_id":          "cascade",
-	"library_acl.user_id":            "cascade",
-	"login_challenges.user_id":       "cascade",
-	"playback_sessions.user_id":      "cascade",
-	"playlists.owner_id":             "cascade",
-	"sessions.user_id":               "cascade",
-	"user_blocked_tags.user_id":      "cascade",
-	"user_blocked_keywords.user_id":  "cascade",
-	"user_access_windows.user_id":    "cascade",
-	"user_item_access_rules.user_id": "cascade",
-	"user_item_data.user_id":         "cascade",
-	"user_preferences.user_id":       "cascade",
-	"user_recovery_codes.user_id":    "cascade",
-	"user_totp.user_id":              "cascade",
-	"user_track_preferences.user_id": "cascade",
-	"watch_stats_daily.user_id":      "cascade",
-	"watch_stats_history.user_id":    "cascade",
+	"app_passwords.user_id":            "cascade",
+	"library_acl.user_id":              "cascade",
+	"login_challenges.user_id":         "cascade",
+	"playback_sessions.user_id":        "cascade",
+	"playlists.owner_id":               "cascade",
+	"sessions.user_id":                 "cascade",
+	"user_blocked_tags.user_id":        "cascade",
+	"user_blocked_keywords.user_id":    "cascade",
+	"user_access_windows.user_id":      "cascade",
+	"user_item_access_rules.user_id":   "cascade",
+	"user_item_data.user_id":           "cascade",
+	"user_preferences.user_id":         "cascade",
+	"user_recovery_codes.user_id":      "cascade",
+	"user_totp.user_id":                "cascade",
+	"user_track_preferences.user_id":   "cascade",
+	"user_version_preferences.user_id": "cascade",
+	"session_track_selections.user_id": "cascade",
+	"watch_stats_daily.user_id":        "cascade",
+	"watch_stats_history.user_id":      "cascade",
 	// ON DELETE SET NULL: the row stays without attribution.
+	"catalog_scan_pending.rejected_by":       "set null",
 	"client_rules.created_by":                "set null",
 	"collections.created_by":                 "set null",
 	"inventory_missing_acceptances.actor_id": "set null",
 	"item_version_operations.actor_id":       "set null",
 	"item_version_operations.undone_by":      "set null",
+	"metadata_refresh_reviews.rejected_by":   "set null",
 	"jobs.actor_id":                          "set null",
 	"known_clients.last_user_id":             "set null",
 	"library_network_rules.created_by":       "set null",
@@ -121,6 +125,8 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	}
 	lib := f.registration.Library.ID
 	f.exec(t, `INSERT INTO user_track_preferences(user_id,item_id,audio_language) VALUES($1::uuid,$2::uuid,'ja')`, uid, f.item)
+	f.exec(t, `INSERT INTO user_version_preferences(user_id,max_height,dynamic_range) VALUES($1::uuid,1080,'sdr')`, uid)
+	f.exec(t, `INSERT INTO session_track_selections(user_id,item_id,source_id,play_key,subtitle_track) SELECT $1::uuid,m.item_id,m.id,'purge-play','off' FROM media_sources m WHERE m.item_id=$2::uuid LIMIT 1`, uid, f.item)
 	f.exec(t, `INSERT INTO user_blocked_tags(user_id,tag) VALUES($1::uuid,'horror')`, uid)
 	f.exec(t, `INSERT INTO user_blocked_keywords(user_id,keyword) VALUES($1::uuid,'gore')`, uid)
 	// The window must be exported but not open while the test runs: an open
@@ -141,7 +147,7 @@ func (f userDataFixture) seed(t *testing.T, native, web domain.Actor) (share, gu
 	f.exec(t, `INSERT INTO known_clients(client_key,device_name,last_ip,last_user_id) VALUES($1,'Purge phone','198.51.100.7',$2::uuid)`, hex.EncodeToString(userDataDigest("client-"+uid)), uid)
 	f.exec(t, `INSERT INTO known_client_sessions(client_id,session_id) SELECT id,$2::uuid FROM known_clients WHERE last_user_id=$1::uuid`, uid, native.SessionID)
 	f.exec(t, `INSERT INTO nfo_policy_requests(actor_id,idempotency_key,library_id,requested_mode,expected_generation,result_generation) SELECT $1::uuid,'purge-key',id,'off',nfo_generation,nfo_generation FROM libraries WHERE id=$2::uuid`, uid, lib)
-	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,'interval',3600,'','UTC',false,false,'','')`, uid, lib)
+	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,false,'','')`, uid, lib)
 	f.exec(t, `INSERT INTO legacy_import_map(kind,source_key,target_id,created) VALUES('user','legacy-purge',$1::uuid,true)`, uid)
 	f.exec(t, `INSERT INTO legacy_import_map(kind,source_key,target_id,target_user,created) VALUES('user_data','legacy-purge-data',$2::uuid,$1::uuid,true)`, uid, f.item)
 	f.exec(t, `INSERT INTO webhook_outbox(event_type,occurred_at,subject_kind,subject_id,data) VALUES('user.login',now(),'user',$1,'{}'),('playback.started',now(),'session',gen_random_uuid()::text,jsonb_build_object('userId',$1::text))`, uid)
@@ -384,7 +390,7 @@ func TestUserPurgeSelfReauthenticationAndLastAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,enabled,mode,interval_seconds,cron,timezone,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,'interval',3600,'','UTC',false,false,'','')`, f.a.UserID, f.registration.Library.ID)
+	f.exec(t, `INSERT INTO scan_schedules(library_id,owner_id,revision,probe,nfo,ignore_mode,ignore_case) VALUES($2::uuid,$1::uuid,1,false,false,'','')`, f.a.UserID, f.registration.Library.ID)
 	if err = f.s.PurgeUser(f.ctx, f.a, f.a.UserID, &domain.UserPurgeProof{Expected: adminCredentials}); !errors.Is(err, domain.ErrLastAdmin) {
 		t.Fatalf("last administrator purge: %v", err)
 	}
@@ -444,7 +450,7 @@ func TestUserDataExportSnapshotWithoutSecrets(t *testing.T) {
 		}
 		text.Write(r.Data)
 	}
-	for _, kind := range []string{"account", "preferences", "trackPreference", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
+	for _, kind := range []string{"account", "preferences", "trackPreference", "versionPreference", "sessionTrack", "blockedTag", "blockedKeyword", "accessWindow", "libraryAccess", "itemAccessRule", "itemData", "playbackSession",
 		"playbackSample", "watchStatsDay", "watchStatsItem", "session", "appPassword", "shareLink", "clientControlHit", "auditEvent"} {
 		if counts[kind] == 0 {
 			t.Errorf("export has no %s record", kind)

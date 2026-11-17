@@ -240,7 +240,7 @@ func (s *Store) GetCatalogSyncReport(ctx context.Context, actor domain.Actor, id
 	defer tx.Rollback(ctx)
 	r := domain.CatalogSyncReport{JobID: id}
 	var source *string
-	err = tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed FROM catalog_sync_requests WHERE job_id=$1::uuid`, id).Scan(&r.LibraryID, &r.Mode, &r.Phase, &source, &r.Examined, &r.Created, &r.Updated, &r.Unchanged, &r.Protected, &r.Pending, &r.MarkedMissing, &r.Removed)
+	err = tx.QueryRow(ctx, `SELECT library_id::text,mode,phase,source_job_id::text,examined,created,updated,unchanged,protected,pending,marked_missing,removed,aggregated FROM catalog_sync_requests WHERE job_id=$1::uuid`, id).Scan(&r.LibraryID, &r.Mode, &r.Phase, &source, &r.Examined, &r.Created, &r.Updated, &r.Unchanged, &r.Protected, &r.Pending, &r.MarkedMissing, &r.Removed, &r.Aggregated)
 	if err != nil {
 		return domain.CatalogSyncReport{}, storageError(err)
 	}
@@ -304,14 +304,14 @@ func (s *Store) ListCatalogPending(ctx context.Context, actor domain.Actor, libr
 	if !exists {
 		return nil, domain.ErrNotFound
 	}
-	rows, err := tx.Query(ctx, `SELECT id::text,root_id::text,relative_path,reason,kind,confidence,title,COALESCE(year,0),season,episode,episode_end,COALESCE(absolute,0),special FROM catalog_scan_pending WHERE library_id=$1::uuid AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, library, cursor, limit)
+	rows, err := tx.Query(ctx, `SELECT `+catalogPendingColumns+` FROM catalog_scan_pending WHERE library_id=$1::uuid AND id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000'::uuid) ORDER BY id LIMIT $3`, library, cursor, limit)
 	if err != nil {
 		return nil, storageError(err)
 	}
 	result := make([]domain.CatalogPendingEntry, 0, limit)
 	for rows.Next() {
 		var e domain.CatalogPendingEntry
-		if err = rows.Scan(&e.ID, &e.RootID, &e.Path, &e.Reason, &e.Kind, &e.Confidence, &e.Title, &e.Year, &e.Season, &e.Episode, &e.EpisodeEnd, &e.Absolute, &e.Special); err != nil {
+		if err = scanCatalogPending(rows, &e); err != nil {
 			rows.Close()
 			return nil, storageError(err)
 		}
