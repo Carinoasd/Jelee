@@ -222,6 +222,10 @@ PlaybackInfo 隨媒體庫模組掛載；串流、字幕與音訊路由只在直�
 - 驗證：與其他路由相同，只接受 native 工作階段；播放器常把 token 放在 `api_key`／`ApiKey` query，照樣接受，但 web 工作階段一律 401。
 - 查詢目錄失敗依瀏覽模組的錯誤格式（空主體 404／403／503）；進入直投模組後的錯誤（429 並發上限、416 Range、412…）沿用自有 envelope，與 409 一致。成功回應不受相容層請求逾時限制，由直投模組的寫入期限控制。
 
+**內嵌軌標籤（B3）**
+
+- `MediaSources[].MediaStreams` 的內嵌字幕填 `IsHearingImpaired`（探測的 `hearing_impaired` 或 `captions` 旗標），內嵌音軌填 `Title`（ffprobe 的串流標題，沒有才取 Matroska 補充的軌道名稱）；未寫入的欄位維持省略。上游沒有「評論音軌」欄位，評論與口述影像旗標只在自有 API，相容層不另編碼。需要重探（`media-metadata-v5`）才有值。
+
 **外掛字幕**
 
 - 直投開啟時，`MediaSources[].MediaStreams` 列出外掛字幕：`Type`=`Subtitle`、`IsExternal`=true、`DeliveryMethod`=`External`、`SupportsExternalStream`=true、`Codec`=副檔名、`Language`、`Title`、`IsDefault`、`IsForced`、`IsHearingImpaired`（SDH）、`IsTextSubtitleStream`，`DeliveryUrl` 為上游格式 `/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/0/Stream.{副檔名}`（相對於客戶端設定的伺服器網址，**不含 token**）。`Index` 依上游接在所有內嵌流之後，按儲存層固定順序編號。內嵌字幕標 `DeliveryMethod`=`Embed`。外掛音軌不列（上游沒有投遞外掛音軌的路由）。

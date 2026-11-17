@@ -60,11 +60,23 @@ side data 記錄可只有部分欄位，模型保留其餘欄位為空；空的�
 - **章節輸出。** 播放資訊（`GET /api/v1/items/{id}/playback` 與檔案資訊）的來源有 `chapters`：`index`（0 起的位置）、`startMicros`、`title`。起始時間取 ffprobe 的章節（起點未知者略過）；MediaInfo 補充列出相同數量且每章起點相差不超過 1 毫秒（MediaInfo 只印到毫秒）時，依位置補標題，否則整份不補標題；只有 MediaInfo 列出章節時使用補充清單。ffprobe 白名單不含章節標題，所以無補充時標題為空。相容層 `Items/{id}` 的 `Chapters` 與每個 `MediaSources[].Chapters` 為 `StartPositionTicks`（微秒 × 10）與 `Name`（無標題為 `Chapter N`）；`ImageTag` 不送，章節圖是另一項功能（G40.1）。
 - **編碼細節。** `MediaInfo` 補充的 `streamDetails[]`（每個探測串流至多一筆，至多 64 筆）：影片取 `HDR_Format`、`HDR_Format_Profile`、`HDR_Format_Level`、`HDR_Format_Compatibility` 與 `transfer_characteristics`，分類為 `dolby_vision`、`hdr10plus`、`hdr10`、`hlg`（Dolby Vision 另解析 `dvhe.08.06` 形式的 profile 與 level）；音訊取 `Format`、`Format_Commercial_IfAny`、`Format_AdditionalFeatures`（`JOC`＝E-AC-3 Atmos，`XLL`＝DTS-HD 無損，`X`＝DTS:X）與 `Format_Profile`，分類為 `dolby_atmos`、`dolby_truehd`、`dts_x`、`dts_hd_ma`；兩者的 `Format_Profile` 保留為不超過 64 位元組的文字。所有詞彙來自固定表，檔案中的任意文字不會進入這些欄位；不符白名單的補充與其他補充一樣整份丟棄。
 - **合併。** 影片軌 `hdr` 先放 ffprobe 的結論（沿用版本標籤的 HDR 推導），再追加 MediaInfo 多出的格式；`dolbyVisionProfile`／`Level` 先取 ffprobe 的 DOVI 記錄；`profile` 只在 ffprobe 沒有時採用 `Format_Profile`。音軌 `features` 先放 ffprobe 的 codec／profile 所能確認者，再追加 MediaInfo 的；任何來源確認 Atmos 時 `atmos` 為 true。MediaInfo 只對 Matroska／WebM 執行，其他容器沒有補充。版本標籤（`version`）仍只用 ffprobe 與檔名。
-- **快取失效。** 探測 parser 版本從 `media-metadata-v3` 升為 `media-metadata-v4`，探測資料 schema 維持 2（新欄位皆選填，舊讀取端忽略）。parser 版本是探測身分的一部分，升級後每個既有 Matroska 探測快取會在下次探測時重算一次以取得 `streamDetails`；非 Matroska 來源同樣重算（身分改變），結果與先前相同。
+- **快取失效。** 探測 parser 版本從 `media-metadata-v3` 升為 `media-metadata-v4`（後續 B3 又升為 v5，見下節），探測資料 schema 維持 2（新欄位皆選填，舊讀取端忽略）。parser 版本是探測身分的一部分，升級後每個既有 Matroska 探測快取會在下次探測時重算一次以取得 `streamDetails`；非 Matroska 來源同樣重算（身分改變），結果與先前相同。
+
+## 內嵌軌標籤（B3；G15.2、G16.3）
+
+探測保留音軌與字幕軌自己的標題與用途旗標，供選軌與顯示。**只有音軌與字幕軌**；影片、資料與附件串流不保留標題或旗標。
+
+- **標題。** ffprobe 的 `tags.title`，修剪前後空白後須通過 `ValidStreamTitle`：非空、不超過 256 位元組、合法 UTF-8、不含控制字元、格式字元（雙向覆寫、零寬字元）、行／段分隔字元與 U+FFFD 替代字元。**不通過者整個丟棄，不修補、也不使探測失敗**。
+- **旗標。** disposition 的 `hearing_impaired`、`captions`、`comment`、`visual_impaired`、`descriptions`；只記錄為 1 的，0 與缺少一樣不存。非 0／1 的值與其他 disposition 一樣使探測失敗。
+- **對外語意。** 字幕 `sdh`＝`hearing_impaired` 或 `captions`；音軌 `commentary`＝`comment`，`visualImpaired`＝`visual_impaired` 或 `descriptions`（口述影像）。內嵌文字字幕（`subrip`、`srt`、`ass`、`ssa`、`webvtt`、`mov_text`、`text`）的 `charset` 固定為 `UTF-8`：容器以 UTF-8 儲存或解碼，擷取（G15.5）也不轉換；PGS、VobSub、DVB、`eia_608` 等點陣與隱藏式字幕不報 `charset`。
+- **標題優先序。** 軌道標題先取 ffprobe 在該串流上讀到的 `tags.title`（任何容器），沒有時才取 Matroska 補充（MediaInfo）的軌道名稱；補充只填缺口，不覆蓋，與其他合併規則一致。
+- **選軌。** `SelectDefaultTracks` 現在對內嵌軌也帶 `sdh`、`commentary`：未要求評論音軌時，評論音軌（即使標為預設）輸給一般音軌；未要求 SDH 時，SDH 字幕輸給非 SDH 字幕。外掛軌規則不變。
+- **相容層。** 內嵌字幕的 `IsHearingImpaired`、內嵌音軌的 `Title` 照上述填入；`MediaStreams` 其餘欄位不變。
+- **探測身分升版（全庫重探）。** 這些欄位需要重新探測才有值，所以 parser 版本升為 `media-metadata-v5`（資料 schema 維持 2，新欄位皆選填，舊讀取端忽略）。**升級後每個來源的探測快取會在下次探測時重算一次**，重探期間播放資訊為 `probed=false`。這次升版是第 10 階段**唯一一次**：B4（外掛軌按需探測）的結果存於每個外掛軌自己的資料，不需要再升 parser 版本，會併入 v5；若 B4 仍須更改儲存的條目探測形狀，也加在 v5 之下，在 v5 發行前不得再升 v6，以免擁有者重探兩次。版本常數集中在 `internal/domain/probe_cache.go` 的 `probeParserVersionStage10`，`TestProbeParserVersionIsTheSingleStage10Bump` 釘住它。重探成本列為擁有者項目 C43。
 
 ## 隱私與驗證界線
 
-不保留原始 filename、任意 tags、vendor、URL、軌道標題、章節標題、字型附件名稱或未列入允許清單的值。固定錯誤不帶原始內容，模型也没有原始 JSON 欄位。
+不保留原始 filename、任意 tags、vendor、URL、影片與附件的標題、非白名單的音軌／字幕標題、章節標題、字型附件名稱或未列入允許清單的值。固定錯誤不帶原始內容，模型也没有原始 JSON 欄位。
 
 測試包含官方欄位形狀的合成 golden、隱私投影、未知值、數值邊界、重複鍵、資源上限、章節時間一致性與 fuzz seeds。這些測試驗證解析器行為；不等於已驗證每一種媒體格式、真實特殊音訊／HDR 素材、程序沙箱或客戶端播放能力。
 

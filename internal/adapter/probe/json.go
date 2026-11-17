@@ -94,6 +94,9 @@ func (p *metadataParser) stream(raw object) domain.MediaStream {
 		normalized := strings.ToLower(*language)
 		stream.Language = &normalized
 	}
+	if stream.Kind == "audio" || stream.Kind == "subtitle" {
+		p.labels(&stream, disposition, tags)
+	}
 	switch stream.Kind {
 	case "video":
 		stream.Video = p.video(raw)
@@ -105,6 +108,28 @@ func (p *metadataParser) stream(raw object) domain.MediaStream {
 		}
 	}
 	return stream
+}
+
+// labels reads the audio and subtitle labels (B3): the title tag and the
+// accessibility and purpose dispositions. A title that fails the whitelist is
+// dropped, not repaired, and never invalidates the probe; dispositions are
+// kept only when set.
+func (p *metadataParser) labels(stream *domain.MediaStream, disposition, tags object) {
+	if title := p.text(tags["title"]); title != nil {
+		if trimmed := strings.TrimSpace(*title); domain.ValidStreamTitle(trimmed) {
+			stream.Title = &trimmed
+		}
+	}
+	set := func(dst **bool, name string) {
+		if flag := p.flag(disposition[name]); flag != nil && *flag {
+			*dst = flag
+		}
+	}
+	set(&stream.HearingImpaired, "hearing_impaired")
+	set(&stream.Captions, "captions")
+	set(&stream.Comment, "comment")
+	set(&stream.VisualImpaired, "visual_impaired")
+	set(&stream.Descriptions, "descriptions")
 }
 
 func (p *metadataParser) video(raw object) *domain.MediaVideo {

@@ -6878,6 +6878,10 @@
                 "codec": {
                   "type": "string"
                 },
+                "commentary": {
+                  "description": "The comment disposition: a commentary track.",
+                  "type": "boolean"
+                },
                 "default": {
                   "type": "boolean"
                 },
@@ -6909,13 +6913,23 @@
                 },
                 "sampleRate": {
                   "type": "integer"
+                },
+                "title": {
+                  "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
+                  "type": "string"
+                },
+                "visualImpaired": {
+                  "description": "The visual_impaired or descriptions disposition: an audio description track.",
+                  "type": "boolean"
                 }
               },
               "required": [
                 "index",
                 "default",
                 "forced",
-                "atmos"
+                "atmos",
+                "commentary",
+                "visualImpaired"
               ],
               "type": "object"
             },
@@ -7098,6 +7112,10 @@
                       "codec": {
                         "type": "string"
                       },
+                      "commentary": {
+                        "description": "The comment disposition: a commentary track.",
+                        "type": "boolean"
+                      },
                       "default": {
                         "type": "boolean"
                       },
@@ -7129,13 +7147,23 @@
                       },
                       "sampleRate": {
                         "type": "integer"
+                      },
+                      "title": {
+                        "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
+                        "type": "string"
+                      },
+                      "visualImpaired": {
+                        "description": "The visual_impaired or descriptions disposition: an audio description track.",
+                        "type": "boolean"
                       }
                     },
                     "required": [
                       "index",
                       "default",
                       "forced",
-                      "atmos"
+                      "atmos",
+                      "commentary",
+                      "visualImpaired"
                     ],
                     "type": "object"
                   },
@@ -7291,6 +7319,10 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "charset": {
+                        "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks.",
+                        "type": "string"
+                      },
                       "codec": {
                         "type": "string"
                       },
@@ -7315,15 +7347,20 @@
                       "language": {
                         "type": "string"
                       },
+                      "sdh": {
+                        "description": "The hearing_impaired or captions disposition of the embedded track.",
+                        "type": "boolean"
+                      },
                       "title": {
-                        "description": "Matroska track name from the optional MediaInfo supplement.",
+                        "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
                         "type": "string"
                       }
                     },
                     "required": [
                       "index",
                       "default",
-                      "forced"
+                      "forced",
+                      "sdh"
                     ],
                     "type": "object"
                   },
@@ -7461,6 +7498,10 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "charset": {
+                  "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks.",
+                  "type": "string"
+                },
                 "codec": {
                   "type": "string"
                 },
@@ -7485,15 +7526,20 @@
                 "language": {
                   "type": "string"
                 },
+                "sdh": {
+                  "description": "The hearing_impaired or captions disposition of the embedded track.",
+                  "type": "boolean"
+                },
                 "title": {
-                  "description": "Matroska track name from the optional MediaInfo supplement.",
+                  "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
                   "type": "string"
                 }
               },
               "required": [
                 "index",
                 "default",
-                "forced"
+                "forced",
+                "sdh"
               ],
               "type": "object"
             },
@@ -10039,6 +10085,10 @@
                 "codec": {
                   "type": "string"
                 },
+                "commentary": {
+                  "description": "The comment disposition: a commentary track.",
+                  "type": "boolean"
+                },
                 "default": {
                   "type": "boolean"
                 },
@@ -10070,13 +10120,23 @@
                 },
                 "sampleRate": {
                   "type": "integer"
+                },
+                "title": {
+                  "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
+                  "type": "string"
+                },
+                "visualImpaired": {
+                  "description": "The visual_impaired or descriptions disposition: an audio description track.",
+                  "type": "boolean"
                 }
               },
               "required": [
                 "index",
                 "default",
                 "forced",
-                "atmos"
+                "atmos",
+                "commentary",
+                "visualImpaired"
               ],
               "type": "object"
             },
@@ -10358,6 +10418,10 @@
                       "codec": {
                         "type": "string"
                       },
+                      "commentary": {
+                        "description": "The comment disposition: a commentary track.",
+                        "type": "boolean"
+                      },
                       "default": {
                         "type": "boolean"
                       },
@@ -10389,13 +10453,23 @@
                       },
                       "sampleRate": {
                         "type": "integer"
+                      },
+                      "title": {
+                        "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
+                        "type": "string"
+                      },
+                      "visualImpaired": {
+                        "description": "The visual_impaired or descriptions disposition: an audio description track.",
+                        "type": "boolean"
                       }
                     },
                     "required": [
                       "index",
                       "default",
                       "forced",
-                      "atmos"
+                      "atmos",
+                      "commentary",
+                      "visualImpaired"
                     ],
                     "type": "object"
                   },
@@ -10556,6 +10630,10 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "charset": {
+                        "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks.",
+                        "type": "string"
+                      },
                       "codec": {
                         "type": "string"
                       },
@@ -10606,8 +10684,12 @@
                         ],
                         "type": "object"
                       },
+                      "sdh": {
+                        "description": "The hearing_impaired or captions disposition of the embedded track.",
+                        "type": "boolean"
+                      },
                       "title": {
-                        "description": "Matroska track name from the optional MediaInfo supplement.",
+                        "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
                         "type": "string"
                       },
                       "url": {
@@ -10618,7 +10700,8 @@
                     "required": [
                       "index",
                       "default",
-                      "forced"
+                      "forced",
+                      "sdh"
                     ],
                     "type": "object"
                   },
@@ -10756,6 +10839,10 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "charset": {
+                  "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks.",
+                  "type": "string"
+                },
                 "codec": {
                   "type": "string"
                 },
@@ -10806,8 +10893,12 @@
                   ],
                   "type": "object"
                 },
+                "sdh": {
+                  "description": "The hearing_impaired or captions disposition of the embedded track.",
+                  "type": "boolean"
+                },
                 "title": {
-                  "description": "Matroska track name from the optional MediaInfo supplement.",
+                  "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text.",
                   "type": "string"
                 },
                 "url": {
@@ -10818,7 +10909,8 @@
               "required": [
                 "index",
                 "default",
-                "forced"
+                "forced",
+                "sdh"
               ],
               "type": "object"
             },

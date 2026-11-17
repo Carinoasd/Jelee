@@ -44,8 +44,8 @@ function seed(server: FakeServer) {
       bitRate: 10_344_827,
       version: { displayName: "2160p · HEVC · TrueHD 7.1", qualityScore: 9 },
       videoTracks: [{ index: 0, codec: "hevc", width: 3840, height: 2160, default: true, primary: true }],
-      audioTracks: [{ index: 1, codec: "truehd", language: "eng", channelLayout: "7.1", default: true, forced: false, atmos: true }],
-      subtitleTracks: [{ index: 2, codec: "hdmv_pgs_subtitle", format: "pgs", language: "eng", default: false, forced: true }],
+      audioTracks: [{ index: 1, codec: "truehd", language: "eng", channelLayout: "7.1", default: true, forced: false, atmos: true, commentary: false, visualImpaired: false }],
+      subtitleTracks: [{ index: 2, codec: "hdmv_pgs_subtitle", format: "pgs", language: "eng", default: false, forced: true, sdh: false }],
       externalTracks: [
         { id: "50000000-0000-4000-8000-000000000001", kind: "subtitle", format: "srt", language: "zh", forced: false, sdh: true, default: false, commentary: false, sizeBytes: 10 },
         { id: "50000000-0000-4000-8000-000000000002", kind: "audio", format: "ac3", language: "ja", forced: false, sdh: false, default: false, commentary: true, sizeBytes: 20 },

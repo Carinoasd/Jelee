@@ -264,7 +264,7 @@ func TestParserResultCanBeSafelyPersisted(t *testing.T) {
 		t.Fatal("parser result rejected by persistence boundary", err)
 	}
 	for _, raw := range [][]byte{
-		[]byte(`{"streams":[{"index":0,"codec_type":"audio","codec_name":"eac3","profile":"Dolby Digital Plus + Dolby Atmos","channels":6,"sample_rate":"48000","channel_layout":"5.1","tags":{"language":"ENG","title":"private","vendor":"private"}}]}`),
+		[]byte(`{"streams":[{"index":0,"codec_type":"audio","codec_name":"eac3","profile":"Dolby Digital Plus + Dolby Atmos","channels":6,"sample_rate":"48000","channel_layout":"5.1","tags":{"language":"ENG","title":"private\nnewline","vendor":"private"}}]}`),
 		[]byte(`{"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","r_frame_rate":"0/0","avg_frame_rate":"24000/1001","side_data_list":[{"side_data_type":"Mastering display metadata","red_x":"1/2","max_luminance":"1000/1"}]}],"format":{"format_name":"matroska,webm","filename":"private","duration":"1.000000"},"chapters":[{"id":1,"start_time":"0.000000","end_time":"1.000000","tags":{"title":"private"}}]}`),
 	} {
 		metadata, err := ParseJSON(raw)

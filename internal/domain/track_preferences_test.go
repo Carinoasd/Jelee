@@ -167,3 +167,41 @@ func TestItemVersionDomainRules(t *testing.T) {
 		t.Fatal("merge kinds")
 	}
 }
+
+func TestSelectDefaultTracksUsesEmbeddedLabels(t *testing.T) {
+	source := PlaybackSource{
+		Audio: []PlaybackAudioTrack{
+			{Index: 1, Language: "eng", Commentary: true, Default: true},
+			{Index: 2, Language: "eng"},
+		},
+		Subtitles: []PlaybackSubtitleTrack{
+			{Index: 3, Language: "eng", SDH: true},
+			{Index: 4, Language: "eng"},
+		},
+	}
+	// A commentary track flagged default still loses to a regular track.
+	if got := SelectDefaultTracks(source, TrackPreference{}, TrackBasisSource); describeSelection(got.Audio) != "e:2" {
+		t.Fatalf("file default: %s", describeSelection(got.Audio))
+	}
+	// A commentary track is skipped unless asked for.
+	audio := func(p TrackPreference) string {
+		return describeSelection(SelectDefaultTracks(source, p, TrackBasisUser).Audio)
+	}
+	if got := audio(TrackPreference{AudioLanguage: ptr("en")}); got != "e:2" {
+		t.Fatalf("commentary must not win by default, got %s", got)
+	}
+	if got := audio(TrackPreference{AudioLanguage: ptr("en"), AudioCommentary: ptr(true)}); got != "e:1" {
+		t.Fatalf("commentary wanted, got %s", got)
+	}
+	subtitle := func(p TrackPreference) string {
+		return describeSelection(SelectDefaultTracks(source, p, TrackBasisUser).Subtitle)
+	}
+	always := TrackPreference{SubtitleMode: ptr(SubtitleModeAlways), SubtitleLanguage: ptr("en")}
+	if got := subtitle(always); got != "e:4" {
+		t.Fatalf("SDH must not win by default, got %s", got)
+	}
+	always.SubtitleSDH = ptr(true)
+	if got := subtitle(always); got != "e:3" {
+		t.Fatalf("SDH wanted, got %s", got)
+	}
+}

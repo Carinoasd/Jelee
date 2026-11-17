@@ -1,5 +1,11 @@
 package domain
 
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
+
 // MediaMetadata records only explicit probe observations. Nil fields mean
 // unknown/absent, not zero, false, unsupported, or a failed playback decision.
 // Parsing these values does not validate a media file or certify compatibility.
@@ -35,9 +41,36 @@ type MediaStream struct {
 	Forced         *bool   `json:"forced,omitempty"`
 	// AttachedPic is the attached_pic disposition: an embedded cover image
 	// (G40.4), not a playable video track.
-	AttachedPic *bool       `json:"attachedPic,omitempty"`
-	Video       *MediaVideo `json:"video,omitempty"`
-	Audio       *MediaAudio `json:"audio,omitempty"`
+	AttachedPic *bool `json:"attachedPic,omitempty"`
+	// Title is the stream's own title tag, kept only for audio and subtitle
+	// streams and only when it passes ValidStreamTitle (B3, parser v5).
+	Title *string `json:"title,omitempty"`
+	// The accessibility and purpose dispositions below are kept only when
+	// true (B3, parser v5); absent means the file did not state them.
+	HearingImpaired *bool       `json:"hearingImpaired,omitempty"`
+	Captions        *bool       `json:"captions,omitempty"`
+	Comment         *bool       `json:"comment,omitempty"`
+	VisualImpaired  *bool       `json:"visualImpaired,omitempty"`
+	Descriptions    *bool       `json:"descriptions,omitempty"`
+	Video           *MediaVideo `json:"video,omitempty"`
+	Audio           *MediaAudio `json:"audio,omitempty"`
+}
+
+// MaxStreamTitleBytes bounds a stored stream title.
+const MaxStreamTitleBytes = 256
+
+// ValidStreamTitle accepts a trimmed, non-empty, valid UTF-8 title without
+// control, format (bidi override, zero width) or line/paragraph separator
+// characters and without the U+FFFD replacement character (a decoder already
+// gave up on those bytes). Titles come from untrusted files and reach clients as display
+// text, so anything else is dropped, never repaired.
+func ValidStreamTitle(title string) bool {
+	if title == "" || len(title) > MaxStreamTitleBytes || !utf8.ValidString(title) || strings.TrimSpace(title) != title {
+		return false
+	}
+	return !strings.ContainsFunc(title, func(r rune) bool {
+		return r == utf8.RuneError || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
+	})
 }
 
 type MediaVideo struct {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -257,4 +258,126 @@ func FuzzParseJSON(f *testing.F) {
 			t.Fatalf("unserializable metadata: %v", err)
 		}
 	})
+}
+
+// TestParseJSONTrackLabelsRealFFprobe parses an unedited ffprobe output of a
+// generated MKV with titles and the accessibility dispositions (B3).
+func TestParseJSONTrackLabelsRealFFprobe(t *testing.T) {
+	raw, err := os.ReadFile("testdata/track-labels-ffprobe.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ParseJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type label struct {
+		title                                            string
+		hearing, captions, comment, visual, descriptions bool
+	}
+	read := func(s domain.MediaStream) label {
+		l := label{hearing: s.HearingImpaired != nil, captions: s.Captions != nil, comment: s.Comment != nil, visual: s.VisualImpaired != nil, descriptions: s.Descriptions != nil}
+		if s.Title != nil {
+			l.title = *s.Title
+		}
+		return l
+	}
+	want := map[int]label{
+		1: {title: "Stereo mix"}, 2: {title: "Director commentary", comment: true}, 3: {title: "Audio description", visual: true},
+		4: {title: "English SDH", hearing: true}, 5: {title: "Chinese subtitles"},
+	}
+	for _, s := range got.Streams {
+		if s.Kind == "video" {
+			if read(s) != (label{}) {
+				t.Fatal("video stream gained labels")
+			}
+			continue
+		}
+		if read(s) != want[s.Index] {
+			t.Fatalf("stream %d labels = %+v, want %+v", s.Index, read(s), want[s.Index])
+		}
+	}
+	if _, err := domain.MarshalProbeMetadata(got); err != nil {
+		t.Fatalf("stored whitelist rejected the labels: %v", err)
+	}
+}
+
+func TestParseJSONStreamTitleWhitelist(t *testing.T) {
+	cases := map[string]struct {
+		title string
+		keep  string
+	}{
+		"plain":           {"English SDH", "English SDH"},
+		"trimmed":         {"  Commentary  ", "Commentary"},
+		"unicode":         {"導演評論 🎬", "導演評論 🎬"},
+		"empty":           {"", ""},
+		"blank":           {"   ", ""},
+		"newline":         {"line one\nline two", ""},
+		"carriage return": {"a\rb", ""},
+		"nul":             {"a\u0000b", ""},
+		"tab":             {"a\tb", ""},
+		"bidi override":   {"safe\u202Eevil", ""},
+		"zero width":      {"a\u200Bb", ""},
+		"line separator":  {"a\u2028b", ""},
+		"invalid utf8":    {"bad\xffbyte", ""},
+		"too long":        {strings.Repeat("a", domain.MaxStreamTitleBytes+1), ""},
+		"max length":      {strings.Repeat("a", domain.MaxStreamTitleBytes), strings.Repeat("a", domain.MaxStreamTitleBytes)},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Marshal escapes the control and invalid bytes the way ffprobe's
+			// JSON writer would.
+			doc := metadataDocument(t, map[string]any{"streams": []any{
+				map[string]any{"index": 0, "codec_type": "audio", "tags": map[string]any{"title": c.title}},
+				map[string]any{"index": 1, "codec_type": "subtitle", "tags": map[string]any{"title": c.title}},
+			}})
+			got, err := ParseJSON(doc)
+			if err != nil {
+				t.Fatalf("a bad title must not fail the probe: %v", err)
+			}
+			for _, s := range got.Streams {
+				switch {
+				case c.keep == "" && s.Title != nil:
+					t.Fatalf("title %q was kept", *s.Title)
+				case c.keep != "" && (s.Title == nil || *s.Title != c.keep):
+					t.Fatalf("title = %v, want %q", s.Title, c.keep)
+				}
+			}
+			if _, err := domain.MarshalProbeMetadata(got); err != nil {
+				t.Fatalf("parsed result violates the stored whitelist: %v", err)
+			}
+		})
+	}
+}
+
+func TestParseJSONLabelsStayOffOtherStreamsAndFalseFlags(t *testing.T) {
+	got, err := ParseJSON([]byte(`{"streams":[
+ {"index":0,"codec_type":"video","tags":{"title":"Movie title"},"disposition":{"comment":1,"hearing_impaired":1}},
+ {"index":1,"codec_type":"audio","tags":{"title":"Main"},"disposition":{"comment":0,"visual_impaired":0,"descriptions":0}},
+ {"index":2,"codec_type":"attachment","tags":{"title":"font"}},
+ {"index":3,"codec_type":"subtitle","disposition":{"hearing_impaired":"x"}}]}`))
+	if err == nil {
+		t.Fatalf("a non-numeric disposition must invalidate the probe, got %+v", got)
+	}
+	got, err = ParseJSON([]byte(`{"streams":[
+ {"index":0,"codec_type":"video","tags":{"title":"Movie title"},"disposition":{"comment":1,"hearing_impaired":1}},
+ {"index":1,"codec_type":"audio","tags":{"title":"Main"},"disposition":{"comment":0,"visual_impaired":0,"descriptions":0}},
+ {"index":2,"codec_type":"attachment","tags":{"title":"font"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Streams[0].Title != nil || got.Streams[0].Comment != nil || got.Streams[0].HearingImpaired != nil || got.Streams[2].Title != nil {
+		t.Fatal("labels leaked onto a video or attachment stream")
+	}
+	captioned, err := ParseJSON([]byte(`{"streams":[{"index":0,"codec_type":"subtitle","disposition":{"captions":1,"descriptions":1,"visual_impaired":1,"hearing_impaired":0}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := captioned.Streams[0]; c.Captions == nil || c.Descriptions == nil || c.VisualImpaired == nil || c.HearingImpaired != nil {
+		t.Fatalf("dispositions = %+v", c)
+	}
+	a := got.Streams[1]
+	if a.Title == nil || *a.Title != "Main" || a.Comment != nil || a.VisualImpaired != nil || a.Descriptions != nil {
+		t.Fatal("false dispositions must stay absent")
+	}
 }

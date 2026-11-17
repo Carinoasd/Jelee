@@ -216,6 +216,8 @@ Web 禁止播放的承诺基于**服务端签发时绑定的会话类型**。原
 
 每个资源给出 `id`、由存储的内容类型得出的容器（`mp4`、`mkv`、`webm`、`mov`、`avi`、`mpegts`）、大小、时长、码率、G20.2 版本标签，以及探测得到的视频轨（不含封面图流；`primary` 标出判定所用的主视频流）、内嵌音轨（编码、语言、声道、采样率、码率、默认/强制、Atmos）、内嵌字幕轨（编码与规范化格式、语言、默认/强制），和外挂字幕/音轨（语言、标题、forced、SDH、default、评论音轨、字符集、大小、由扩展名确定的格式，以及原文件的直投地址 `url`，见上一节）。多个资源按版本质量分数从高到低排列，同分按 ID。
 
+内嵌轨标签（B3）：音轨另给 `title`、`commentary`（`comment` 旗标）、`visualImpaired`（`visual_impaired` 或 `descriptions`），字幕轨另给 `sdh`（`hearing_impaired` 或 `captions`）与 `charset`（内嵌文字轨固定 `UTF-8`，点阵与隐藏式字幕不报）；标题先取 ffprobe 读到的串流标题，没有才取 Matroska 补充的轨道名称。这些值来自探测，旧探测缓存需重探才有（parser `media-metadata-v5`），详见 [媒体中继数据](media-metadata.md#內嵌軌標籤b3g152g163)。选轨偏好对内嵌轨同样适用 SDH 与评论音轨规则。
+
 只有当前有效的探测结果才会被使用：探测缓存状态为 ready、未过期，且若该资源由目录同步登记，探测时的大小与修改时间必须与最近一次扫描一致。否则资源仍会列出，但 `probed=false`，流列表为空，版本标签只来自文件名，大小取扫描记录。缓存中无法再通过白名单校验的文档同样按未探测处理。没有码率字段时以 大小×8÷时长 推算。
 
 两个响应都带固定的投递声明 `delivery`：`directPlay=true`，`transcoding`、`hls`、`dash`、`remux` 均为 `false`（G10.4）。

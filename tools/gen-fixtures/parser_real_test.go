@@ -188,6 +188,58 @@ func TestParseActualPinnedFFprobeFixtures(t *testing.T) {
 			t.Logf("actual %s: h264 %dx%d; audio=%d subtitles=%d chapters=%d; size=%d durationMicros=%d; sourceSHA256=%s unchanged", test.name, test.width, test.height, audioCount, subtitleCount, len(metadata.Chapters), *metadata.Format.SizeBytes, *metadata.Format.DurationMicros, hex.EncodeToString(beforeHash[:]))
 		})
 	}
+	t.Run("track_labels", func(t *testing.T) {
+		input, err := probe.Open(ctx, probe.Source{RootPath: output, RelativePath: "track-labels.mkv"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, runErr := runner.Run(ctx, process.Request{Tool: "ffprobe", Operation: "self_generated_fixture", Stdin: input.Stdin()})
+		input.Close()
+		if runErr != nil {
+			t.Fatal(runErr)
+		}
+		metadata, err := probe.ParseJSON(result.Stdout)
+		if err != nil {
+			t.Fatal(err)
+		}
+		title := func(s domain.MediaStream) string {
+			if s.Title == nil {
+				return ""
+			}
+			return *s.Title
+		}
+		var audio, subtitles []domain.MediaStream
+		for _, stream := range metadata.Streams {
+			switch stream.Kind {
+			case "audio":
+				audio = append(audio, stream)
+			case "subtitle":
+				subtitles = append(subtitles, stream)
+			}
+		}
+		if len(audio) != 3 || len(subtitles) != 2 {
+			t.Fatalf("track counts: %d audio, %d subtitle", len(audio), len(subtitles))
+		}
+		if title(audio[0]) != "Stereo mix" || audio[0].Comment != nil || audio[0].VisualImpaired != nil ||
+			title(audio[1]) != "Director commentary" || audio[1].Comment == nil || !*audio[1].Comment ||
+			title(audio[2]) != "Audio description" || audio[2].VisualImpaired == nil || !*audio[2].VisualImpaired {
+			t.Fatal("audio titles or dispositions mismatch")
+		}
+		if title(subtitles[0]) != "English SDH" || subtitles[0].HearingImpaired == nil || !*subtitles[0].HearingImpaired || subtitles[0].Captions != nil ||
+			title(subtitles[1]) != "Chinese subtitles" || subtitles[1].Captions != nil || subtitles[1].HearingImpaired != nil {
+			t.Fatal("subtitle titles or dispositions mismatch")
+		}
+		// The stored whitelist accepts the labelled metadata and the playback
+		// projection reports the labels.
+		if _, err := domain.MarshalProbeMetadata(metadata); err != nil {
+			t.Fatal(err)
+		}
+		source := domain.BuildPlaybackSource(domain.PlaybackSourceRecord{ID: "s", ContentType: "video/x-matroska", Metadata: &metadata})
+		if len(source.Audio) != 3 || !source.Audio[1].Commentary || !source.Audio[2].VisualImpaired || source.Audio[1].Title != "Director commentary" ||
+			len(source.Subtitles) != 2 || !source.Subtitles[0].SDH || source.Subtitles[1].SDH || source.Subtitles[0].Charset != "UTF-8" {
+			t.Fatal("playback projection mismatch")
+		}
+	})
 	t.Run("corrupt_refused", func(t *testing.T) {
 		path := filepath.Join(output, "corrupt.mkv")
 		before, err := os.ReadFile(path)

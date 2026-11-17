@@ -107,8 +107,8 @@ export const itemSources: Schemas["MediaSourceInfo"][] = [
     bitRate: 5_600_000,
     version: { displayName: "1080p", qualityScore: 80 },
     videoTracks: [{ index: 0, codec: "h264", profile: "High", level: 41, width: 1920, height: 1080, frameRate: { numerator: 24000, denominator: 1001 }, default: true, primary: true }],
-    audioTracks: [{ index: 1, codec: "eac3", channels: 6, channelLayout: "5.1", language: "eng", default: true, forced: false, atmos: false, sampleRate: 48000 }],
-    subtitleTracks: [{ index: 2, codec: "subrip", language: "eng", default: false, forced: false }],
+    audioTracks: [{ index: 1, codec: "eac3", channels: 6, channelLayout: "5.1", language: "eng", default: true, forced: false, atmos: false, commentary: false, visualImpaired: false, sampleRate: 48000 }],
+    subtitleTracks: [{ index: 2, codec: "subrip", language: "eng", default: false, forced: false, sdh: false }],
     externalTracks: [],
   },
 ];

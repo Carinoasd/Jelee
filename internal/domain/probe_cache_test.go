@@ -55,8 +55,8 @@ func TestProbeIdentityPinsAndBounds(t *testing.T) {
 	if err != nil || len(digest) != 64 {
 		t.Fatal("valid identity rejected", err)
 	}
-	// media-metadata-v4/schema 2 (MediaInfo stream details G19.1) changed this value.
-	if digest != "c7ad4adedd4fd9a734ebf92b75578ed235d5187d797e607d1f3accddb920247a" {
+	// media-metadata-v5/schema 2 (stage 10 B3 track labels; B4 shares this identity) changed this value.
+	if digest != "e884d05fdde6f2d0f002799a0503862486012269f941d743c136381e9443d109" {
 		t.Fatal("versioned identity encoding changed")
 	}
 	// Every current identity field either changes the key or fails validation;

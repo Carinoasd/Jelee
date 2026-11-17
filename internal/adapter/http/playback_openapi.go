@@ -109,7 +109,9 @@ func mediaSourceSchema(withURL bool) map[string]any {
 	subtitleTrack := map[string]any{
 		"index": nonNegative, "codec": str, "format": map[string]any{"type": "string", "description": "Canonical format clients declare: srt, ass, ssa, webvtt, mov_text, pgs, vobsub, dvb, eia_608 or text."},
 		"language": str, "default": boolean, "forced": boolean,
-		"title":       map[string]any{"type": "string", "description": "Matroska track name from the optional MediaInfo supplement."},
+		"sdh":         map[string]any{"type": "boolean", "description": "The hearing_impaired or captions disposition of the embedded track."},
+		"charset":     map[string]any{"type": "string", "description": "UTF-8 for an embedded text track; absent for bitmap and closed-caption tracks."},
+		"title":       map[string]any{"type": "string", "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text."},
 		"extractable": map[string]any{"type": "boolean", "description": "A SubRip, ASS, SSA or WebVTT track inside a Matroska/WebM source that the optional mkvtoolnix runtime can copy unconverted (G15.5)."},
 	}
 	attachment := map[string]any{
@@ -148,9 +150,12 @@ func mediaSourceSchema(withURL bool) map[string]any {
 		"audioTracks": array(objectSchema(map[string]any{
 			"index": nonNegative, "codec": str, "profile": str, "language": str, "channels": integer, "channelLayout": str,
 			"sampleRate": integer, "bitRate": integer, "default": boolean, "forced": boolean, "atmos": boolean,
-			"features": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"dolby_atmos", "dolby_truehd", "dts_x", "dts_hd_ma"}}, "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement."},
-		}, "index", "default", "forced", "atmos")),
-		"subtitleTracks": array(objectSchema(subtitleTrack, "index", "default", "forced")),
+			"title":          map[string]any{"type": "string", "description": "The track's own title tag, else the Matroska track name from the optional MediaInfo supplement. At most 256 bytes of plain text."},
+			"commentary":     map[string]any{"type": "boolean", "description": "The comment disposition: a commentary track."},
+			"visualImpaired": map[string]any{"type": "boolean", "description": "The visual_impaired or descriptions disposition: an audio description track."},
+			"features":       map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"dolby_atmos", "dolby_truehd", "dts_x", "dts_hd_ma"}}, "description": "Commercial audio formats from the probe's codec and profile, plus the optional MediaInfo supplement."},
+		}, "index", "default", "forced", "atmos", "commentary", "visualImpaired")),
+		"subtitleTracks": array(objectSchema(subtitleTrack, "index", "default", "forced", "sdh")),
 		"attachments":    array(objectSchema(attachment, "id", "fileName", "font")),
 		"chapters": map[string]any{"type": "array", "description": "Container chapters in start order (G09.1). Start times come from the probe; titles from the optional MediaInfo supplement when it lists the same chapters. Absent when the file has none.",
 			"items": objectSchema(map[string]any{"index": nonNegative, "startMicros": nonNegative, "title": str}, "index", "startMicros")},
