@@ -77,6 +77,7 @@ type Delivery interface {
 	ServeTrack(w http.ResponseWriter, r *http.Request, sourceID string, kind media.TrackKind, trackID string)
 	ServeExtracted(w http.ResponseWriter, r *http.Request, resolver media.ExtractedResolver, sourceID string, kind media.ExtractedKind, index int)
 	ServeUTF8Track(w http.ResponseWriter, r *http.Request, resolver media.UTF8Resolver, sourceID, trackID string, fallback bool)
+	ServeSidecarOCR(w http.ResponseWriter, r *http.Request, resolver media.SidecarOCRResolver, sourceID, trackID string)
 }
 
 func (o *LibraryOptions) valid() bool {

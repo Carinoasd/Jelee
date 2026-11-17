@@ -229,9 +229,18 @@ var OCRSubtitleCodecs = map[string]bool{"hdmv_pgs_subtitle": true, "dvd_subtitle
 // OCRTrackTitle is the display title of a derived OCR track: the source
 // track's title or language, followed by the OCR marker.
 func OCRTrackTitle(track PlaybackSubtitleTrack) string {
-	base := track.Title
+	return ocrTitle(track.Title, track.Language)
+}
+
+// OCRExternalTrackTitle is OCRTrackTitle for an external bitmap subtitle.
+func OCRExternalTrackTitle(track PlaybackExternalTrack) string {
+	return ocrTitle(track.Title, track.Language)
+}
+
+func ocrTitle(title, language string) string {
+	base := title
 	if base == "" {
-		base = track.Language
+		base = language
 	}
 	if base == "" {
 		return "OCR"
@@ -318,6 +327,12 @@ type PlaybackExternalTrack struct {
 	// HTTP adapter only for CharsetState convertible when the derived
 	// subtitle cache is wired. URL stays the default.
 	UTF8URL string `json:"utf8Url,omitempty"`
+	// OCRSource marks an external bitmap subtitle subtitle OCR can derive
+	// text from (G15.6): a ".sup" PGS stream, or a VobSub ".idx" paired with
+	// its ".sub". The file itself is still only delivered as it is.
+	OCRSource bool `json:"-"`
+	// OCR is the derived SRT track, set by the API layer once it exists.
+	OCR *PlaybackOCRTrack `json:"ocr,omitempty"`
 }
 
 // PlaybackDecision is the direct play verdict for one source. Reasons is
@@ -549,6 +564,7 @@ func playbackExternalTracks(sidecars []SidecarTrackRecord) []PlaybackExternalTra
 			track.ProbeState = InitialSidecarProbeState(t.Kind, t.Format)
 		}
 		track.Codec = externalTrackCodec(sidecar)
+		track.OCRSource = ExternalOCRSource(t.Kind, t.Format, sidecar.PairedTrackID)
 		if sidecar.Probe.State == SidecarProbeReady {
 			f := sidecar.Probe.Facts
 			track.DurationMicros = f.DurationMicros
@@ -560,6 +576,14 @@ func playbackExternalTracks(sidecars []SidecarTrackRecord) []PlaybackExternalTra
 		tracks = append(tracks, track)
 	}
 	return tracks
+}
+
+// ExternalOCRSource reports whether subtitle OCR reads an external track: a
+// ".sup" PGS stream, or a VobSub ".idx" whose ".sub" data file is paired
+// with it (the decoder needs both halves). An unpaired ".idx" or ".sub",
+// text subtitles and audio are not.
+func ExternalOCRSource(kind, format, pairedTrackID string) bool {
+	return kind == SidecarKindSubtitle && (format == "sup" || format == "idx" && pairedTrackID != "")
 }
 
 // externalTrackCodec prefers the probed codec over the extension. A ".sub"

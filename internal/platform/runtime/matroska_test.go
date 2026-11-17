@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -108,16 +109,23 @@ func TestMatroskaServiceWithoutRuntimeStaysWiredButUnavailable(t *testing.T) {
 }
 
 type fakeOCR struct {
-	item   subtitleocr.Item
-	err    error
-	calls  int
-	closed bool
-	seen   domain.ProbeSource
+	item    subtitleocr.Item
+	err     error
+	calls   int
+	closed  bool
+	seen    domain.ProbeSource
+	request subtitleocr.SidecarRequest
 }
 
 func (f *fakeOCR) Locate(_ context.Context, _ string, source domain.ProbeSource, _ int) (subtitleocr.Item, error) {
 	f.calls++
 	f.seen = source
+	return f.item, f.err
+}
+
+func (f *fakeOCR) LocateSidecar(_ context.Context, request subtitleocr.SidecarRequest) (subtitleocr.Item, error) {
+	f.calls++
+	f.request = request
 	return f.item, f.err
 }
 
@@ -181,5 +189,93 @@ func TestOCRServiceWithoutRuntimeLeavesOCROff(t *testing.T) {
 	logs.Reset()
 	if service := newOCRService(context.Background(), c, nil, directory, nil, logger); service != nil || !strings.Contains(logs.String(), "subtitle_ocr_temporary_unavailable") {
 		t.Fatalf("logs %s", logs.String())
+	}
+}
+
+// sidecarTracks is the authorized external track lookup: a .sup, a VobSub
+// .idx paired with its .sub, an unpaired .idx and a text subtitle.
+type sidecarTracks struct {
+	tracks map[string]media.Source
+	calls  []string
+	deny   string
+}
+
+func (s *sidecarTracks) ResolveTrack(_ context.Context, _ access.Principal, _ string, kind media.TrackKind, trackID string) (media.Source, error) {
+	s.calls = append(s.calls, trackID)
+	source, ok := s.tracks[trackID]
+	if !ok || kind != media.TrackSubtitle || trackID == s.deny {
+		return media.Source{}, media.ErrNotFound
+	}
+	return source, nil
+}
+
+func TestMatroskaServiceResolvesSidecarOCRAfterAuthorization(t *testing.T) {
+	const sup, idx, sub, lone, srt = "sup", "idx", "sub", "lone", "srt"
+	tracks := &sidecarTracks{tracks: map[string]media.Source{
+		sup:  {Root: "/library", RelativePath: "Film.chi.SUP", Language: "chi", DeviceID: "device", ShareStreams: 4},
+		idx:  {Root: "/library", RelativePath: "Film.eng.idx", Language: "eng", PairedTrackID: sub},
+		sub:  {Root: "/library", RelativePath: "Film.eng.sub", SubtitleKind: domain.SidecarSubtitleVobSub},
+		lone: {Root: "/library", RelativePath: "Other.idx"},
+		srt:  {Root: "/library", RelativePath: "Film.srt"},
+	}}
+	ocr := &fakeOCR{item: subtitleocr.Item{RelativePath: "track/rev/s0.srt"}}
+	service := &matroskaService{sources: &matroskaSources{}, tracks: tracks, extractor: &matroskaLocator{}, cacheRoot: "/cache", ocr: ocr, ocrRoot: "/ocr"}
+	principal := access.Principal{UserID: "u", SessionID: "s", Kind: access.ClientNative}
+	got, err := service.ResolveSidecarOCR(context.Background(), principal, "source", sup)
+	if err != nil || got.Root != "/ocr" || got.RelativePath != "track/rev/s0.srt" || got.DeviceID != "device" || got.ShareStreams != 4 {
+		t.Fatalf("%v %+v", err, got)
+	}
+	if r := ocr.request; r.Format != subtitleocr.SidecarPGS || r.Language != "chi" || r.SourceID != "source" || r.TrackID != sup || len(r.Files) != 1 || r.Files[0].RelativePath != "Film.chi.SUP" {
+		t.Fatalf("request %+v", r)
+	}
+	// The .sub half is authorized on its own before OCR reads it.
+	tracks.calls = nil
+	if _, err := service.ResolveSidecarOCR(context.Background(), principal, "source", idx); err != nil || !slices.Equal(tracks.calls, []string{idx, sub}) {
+		t.Fatalf("%v %v", err, tracks.calls)
+	}
+	if r := ocr.request; r.Format != subtitleocr.SidecarVobSub || len(r.Files) != 2 || r.Files[1].RelativePath != "Film.eng.sub" {
+		t.Fatalf("request %+v", r)
+	}
+	calls := ocr.calls
+	tracks.deny = sub
+	if _, err := service.ResolveSidecarOCR(context.Background(), principal, "source", idx); err != media.ErrNotFound || ocr.calls != calls {
+		t.Fatal("an unauthorized .sub reached OCR")
+	}
+	tracks.deny = ""
+	for _, id := range []string{lone, srt, "missing"} {
+		if _, err := service.ResolveSidecarOCR(context.Background(), principal, "source", id); err != media.ErrNotFound || ocr.calls != calls {
+			t.Fatalf("%s reached OCR", id)
+		}
+	}
+	for _, err := range []error{subtitleocr.ErrPending, subtitleocr.ErrNotFound} {
+		ocr.err = err
+		if _, got := service.ResolveSidecarOCR(context.Background(), principal, "source", sup); got != media.ErrNotFound {
+			t.Fatalf("%v mapped to %v", err, got)
+		}
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := service.ResolveSidecarOCR(cancelled, principal, "source", sup); !errors.Is(err, context.Canceled) {
+		t.Fatal("cancellation not reported")
+	}
+	// Without OCR, or without the track lookup, nothing is derived; the
+	// track is still authorized first.
+	tracks.calls = nil
+	plain := &matroskaService{tracks: tracks, extractor: &matroskaLocator{}}
+	if _, err := plain.ResolveSidecarOCR(context.Background(), principal, "source", sup); err != media.ErrNotFound || len(tracks.calls) != 1 {
+		t.Fatal("sidecar OCR without OCR")
+	}
+	if _, err := (&matroskaService{ocr: ocr}).ResolveSidecarOCR(context.Background(), principal, "source", sup); err != media.ErrNotFound {
+		t.Fatal("sidecar OCR without the track lookup")
+	}
+}
+
+func TestOCRServiceConfigCarriesEverySetting(t *testing.T) {
+	c := config.SubtitleOCRConfig{Enable: true, CacheRoot: "/ocr", CacheMaxBytes: 1 << 30, Languages: []string{"chi_tra", "eng"}, PicturesPerMinute: 90, Concurrency: 3, QueueSize: 7}
+	logger := slog.New(slog.DiscardHandler)
+	got := ocrServiceConfig(c, "/work", "identity", nil, logger)
+	if got.CacheRoot != "/ocr" || got.MaxCacheBytes != 1<<30 || got.WorkRoot != "/work" || !slices.Equal(got.Languages, c.Languages) || got.PicturesPerMinute != 90 ||
+		got.Concurrency != 3 || got.QueueSize != 7 || got.Identity != "identity" || got.Logger != logger {
+		t.Fatalf("%+v", got)
 	}
 }

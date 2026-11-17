@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -155,5 +156,80 @@ func TestUpstreamExternalTracksNumbering(t *testing.T) {
 		if got, ok := ResolveTrackReport(source, PlaybackTrackReport{AudioIndex: &index}); got != c.want || ok != c.ok {
 			t.Fatalf("audio index %d: %+v %v, want %+v %v", c.index, got, ok, c.want, c.ok)
 		}
+	}
+}
+
+// TestUpstreamOCRSlotsNumberExternalBitmapsAfterEmbedded: external .sup
+// files and paired .idx files get OCR slots after the embedded bitmap
+// tracks, so every subtitle number of a source without them stays as it
+// was; only the external audio after them moves.
+func TestUpstreamOCRSlotsNumberExternalBitmapsAfterEmbedded(t *testing.T) {
+	const (
+		sup, idx, sub = "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0b1", "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0b2", "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0b3"
+		lone, audio   = "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0b4", "0b4ad0fc-4a6f-4e0e-9f43-7d2f7dc8a0b5"
+	)
+	base := PlaybackSource{ID: "src",
+		Video:     []PlaybackVideoTrack{{Index: 0}},
+		Subtitles: []PlaybackSubtitleTrack{{Index: 1, Codec: "hdmv_pgs_subtitle", OCRSource: true}},
+		External: []PlaybackExternalTrack{
+			{ID: sessionSubtitleID, Kind: SidecarKindSubtitle, Format: "srt"},
+			{ID: audio, Kind: SidecarKindAudio, Format: "mka"},
+		},
+	}
+	before := UpstreamOCRSlots(base)
+	if len(before) != 1 || before[0].Index != 3 || before[0].Embedded == nil || before[0].Embedded.Index != 1 {
+		t.Fatalf("slots %+v", before)
+	}
+	if a := UpstreamExternalAudio(base); len(a) != 1 || a[0].Index != 4 {
+		t.Fatalf("audio %+v", a)
+	}
+	withBitmaps := base
+	withBitmaps.External = append(slices.Clone(base.External),
+		PlaybackExternalTrack{ID: sup, Kind: SidecarKindSubtitle, Format: "sup", OCRSource: true},
+		PlaybackExternalTrack{ID: idx, Kind: SidecarKindSubtitle, Format: "idx", PairedTrackID: sub, OCRSource: true},
+		PlaybackExternalTrack{ID: lone, Kind: SidecarKindSubtitle, Format: "idx"},
+	)
+	// Every external subtitle file keeps its own slot; the embedded OCR
+	// slot moves only by the external subtitle files, as before.
+	subs := UpstreamExternalSubtitles(withBitmaps)
+	if len(subs) != 4 || subs[0].Index != 2 || subs[1].Track.ID != sup || subs[1].Index != 3 || subs[3].Index != 5 {
+		t.Fatalf("subtitles %+v", subs)
+	}
+	slots := UpstreamOCRSlots(withBitmaps)
+	if len(slots) != 3 || slots[0].Embedded == nil || slots[0].Index != 6 || slots[1].External == nil || slots[1].External.ID != sup || slots[1].Index != 7 ||
+		slots[2].External == nil || slots[2].External.ID != idx || slots[2].Index != 8 {
+		t.Fatalf("slots %+v", slots)
+	}
+	if a := UpstreamExternalAudio(withBitmaps); len(a) != 1 || a[0].Index != 9 {
+		t.Fatalf("audio %+v", a)
+	}
+}
+
+func TestExternalOCRSource(t *testing.T) {
+	for _, c := range []struct {
+		kind, format, paired string
+		want                 bool
+	}{
+		{SidecarKindSubtitle, "sup", "", true},
+		{SidecarKindSubtitle, "idx", "pair", true},
+		{SidecarKindSubtitle, "idx", "", false},
+		{SidecarKindSubtitle, "sub", "", false},
+		{SidecarKindSubtitle, "srt", "", false},
+		{SidecarKindAudio, "sup", "", false},
+	} {
+		if got := ExternalOCRSource(c.kind, c.format, c.paired); got != c.want {
+			t.Errorf("%+v: %v", c, got)
+		}
+	}
+	tracks := playbackExternalTracks([]SidecarTrackRecord{
+		{ID: "idx", Track: SidecarTrack{Kind: SidecarKindSubtitle, Format: "idx"}, PairedTrackID: "sub"},
+		{ID: "sub", Track: SidecarTrack{Kind: SidecarKindSubtitle, Format: "sub"}, SubtitleKind: SidecarSubtitleVobSub},
+		{ID: "sup", Track: SidecarTrack{Kind: SidecarKindSubtitle, Format: "sup", Title: "Commentary"}},
+	})
+	if len(tracks) != 2 || !tracks[0].OCRSource || !tracks[1].OCRSource {
+		t.Fatalf("%+v", tracks)
+	}
+	if OCRExternalTrackTitle(tracks[1]) != "Commentary (OCR)" || OCRExternalTrackTitle(PlaybackExternalTrack{Language: "chi"}) != "chi (OCR)" || OCRExternalTrackTitle(PlaybackExternalTrack{}) != "OCR" {
+		t.Fatal("title")
 	}
 }

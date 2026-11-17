@@ -24,6 +24,7 @@ type fakeExtracted struct {
 	ocr       bool
 	calls     int
 	kinds     []media.ExtractedKind
+	tracks    []string
 }
 
 func (f *fakeExtracted) Available() bool { return f.available }
@@ -51,6 +52,22 @@ func (f *fakeExtracted) ResolveExtracted(_ context.Context, p access.Principal, 
 		return media.Source{Root: f.root, RelativePath: sourceID + "/ocr/s5.srt", ContentType: "text/html"}, nil
 	}
 	return media.Source{}, media.ErrNotFound
+}
+
+const (
+	testSupTrackID = "00000000-0000-4000-8000-0000000000d1"
+	testIdxTrackID = "00000000-0000-4000-8000-0000000000d2"
+)
+
+// ResolveSidecarOCR: the external .sup has its SRT; everything else is
+// pending or not a bitmap subtitle.
+func (f *fakeExtracted) ResolveSidecarOCR(_ context.Context, p access.Principal, source, trackID string) (media.Source, error) {
+	f.calls++
+	f.tracks = append(f.tracks, trackID)
+	if p.Kind != access.ClientNative || source != sourceID || trackID != testSupTrackID {
+		return media.Source{}, media.ErrNotFound
+	}
+	return media.Source{Root: f.root, RelativePath: sourceID + "/ocr/s5.srt", ContentType: "text/html"}, nil
 }
 
 func extractedFixture(t *testing.T, enabled bool, extracted *fakeExtracted) *fixture {
@@ -338,6 +355,95 @@ func TestExtractedBitmapSubtitleRoutes(t *testing.T) {
 	for name, data := range files {
 		if after, err := os.ReadFile(filepath.Join(directory, name)); err != nil || string(after) != string(data) {
 			t.Fatal("delivery changed the cached copy")
+		}
+	}
+}
+
+func TestSidecarOCRRouteDeliversDerivedSRTToNativeSessionsOnly(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, sourceID, "ocr")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	srt := []byte("1\n00:00:01,000 --> 00:00:02,000\nexternal\n\n")
+	if err := os.WriteFile(filepath.Join(directory, "s5.srt"), srt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	extracted := &fakeExtracted{root: root, available: true, ocr: true}
+	f := extractedFixtureWith(t, true, true, extracted)
+	native := strings.Repeat("n", 43)
+	path := "/api/v1/sources/" + sourceID + "/subtitles/" + testSupTrackID + "/ocr"
+	w := f.request(http.MethodGet, path, native)
+	h := w.Header()
+	if w.Code != 200 || w.Body.String() != string(srt) || h.Get("Content-Type") != "application/x-subrip; charset=UTF-8" || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") != "sandbox; default-src 'none'" {
+		t.Fatalf("%d %q %v", w.Code, w.Body.String(), h)
+	}
+	if w := f.request(http.MethodHead, path, native); w.Code != 200 || w.Body.Len() != 0 {
+		t.Fatalf("head %d", w.Code)
+	}
+	calls := extracted.calls
+	assertProblem(t, f.request(http.MethodGet, path, webToken), 403, "web_playback_disabled")
+	assertProblem(t, f.request(http.MethodGet, path, ""), 401, "authentication_required")
+	assertProblem(t, f.request(http.MethodGet, path+"?subtitleCodec=webvtt", native), 409, "transcode_disabled")
+	assertProblem(t, f.request(http.MethodGet, path+"?x=1", native), 400, "invalid_request")
+	assertProblem(t, f.request(http.MethodGet, "/api/v1/sources/"+sourceID+"/subtitles/not-an-id/ocr", native), 404, "not_found")
+	if extracted.calls != calls {
+		t.Fatal("a refused request reached the resolver")
+	}
+	// Pending, missing and text tracks look alike.
+	assertProblem(t, f.request(http.MethodGet, "/api/v1/sources/"+sourceID+"/subtitles/"+testIdxTrackID+"/ocr", native), 404, "not_found")
+	// OCR not enabled, or its runtime missing: no derived track.
+	disabled := extractedFixtureWith(t, true, false, &fakeExtracted{root: root, available: true, ocr: true})
+	assertProblem(t, disabled.request(http.MethodGet, path, native), 404, "not_found")
+	noRuntime := &fakeExtracted{root: root, available: true}
+	assertProblem(t, extractedFixtureWith(t, true, true, noRuntime).request(http.MethodGet, path, native), 404, "not_found")
+	if noRuntime.calls != 0 {
+		t.Fatal("OCR without its runtime reached the resolver")
+	}
+	// The hidden status opt-in applies to this lookup too.
+	hidden := hiddenExtracted{&fakeExtracted{available: true, ocr: true}}
+	if _, err := hidden.ResolveSidecarOCR(context.Background(), access.Principal{Kind: access.ClientNative}, sourceID, testIdxTrackID); err != domain.ErrForbidden {
+		t.Fatal("hidden status opt-in not applied")
+	}
+	if _, err := (hiddenExtracted{unavailableExtracted{}}).ResolveSidecarOCR(context.Background(), access.Principal{Kind: access.ClientNative}, sourceID, testSupTrackID); err != domain.ErrForbidden {
+		t.Fatal("hidden status without a sidecar resolver")
+	}
+}
+
+func TestPlaybackListsExternalOCRTracksOnlyWhenTheirTextExists(t *testing.T) {
+	principal := access.Principal{Kind: access.ClientNative, UserID: "u"}
+	build := func() domain.PlaybackSource {
+		return domain.PlaybackSource{ID: sourceID, External: []domain.PlaybackExternalTrack{
+			{ID: testSupTrackID, Kind: domain.SidecarKindSubtitle, Format: "sup", Language: "chi", OCRSource: true},
+			{ID: testIdxTrackID, Kind: domain.SidecarKindSubtitle, Format: "idx", PairedTrackID: sourceID, OCRSource: true},
+			{ID: "00000000-0000-4000-8000-0000000000d3", Kind: domain.SidecarKindSubtitle, Format: "srt"},
+		}}
+	}
+	extracted := &fakeExtracted{available: true, ocr: true}
+	s := &Server{extracted: extracted}
+	s.cfg.SubtitleOCR.Enable = true
+	source := build()
+	s.decorateOCR(context.Background(), principal, &source)
+	if got := source.External[0].OCR; got == nil || got.Format != "srt" || got.Title != "chi (OCR)" || got.URL != "/api/v1/sources/"+sourceID+"/subtitles/"+testSupTrackID+"/ocr" {
+		t.Fatalf("ready track %+v", got)
+	}
+	if source.External[1].OCR != nil || source.External[2].OCR != nil {
+		t.Fatal("pending or text track listed an OCR result")
+	}
+	if len(extracted.tracks) != 2 {
+		t.Fatalf("asked for %v; only bitmap files are looked up", extracted.tracks)
+	}
+	for name, server := range map[string]*Server{
+		"no OCR runtime": {extracted: &fakeExtracted{available: true}},
+		"not enabled":    {extracted: &fakeExtracted{available: true, ocr: true}},
+	} {
+		if name != "not enabled" {
+			server.cfg.SubtitleOCR.Enable = true
+		}
+		source := build()
+		server.decorateOCR(context.Background(), principal, &source)
+		if source.External[0].OCR != nil {
+			t.Fatalf("%s listed OCR", name)
 		}
 	}
 }

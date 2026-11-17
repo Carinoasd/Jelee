@@ -102,3 +102,37 @@ func (h *Handler) ServeExtracted(w http.ResponseWriter, r *http.Request, resolve
 		return source, nil
 	})
 }
+
+// SidecarOCRResolver is implemented outside the delivery packages, next to
+// ExtractedResolver. It applies the same authorization as
+// Resolver.ResolveTrack to an external bitmap subtitle (a ".sup" file, or a
+// VobSub ".idx" together with its paired ".sub") first, then returns the
+// SubRip text subtitle OCR derived from it (G15.6) as a Source rooted at
+// the rebuildable OCR cache. Until that result exists, and for any track
+// OCR does not read, the answer is ErrNotFound. The external files are only
+// read; the derived SRT is an additional track, never a replacement.
+type SidecarOCRResolver interface {
+	ResolveSidecarOCR(ctx context.Context, principal access.Principal, sourceID, trackID string) (Source, error)
+}
+
+// ServeSidecarOCR delivers the OCR-derived SRT of one external bitmap
+// subtitle through the same production guard, native-only rule, ACL,
+// limits, revocation and copy path as ServeTrack.
+func (h *Handler) ServeSidecarOCR(w http.ResponseWriter, r *http.Request, resolver SidecarOCRResolver, sourceID, trackID string) {
+	if resolver == nil || trackID == "" {
+		sourceID = ""
+	}
+	timeout := h.options.ExtractTimeout
+	if timeout <= 0 {
+		timeout = DefaultExtractTimeout
+	}
+	h.serveWithin(w, r, sourceID, timeout, func(ctx context.Context, principal access.Principal) (Source, error) {
+		source, err := resolver.ResolveSidecarOCR(ctx, principal, sourceID, trackID)
+		if err != nil {
+			return Source{}, err
+		}
+		source.ETag = ""
+		source.ContentType = ExtractedContentType(ExtractedOCRSubtitle, path.Ext(source.RelativePath))
+		return source, nil
+	})
+}

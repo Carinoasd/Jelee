@@ -26950,6 +26950,216 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources/{id}/subtitles/{trackId}/ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a SubRip subtitle recognized from an external bitmap subtitle by OCR
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, listed with an ocr object under externalTracks of GET /api/v1/items/{id}/playback; the source may be in any container. Subtitle OCR (G15.6, off by default) reads the external files in place with the same decoders as embedded bitmap tracks (no mkvextract), recognizes the pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache. The external files and the media file are never changed or replaced; the original stays deliverable at /api/v1/sources/{id}/subtitles/{trackId}. Files larger than 256 MiB are not read. Until the result exists, and for a missing, invisible, text or unpaired track, the answer is that of a missing track. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /**
+         * Read a SubRip subtitle recognized from an external bitmap subtitle by OCR
+         * @description Native sessions only; web sessions get 403 web_playback_disabled. trackId is an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, listed with an ocr object under externalTracks of GET /api/v1/items/{id}/playback; the source may be in any container. Subtitle OCR (G15.6, off by default) reads the external files in place with the same decoders as embedded bitmap tracks (no mkvextract), recognizes the pictures in the background with the optional, sandboxed Tesseract runtime, rate limited and with bounded concurrency, and keeps the result as an additional SRT in a rebuildable cache. The external files and the media file are never changed or replaced; the original stays deliverable at /api/v1/sources/{id}/subtitles/{trackId}. Files larger than 256 MiB are not read. Until the result exists, and for a missing, invisible, text or unpaired track, the answer is that of a missing track. Content-Type is application/x-subrip; charset=UTF-8. Range, HEAD, conditional requests, playback and bandwidth limits and revocation behave as for /api/v1/sources/{id}/stream. Responses carry X-Content-Type-Options: nosniff and a sandbox Content-Security-Policy.
+         */
+        head: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "If-Range"?: string;
+                    Range?: string;
+                };
+                path: {
+                    id: string;
+                    trackId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description HTTP 200 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 206 */
+                206: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 409 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 416 */
+                416: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources/{id}/subtitles/{trackId}/utf8": {
         parameters: {
             query?: never;
@@ -37446,6 +37656,15 @@ export type components = {
                 kind: "subtitle" | "audio";
                 language?: string;
                 languages?: string[];
+                /** @description Present on an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the track for OCR; the external files are unchanged and url still delivers them as they are. */
+                ocr?: {
+                    /** @enum {string} */
+                    format: "srt";
+                    /** @description The external track's title or language followed by " (OCR)", marking the text as recognized, not authored. */
+                    title: string;
+                    /** @description /api/v1/sources/{id}/subtitles/{trackId}/ocr. Native sessions only. */
+                    url: string;
+                };
                 /**
                  * Format: uuid
                  * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.
@@ -37551,6 +37770,15 @@ export type components = {
                     kind: "subtitle" | "audio";
                     language?: string;
                     languages?: string[];
+                    /** @description Present on an external .sup (PGS) subtitle, or a VobSub .idx paired with its .sub, once subtitle OCR (G15.6, off by default) has derived an additional SRT from it. Listing playback info queues the track for OCR; the external files are unchanged and url still delivers them as they are. */
+                    ocr?: {
+                        /** @enum {string} */
+                        format: "srt";
+                        /** @description The external track's title or language followed by " (OCR)", marking the text as recognized, not authored. */
+                        title: string;
+                        /** @description /api/v1/sources/{id}/subtitles/{trackId}/ocr. Native sessions only. */
+                        url: string;
+                    };
                     /**
                      * Format: uuid
                      * @description On a VobSub .idx track: the .sub data file with the same name, delivered through the same subtitle route. That .sub is not listed as a track of its own.

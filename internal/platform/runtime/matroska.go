@@ -32,7 +32,10 @@ type extractor interface {
 // and answers every item like a missing one, so the configured routes keep
 // their meaning while doctor reports the missing tool.
 type matroskaService struct {
-	sources   sourceResolver
+	sources sourceResolver
+	// tracks authorizes external bitmap subtitles for OCR; nil leaves
+	// them without derived tracks.
+	tracks    trackResolver
 	extractor extractor
 	cacheRoot string
 	reason    string
@@ -104,6 +107,9 @@ func (m *matroskaService) Close() error {
 // platform disables only this capability, with a fixed reason.
 func newMatroskaService(c config.Config, sources sourceResolver, budget app.WorkBudget, logger *slog.Logger) *matroskaService {
 	service := &matroskaService{sources: sources, cacheRoot: c.Matroska.CacheRoot, reason: "runtime_unavailable"}
+	if tracks, ok := sources.(trackResolver); ok {
+		service.tracks = tracks
+	}
 	defer func() {
 		if service.extractor == nil {
 			logger.Warn("matroska extraction unavailable; embedded subtitles and fonts are not served", "component", "matroska", "code", "matroska_"+service.reason)
