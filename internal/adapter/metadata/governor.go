@@ -2,11 +2,45 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/MoYuanCN/Jelee/internal/platform/outbound"
 )
+
+// ErrDailyBudget reports that the configured daily request limit of this
+// adapter is spent. No request is sent until the next UTC day.
+var ErrDailyBudget = errors.New("tmdb_daily_budget_exhausted")
+
+// Governance is the request budget of one TMDB adapter. It is process local:
+// separate processes or adapters each enforce their own copy.
+type Governance struct {
+	// RequestInterval is the minimum spacing between request starts.
+	RequestInterval time.Duration
+	// MaxConcurrent bounds requests holding capacity, including waits.
+	MaxConcurrent int
+	// DailyLimit bounds request attempts (retries included) per UTC day;
+	// zero means no daily limit.
+	DailyLimit int
+}
+
+// Governance bounds shared with the configuration loader.
+const (
+	MinRequestInterval = 20 * time.Millisecond
+	MaxRequestInterval = time.Minute
+	MaxConcurrentLimit = 32
+	MaxDailyLimit      = 10_000_000
+)
+
+// DefaultGovernance is the budget used when nothing is configured.
+func DefaultGovernance() Governance {
+	return Governance{RequestInterval: 250 * time.Millisecond, MaxConcurrent: 4}
+}
+
+func (g Governance) valid() bool {
+	return g.RequestInterval >= MinRequestInterval && g.RequestInterval <= MaxRequestInterval && g.MaxConcurrent >= 1 && g.MaxConcurrent <= MaxConcurrentLimit && g.DailyLimit >= 0 && g.DailyLimit <= MaxDailyLimit
+}
 
 // requestGovernor is owned by one provider adapter, with no background workers
 // or reservations that survive a cancelled waiter.
@@ -16,12 +50,19 @@ type requestGovernor struct {
 	next     time.Time
 	cooldown time.Time
 	interval time.Duration
+	daily    int
+	day      time.Time
+	used     int
 	now      func() time.Time
 	wait     func(context.Context, time.Duration) error
 }
 
 func newRequestGovernor() *requestGovernor {
-	return &requestGovernor{slots: make(chan struct{}, 4), interval: 250 * time.Millisecond, now: time.Now, wait: waitRetry}
+	return newGovernedRequests(DefaultGovernance())
+}
+
+func newGovernedRequests(g Governance) *requestGovernor {
+	return &requestGovernor{slots: make(chan struct{}, g.MaxConcurrent), interval: g.RequestInterval, daily: g.DailyLimit, now: time.Now, wait: waitRetry}
 }
 
 func (g *requestGovernor) acquire(ctx context.Context) (func(), error) {
@@ -46,6 +87,18 @@ func (g *requestGovernor) acquire(ctx context.Context) (func(), error) {
 			ready = g.cooldown
 		}
 		if !ready.After(now) {
+			if g.daily > 0 {
+				day := now.UTC().Truncate(24 * time.Hour)
+				if !day.Equal(g.day) {
+					g.day, g.used = day, 0
+				}
+				if g.used >= g.daily {
+					g.mu.Unlock()
+					release()
+					return nil, ErrDailyBudget
+				}
+				g.used++
+			}
 			g.next = now.Add(g.interval)
 			g.mu.Unlock()
 			return release, nil

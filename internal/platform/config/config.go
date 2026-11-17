@@ -88,6 +88,8 @@ type Config struct {
 	SetupTokenFile string `json:"setupTokenFile"`
 	// Dev is the developer mode section (G45); see DevConfig.
 	Dev DevConfig `json:"dev"`
+	// TMDB is the request budget of the TMDB adapter (G14.3).
+	TMDB TMDBConfig `json:"tmdb"`
 }
 
 func Load() (Config, error) { return LoadWith(os.LookupEnv) }
@@ -227,6 +229,9 @@ func LoadWith(lookup func(string) (string, bool)) (Config, error) {
 	if err := c.Webhooks.loadEnvironment(lookup); err != nil {
 		return c, err
 	}
+	if err := c.TMDB.loadEnvironment(lookup); err != nil {
+		return c, err
+	}
 	return c, c.Validate()
 }
 
@@ -256,6 +261,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Dev.Validate(); err != nil {
+		return err
+	}
+	if err := c.TMDB.Validate(); err != nil {
 		return err
 	}
 	u, err := url.Parse(c.DatabaseURL)

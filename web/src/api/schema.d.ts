@@ -18716,6 +18716,118 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metadata/tmdb/find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find TMDB movie and series candidates by an external identifier (administrator)
+         * @description Resolves an IMDb title (tt + 7–10 digits), TVDB (positive int32) or Wikidata (Q + digits) identifier through the governed TMDB adapter. An unknown identifier answers 200 with empty lists. No candidate is selected and nothing is written.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Canonical identifier of the named source. */
+                    id: string;
+                    /** @description Explicit administrator override; omitted uses the selected library language, then authenticated user locale, then zh-CN. */
+                    language?: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+                    /** @description Optional existing library; administrator session is rechecked before any provider request. */
+                    libraryId?: string;
+                    source: "imdb_id" | "tvdb_id" | "wikidata_id";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Movie and series candidates for review; every candidate requires confirmation. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ExternalIDMatches"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metadata/tmdb/movies": {
         parameters: {
             query?: never;
@@ -19485,6 +19597,221 @@ export type paths = {
                     content: {
                         "application/json": {
                             data: components["schemas"]["EpisodeCandidate"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List TMDB season poster or episode still candidates for administrator confirmation */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Use this library's ordered image languages; omitted uses profile language defaults. */
+                    libraryId?: string;
+                };
+                header?: never;
+                path: {
+                    episode: number;
+                    id: number;
+                    season: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ordered episode still candidates with original provider URLs; every image needs confirmation. No image download or artwork write. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataImages"];
+                        };
+                    };
+                };
+                /** @description HTTP 400 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 401 */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 403 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 404 */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 408 */
+                408: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description HTTP 503 */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Jelee error envelope with code, message, details and traceId; see the Error schema. */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/tmdb/series/{id}/seasons/{season}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List TMDB season poster or episode still candidates for administrator confirmation */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Use this library's ordered image languages; omitted uses profile language defaults. */
+                    libraryId?: string;
+                };
+                header?: never;
+                path: {
+                    id: number;
+                    season: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ordered season poster candidates with original provider URLs; every image needs confirmation. No image download or artwork write. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetadataImages"];
                         };
                     };
                 };
@@ -34524,6 +34851,19 @@ export type components = {
          * @enum {string}
          */
         ErrorCode: "account_busy" | "app_password_required" | "auth_rate_limited" | "authentication_required" | "body_too_large" | "client_blocked" | "client_pending_approval" | "client_rate_limited" | "client_read_only" | "confirmation_required" | "conflict" | "csrf_failed" | "custom_css_rejected" | "device_stream_limit" | "devmode_inactive" | "devmode_toggle_unavailable" | "feature_removed" | "forbidden" | "ignore_unavailable" | "image_busy" | "image_too_large" | "image_unavailable" | "image_unsupported" | "internal_error" | "invalid_host" | "invalid_password" | "invalid_range" | "invalid_request" | "invalid_two_factor_code" | "job_busy" | "job_queue_full" | "jobs_busy" | "last_admin" | "log_component_mandatory" | "login_challenge_invalid" | "lookup_timeout" | "metadata_unavailable" | "method_not_allowed" | "metrics_busy" | "native_login_disabled" | "nfo_cache_capacity" | "nfo_disabled" | "nfo_identity_mismatch" | "nfo_invalidated" | "nfo_reader_unavailable" | "nfo_write_disabled" | "not_found" | "not_ready" | "playback_busy" | "precondition_failed" | "probe_cache_capacity" | "probe_disabled" | "probe_identity_mismatch" | "probe_invalidated" | "probe_runtime_unavailable" | "request_timeout" | "scan_limit" | "scan_unavailable" | "schedule_kind_not_allowed" | "session_limit" | "setup_completed" | "setup_required" | "setup_step_order" | "setup_token_invalid" | "setup_validation_failed" | "share_forbidden" | "share_playback_disabled" | "share_read_only" | "share_unavailable" | "stats_export_limit" | "stream_limit" | "subtitle_cache_unavailable" | "transcode_disabled" | "two_factor_unavailable" | "unsupported_media_type" | "user_stream_limit" | "version_identity_conflict" | "version_item_busy" | "version_merge_incompatible" | "version_undo_unavailable" | "web_playback_disabled" | "webhook_target_denied";
+        ExternalIDMatches: {
+            externalId: string;
+            /** @enum {string} */
+            externalSource: "imdb_id" | "tvdb_id" | "wikidata_id";
+            /** Format: date-time */
+            fetchedAt: string;
+            /** @enum {string} */
+            language: "zh-CN" | "zh-TW" | "ja-JP" | "en-US";
+            movies: components["schemas"]["MovieCandidate"][];
+            /** @constant */
+            needsConfirmation: true;
+            series: components["schemas"]["SeriesCandidate"][];
+        };
         /** @description Committed counters of a library-wide external metadata removal; every item is checkpointed. removed items lost at least one provider field (fields counts them); kept items have provider fields left only because they are locked or required; skipped items had no provider field left or were deleted meanwhile; failed items were refused on their own and left unchanged; reviews counts deleted automatic match reviews. */
         ExternalMetadataRemovalJobState: {
             /** @description The last item the job finished with; items are visited in ascending ID order and a resumed job continues after it. */
@@ -35487,7 +35827,7 @@ export type components = {
             filePath: string;
             height: number;
             /** @enum {string} */
-            kind: "poster" | "backdrop";
+            kind: "poster" | "backdrop" | "still";
             /** @enum {string} */
             language: "zh" | "ja" | "en" | "null";
             /** @constant */
@@ -35500,14 +35840,32 @@ export type components = {
         };
         MetadataImages: {
             candidates: components["schemas"]["MetadataImageCandidate"][];
+            /**
+             * Format: int32
+             * @description Episode images only.
+             */
+            episodeNumber?: number;
             /** Format: date-time */
             fetchedAt: string;
             /** @description Ordered image language preference; string null means untagged images. Omitted update field preserves current preferences; JSON null is invalid. Regional Chinese variants share zh. */
             imageLanguages: ("zh" | "ja" | "en" | "null")[];
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Requested movie or series ID; for season and episode images the upstream season or episode ID.
+             */
             providerId: number;
             /** @enum {string} */
-            resource: "movie" | "series";
+            resource: "movie" | "series" | "season" | "episode";
+            /**
+             * Format: int32
+             * @description Season and episode images only.
+             */
+            seasonNumber?: number;
+            /**
+             * Format: int32
+             * @description Season and episode images only.
+             */
+            seriesId?: number;
             /** @constant */
             source: "TMDB";
             /** Format: uri */

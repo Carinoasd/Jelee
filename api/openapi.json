@@ -3981,6 +3981,64 @@
           ]
         }
       },
+      "ExternalIDMatches": {
+        "additionalProperties": false,
+        "properties": {
+          "externalId": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "externalSource": {
+            "enum": [
+              "imdb_id",
+              "tvdb_id",
+              "wikidata_id"
+            ],
+            "type": "string"
+          },
+          "fetchedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "language": {
+            "enum": [
+              "zh-CN",
+              "zh-TW",
+              "ja-JP",
+              "en-US"
+            ],
+            "type": "string"
+          },
+          "movies": {
+            "items": {
+              "$ref": "#/components/schemas/MovieCandidate"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "needsConfirmation": {
+            "const": true,
+            "type": "boolean"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesCandidate"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": [
+          "externalSource",
+          "externalId",
+          "language",
+          "fetchedAt",
+          "movies",
+          "series",
+          "needsConfirmation"
+        ],
+        "type": "object"
+      },
       "ExternalMetadataRemovalJobState": {
         "additionalProperties": false,
         "description": "Committed counters of a library-wide external metadata removal; every item is checkpointed. removed items lost at least one provider field (fields counts them); kept items have provider fields left only because they are locked or required; skipped items had no provider field left or were deleted meanwhile; failed items were refused on their own and left unchanged; reviews counts deleted automatic match reviews.",
@@ -7620,7 +7678,8 @@
           "kind": {
             "enum": [
               "poster",
-              "backdrop"
+              "backdrop",
+              "still"
             ],
             "type": "string"
           },
@@ -7679,6 +7738,12 @@
             "maxItems": 1000,
             "type": "array"
           },
+          "episodeNumber": {
+            "description": "Episode images only.",
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
           "fetchedAt": {
             "format": "date-time",
             "type": "string"
@@ -7700,6 +7765,7 @@
             "uniqueItems": true
           },
           "providerId": {
+            "description": "Requested movie or series ID; for season and episode images the upstream season or episode ID.",
             "format": "int32",
             "minimum": 1,
             "type": "integer"
@@ -7707,9 +7773,23 @@
           "resource": {
             "enum": [
               "movie",
-              "series"
+              "series",
+              "season",
+              "episode"
             ],
             "type": "string"
+          },
+          "seasonNumber": {
+            "description": "Season and episode images only.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seriesId": {
+            "description": "Season and episode images only.",
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
           },
           "source": {
             "const": "TMDB",
@@ -45756,6 +45836,206 @@
         "x-jelee-role": "administrator"
       }
     },
+    "/api/v1/metadata/tmdb/find": {
+      "get": {
+        "description": "Resolves an IMDb title (tt + 7–10 digits), TVDB (positive int32) or Wikidata (Q + digits) identifier through the governed TMDB adapter. An unknown identifier answers 200 with empty lists. No candidate is selected and nothing is written.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "enum": [
+                "imdb_id",
+                "tvdb_id",
+                "wikidata_id"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Canonical identifier of the named source.",
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maxLength": 12,
+              "minLength": 1,
+              "pattern": "^(tt[0-9]{7,10}|[1-9][0-9]{0,9}|Q[1-9][0-9]{0,9})$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Explicit administrator override; omitted uses the selected library language, then authenticated user locale, then zh-CN.",
+            "in": "query",
+            "name": "language",
+            "schema": {
+              "enum": [
+                "zh-CN",
+                "zh-TW",
+                "ja-JP",
+                "en-US"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Use this library's metadata language unless language is given.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional existing library; administrator session is rechecked before any provider request.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ExternalIDMatches"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Movie and series candidates for review; every candidate requires confirmation."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "Find TMDB movie and series candidates by an external identifier (administrator)",
+        "x-jelee-role": "administrator"
+      }
+    },
     "/api/v1/metadata/tmdb/movies": {
       "get": {
         "parameters": [
@@ -47146,6 +47426,363 @@
           }
         ],
         "summary": "Preview TMDB season or episode data (administrator)",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/metadata/tmdb/series/{id}/seasons/{season}/episodes/{episode}/images": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "episode",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Use this library's ordered image languages; omitted uses profile language defaults.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataImages"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Ordered episode still candidates with original provider URLs; every image needs confirmation. No image download or artwork write."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List TMDB season poster or episode still candidates for administrator confirmation",
+        "x-jelee-role": "administrator"
+      }
+    },
+    "/api/v1/metadata/tmdb/series/{id}/seasons/{season}/images": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Use this library's ordered image languages; omitted uses profile language defaults.",
+            "in": "query",
+            "name": "libraryId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetadataImages"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Ordered season poster candidates with original provider URLs; every image needs confirmation. No image download or artwork write."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "$ref": "#/components/examples/error_invalid_request"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 400"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authentication_required": {
+                    "$ref": "#/components/examples/error_authentication_required"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 401"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "forbidden": {
+                    "$ref": "#/components/examples/error_forbidden"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 403"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "$ref": "#/components/examples/error_not_found"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 404"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_timeout": {
+                    "$ref": "#/components/examples/error_request_timeout"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 408"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_ready": {
+                    "$ref": "#/components/examples/error_not_ready"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "HTTP 503"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal_error": {
+                    "$ref": "#/components/examples/error_internal_error"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Jelee error envelope with code, message, details and traceId; see the Error schema."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "webSession": []
+          }
+        ],
+        "summary": "List TMDB season poster or episode still candidates for administrator confirmation",
         "x-jelee-role": "administrator"
       }
     },

@@ -18,6 +18,7 @@ var (
 	ErrRateLimited = errors.New("tmdb_rate_limited")
 	ErrUnavailable = errors.New("tmdb_unavailable")
 	ErrResponse    = errors.New("tmdb_response_invalid")
+	ErrGovernance  = errors.New("tmdb_governance_invalid")
 )
 
 type TMDB struct {
@@ -127,6 +128,16 @@ func (t *TMDB) ValidateCredentials(ctx context.Context) error {
 	if json.Unmarshal(r.Body, &data) != nil || !data.Success || data.StatusCode != 1 {
 		return ErrResponse
 	}
+	return nil
+}
+
+// WithGovernance replaces the request budget. It must be called before the
+// adapter serves its first request; it is not safe for concurrent use.
+func (t *TMDB) WithGovernance(g Governance) error {
+	if !g.valid() {
+		return ErrGovernance
+	}
+	t.governor = newGovernedRequests(g)
 	return nil
 }
 
